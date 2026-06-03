@@ -577,7 +577,7 @@ const BASE = {
 };
 
 // ═══════════════ STATO ═══════════════
-let proj = 'a1', curId = null;
+let proj = 'a1', curId = null, curIsLocale = false;
 let D = JSON.parse(JSON.stringify(BASE));
 
 // ─── field labels per storico ───
@@ -1122,9 +1122,10 @@ function openM(uid) {
     <span class="chip">Tipologia: <strong>${u.tipo}</strong></span>
     <span class="chip">S.L.: <strong>${u.sl} mq</strong></span>
   `;
-  const st = u.st==='locale' ? 'disponibile' : u.st;
+  curIsLocale = u.st === 'locale';
+  const st = curIsLocale ? 'disponibile' : u.st;
   document.getElementById('fst').value   = st;
-  document.getElementById('fst').disabled = u.st==='locale';
+  document.getElementById('fst').disabled = curIsLocale;
   document.getElementById('fow').value   = u.owner   || '';
   document.getElementById('fcod').value  = u.codice  || '';
   document.getElementById('fph').value   = u.phone   || '';
@@ -1171,7 +1172,7 @@ function setFormLocked(locked) {
   fields.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (id === 'fst' && D[proj] && curId && D[proj].units[curId] && D[proj].units[curId].st === 'locale') {
+    if (id === 'fst' && curIsLocale) {
       el.disabled = true; return;
     }
     el.disabled = locked;
