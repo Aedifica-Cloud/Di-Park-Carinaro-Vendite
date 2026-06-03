@@ -1168,18 +1168,24 @@ function openM(uid) {
 }
 
 function setFormLocked(locked) {
-  const fields = ['fst','fow','fcod','fph','fem','fpr','fda','fbx','fac','fno','fdr','fnt'];
+  // tutti i campi tranne fst (stato) che gestiamo separatamente
+  const fields = ['fow','fcod','fph','fem','fpr','fda','fbx','fac','fno','fdr','fnt'];
   fields.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (id === 'fst' && curIsLocale) {
-      el.disabled = true; return;
-    }
     el.disabled = locked;
     el.style.background = locked ? '#f5f5f5' : '';
     el.style.color = locked ? '#555' : '';
     el.style.cursor = locked ? 'default' : '';
   });
+  // campo Stato: bloccato solo per i locali commerciali, sempre libero per tutti gli altri
+  const fst = document.getElementById('fst');
+  if (fst) {
+    fst.disabled = curIsLocale;
+    fst.style.background = curIsLocale ? '#f5f5f5' : '';
+    fst.style.color = curIsLocale ? '#555' : '';
+    fst.style.cursor = curIsLocale ? 'default' : '';
+  }
   // Drive button
   const drBtn = document.getElementById('fdr-btn');
   if (drBtn) drBtn.style.pointerEvents = locked ? 'none' : '';
