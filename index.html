@@ -1198,6 +1198,11 @@ function setFormLocked(locked) {
 
 function unlockForm() {
   setFormLocked(false);
+  // forza abilitazione stato per appartamenti non-locale
+  if (!curIsLocale) {
+    const fst = document.getElementById('fst');
+    if (fst) { fst.disabled = false; fst.style.background=''; fst.style.color=''; fst.style.cursor=''; }
+  }
 }
 
 function rb() {
