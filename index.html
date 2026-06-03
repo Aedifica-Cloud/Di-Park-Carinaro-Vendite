@@ -1163,7 +1163,7 @@ function openM(uid) {
   rb();
   renderHistory(u);
   switchMTab('scheda');
-  setFormLocked(true);
+  setFormLocked(curIsLocale); // locale → bloccato, tutti gli altri → subito modificabile
   document.getElementById('ov').classList.add('open');
 }
 
