@@ -6,6 +6,8 @@
 <title>D|Park Carinaro – Gestionale Vendite</title>
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- SheetJS per leggere file Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
   const SUPABASE_URL = "https://pwmqkqhefjlcmbhqghzk.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB3bXFrcWhlZmpsY21iaHFnaHprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzODg4MDksImV4cCI6MjA5NTk2NDgwOX0.xvfPXM2as8UKxXrEvOmwe0Eutj0kq9sQ1KRPj0ngkuM";
@@ -296,6 +298,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   <div class="tab" onclick="sw('a2')">Armonia 2</div>
   <div class="tab" onclick="sw('passione')">Passione</div>
   <div class="tab" onclick="sw('vittoria')">Vittoria</div>
+  <div class="tab" onclick="sw('incassi')">💶 Incassi</div>
   <div class="tab" onclick="sw('riepilogo')" style="margin-left:auto;">📊 Riepilogo</div>
 </div>
 
@@ -763,13 +766,15 @@ function renderPlan() {
 // ─── SWITCH PROJECT ───
 function sw(p) {
   proj = p;
-  const keys = ['a1','a2','passione','vittoria','riepilogo'];
+  const keys = ['a1','a2','passione','vittoria','incassi','riepilogo'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',keys[i]===p));
   const isDash = p==='riepilogo';
-  document.getElementById('kpi').style.display   = isDash ? 'none' : '';
-  document.querySelector('.legend').style.display = isDash ? 'none' : '';
-  if (isDash) { renderDashboard(); }
-  else { renderKPI(); renderPlan(); }
+  const isInc  = p==='incassi';
+  document.getElementById('kpi').style.display   = (isDash||isInc) ? 'none' : '';
+  document.querySelector('.legend').style.display = (isDash||isInc) ? 'none' : '';
+  if (isDash)     { renderDashboard(); }
+  else if (isInc) { renderIncassi(); }
+  else            { renderKPI(); renderPlan(); }
 }
 
 // ─── DASHBOARD ───
@@ -1370,6 +1375,148 @@ function clearHistory() {
 }
 
 document.addEventListener('keydown', e => { if (e.key==='Escape') cm(); });
+
+// ─── INCASSI ───
+let xlsxTotali = null;
+
+function handleXlsxUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+      let hdrIdx=-1, colPartita=-1, colTotale=-1, colTipo=-1;
+      for (let i=0; i<rows.length; i++) {
+        const pi = rows[i].indexOf('Partita');
+        if (pi !== -1) {
+          hdrIdx=i; colPartita=pi;
+          colTipo   = rows[i].indexOf('Cliente / Fornitore');
+          colTotale = rows[i].indexOf('Totale Partita');
+          break;
+        }
+      }
+      if (hdrIdx === -1) { alert('Formato non riconosciuto. Usa l\'estrazione "Situazione Scadenze" dal gestionale.'); return; }
+      const totali = {};
+      for (let i=hdrIdx+1; i<rows.length; i++) {
+        const r = rows[i];
+        if (!r || !r.length) continue;
+        const tipo = r[colTipo], partita = r[colPartita], tot = parseFloat(r[colTotale])||0;
+        if (tipo==='Cliente' && partita && String(partita).startsWith('DP')) {
+          const cod = String(partita).trim();
+          totali[cod] = (totali[cod]||0) + tot;
+        }
+      }
+      xlsxTotali = totali;
+      renderIncassi();
+    } catch(err) { alert('Errore lettura file: '+err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function fmtEurInc(n) {
+  if (n===null||n===undefined) return '—';
+  return new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);
+}
+
+function renderIncassi() {
+  const projKeys  = ['a1','a2','passione','vittoria'];
+  const projNames = {a1:'Armonia 1', a2:'Armonia 2', passione:'Passione', vittoria:'Vittoria'};
+  let gTotale=0, gIncassato=0, tableRows='';
+
+  for (const pk of projKeys) {
+    const units = D[pk]&&D[pk].units ? D[pk].units : {};
+    const lista = Object.entries(units).filter(([,u])=>u.codice&&u.codice.trim());
+    if (!lista.length) continue;
+    tableRows += `<tr style="background:#1a2e4a;color:#fff;">
+      <td colspan="6" style="padding:10px 14px;font-weight:800;font-size:13px;letter-spacing:.5px;">${projNames[pk]}</td></tr>`;
+    for (const [uKey,u] of lista) {
+      const cod      = u.codice.trim();
+      const prezzo   = parseFloat((u.price||'').replace(/\./g,'').replace(',','.')) || 0;
+      const incassato= xlsxTotali ? (xlsxTotali[cod]||0) : null;
+      const daInc    = (prezzo&&incassato!==null) ? prezzo-incassato : null;
+      gTotale += prezzo;
+      if (incassato!==null) gIncassato += incassato;
+      const incStr   = incassato!==null ? fmtEurInc(incassato) : '<span style="color:#999;font-size:11px;">carica Excel</span>';
+      const daStr    = daInc!==null ? fmtEurInc(daInc) : '—';
+      const daColor  = daInc!==null ? (daInc<=0?'#2e7d32':'#c62828') : '#333';
+      const noMatch  = xlsxTotali&&!xlsxTotali[cod] ? ' title="Codice non trovato nel file Excel"':'';
+      const codColor = xlsxTotali&&!xlsxTotali[cod] ? 'color:#b8860b;font-weight:700;':'';
+      tableRows += `<tr style="border-bottom:1px solid #f0e8dc;">
+        <td style="padding:9px 14px;font-size:12px;">${u.lbl||uKey}</td>
+        <td style="padding:9px 14px;font-size:12px;">${u.owner||'—'}</td>
+        <td style="padding:9px 14px;font-size:11px;font-family:monospace;${codColor}"${noMatch}>${cod}</td>
+        <td style="padding:9px 14px;font-size:12px;text-align:right;">${prezzo?fmtEurInc(prezzo):'—'}</td>
+        <td style="padding:9px 14px;font-size:12px;text-align:right;color:#2e7d32;font-weight:700;">${incStr}</td>
+        <td style="padding:9px 14px;font-size:12px;text-align:right;color:${daColor};font-weight:700;">${daStr}</td>
+      </tr>`;
+    }
+  }
+
+  const gDaInc = gTotale - gIncassato;
+  const kpiHtml = xlsxTotali ? `
+    <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:16px 20px;border:1px solid #e0d8cc;">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:4px;">Totale Contratti</div>
+        <div style="font-size:20px;font-weight:800;color:#1a2e4a;">${fmtEurInc(gTotale)}</div>
+      </div>
+      <div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:16px 20px;border:1px solid #e0d8cc;">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:4px;">Incassato</div>
+        <div style="font-size:20px;font-weight:800;color:#2e7d32;">${fmtEurInc(gIncassato)}</div>
+      </div>
+      <div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:16px 20px;border:1px solid #e0d8cc;">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:4px;">Da Incassare</div>
+        <div style="font-size:20px;font-weight:800;color:#c62828;">${fmtEurInc(gDaInc)}</div>
+      </div>
+    </div>` : '';
+
+  const avvisoExcel = !xlsxTotali ? `
+    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:20px 24px;margin-bottom:24px;color:#795548;font-size:13px;">
+      ⚠️ Carica il file Excel per vedere gli importi incassati.
+    </div>` : '';
+
+  const senzaCodice = projKeys.flatMap(pk=>Object.values(D[pk]&&D[pk].units?D[pk].units:{})).filter(u=>!u.codice&&u.st==='venduto'&&u.accordo==='Acquisto').length;
+  const avvisoCodice = senzaCodice>0 ? `
+    <div style="background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#e65100;">
+      ℹ️ ${senzaCodice} appartamento/i venduto/i non hanno ancora il campo "Codice" compilato nella scheda — aprili e aggiungilo per vederli qui.
+    </div>` : '';
+
+  document.getElementById('content').innerHTML = `
+    <div style="padding:24px;max-width:960px;margin:0 auto;">
+      <h2 style="font-size:20px;font-weight:800;color:#1a2e4a;margin-bottom:6px;">💶 Situazione Incassi</h2>
+      <p style="font-size:13px;color:#666;margin-bottom:20px;">Carica l'estrazione dal gestionale per aggiornare gli importi incassati per ogni appartamento.</p>
+      <div style="background:#fff;border-radius:10px;padding:20px 24px;border:1px solid #e0d8cc;margin-bottom:24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#1a2e4a;margin-bottom:4px;">Carica file Excel dal gestionale</div>
+          <div style="font-size:11px;color:#999;">Estrazione "Situazione Scadenze" — filtra automaticamente clienti con codice DP</div>
+        </div>
+        <label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;white-space:nowrap;">
+          📂 Scegli file Excel
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleXlsxUpload(this)">
+        </label>
+        ${xlsxTotali?`<span style="color:#2e7d32;font-size:12px;font-weight:700;">✅ File caricato — ${Object.keys(xlsxTotali).length} codici trovati</span>`:''}
+      </div>
+      ${kpiHtml}${avvisoExcel}${avvisoCodice}
+      ${tableRows ? `
+      <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e0d8cc;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#f5f0e8;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#666;">
+              <th style="padding:10px 14px;text-align:left;">Unità</th>
+              <th style="padding:10px 14px;text-align:left;">Proprietario</th>
+              <th style="padding:10px 14px;text-align:left;">Codice Partita</th>
+              <th style="padding:10px 14px;text-align:right;">Totale</th>
+              <th style="padding:10px 14px;text-align:right;">Incassato</th>
+              <th style="padding:10px 14px;text-align:right;">Da Incassare</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>` : '<p style="color:#999;font-size:13px;">Nessun appartamento ha ancora il campo "Codice" compilato.</p>'}
+    </div>`;
+}
 
 // ─── INIT ───
 load(); sw('a1');
