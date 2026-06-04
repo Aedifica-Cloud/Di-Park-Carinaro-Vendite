@@ -694,7 +694,6 @@ function renderKPI() {
     <div class="kpi v"><div class="kl">Vendute</div><div class="kv">${v}</div><div class="ks">${pv}% delle res.</div></div>
     <div class="kpi r"><div class="kl">Riservate</div><div class="kv">${r}</div><div class="ks">${pr}% delle res.</div></div>
     <div class="kpi d"><div class="kl">Disponibili</div><div class="kv">${d}</div><div class="ks">${pd}% delle res.</div></div>
-    <div class="kpi e"><div class="kl">Valore Concordato</div><div class="kv">${eur>0?'€ '+eur.toLocaleString('it-IT'):'—'}</div><div class="ks">somma prezzi inseriti</div></div>
     <div class="kpi" style="background:#f0f4ff;border-color:#c8d8f8">
       <div class="kl">Ricavi Preventivati</div>
       <div class="kv" style="color:#3a5fa0;font-size:15px">€ ${prevTot.toLocaleString('it-IT')}</div>
@@ -704,6 +703,11 @@ function renderKPI() {
       <div class="kl">Ricavi Effettivi</div>
       <div class="kv" style="color:#b8860b;font-size:15px">${eur>0?'€ '+eur.toLocaleString('it-IT'):'—'}</div>
       <div class="ks">somma vendite con prezzo</div>
+    </div>
+    <div class="kpi" style="background:#fff0f0;border-color:#f8c8c8">
+      <div class="kl">Ricavi da Effettuare</div>
+      <div class="kv" style="color:#c62828;font-size:15px">€ ${(prevTot-eur).toLocaleString('it-IT')}</div>
+      <div class="ks">preventivati − effettivi</div>
     </div>
     <div class="kpi" style="background:#f0f4ff;border-color:#c8d8f8">
       <div class="kl">Prezzo/mq Preventivato</div>
@@ -778,7 +782,7 @@ function sw(p) {
 }
 
 // ─── DASHBOARD ───
-const PRICE_PER_MQ = 2500;
+const PRICE_PER_MQ = 2000;
 
 function parseSL(sl) {
   if (!sl || sl === '—') return 0;
