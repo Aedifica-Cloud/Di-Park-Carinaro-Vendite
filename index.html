@@ -341,6 +341,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
             <option value="disponibile">🟢 Disponibile</option>
             <option value="riservato">🟠 Riservato</option>
             <option value="venduto">🔴 Venduto</option>
+            <option value="locale">🏪 Locale Commerciale</option>
           </select>
         </div>
         <div class="fg full">
@@ -1122,10 +1123,9 @@ function openM(uid) {
     <span class="chip">Tipologia: <strong>${u.tipo}</strong></span>
     <span class="chip">S.L.: <strong>${u.sl} mq</strong></span>
   `;
-  curIsLocale = u.st === 'locale';
-  const st = curIsLocale ? 'disponibile' : u.st;
-  document.getElementById('fst').value   = st;
-  document.getElementById('fst').disabled = curIsLocale;
+  curIsLocale = false;
+  document.getElementById('fst').value   = u.st;
+  document.getElementById('fst').disabled = false;
   document.getElementById('fow').value   = u.owner   || '';
   document.getElementById('fcod').value  = u.codice  || '';
   document.getElementById('fph').value   = u.phone   || '';
@@ -1338,7 +1338,7 @@ function save() {
   };
 
   // apply new values
-  if (u.st !== 'locale') u.st = document.getElementById('fst').value;
+  u.st = document.getElementById('fst').value;
   u.owner   = document.getElementById('fow').value.trim();
   u.codice  = document.getElementById('fcod').value.trim();
   u.phone   = document.getElementById('fph').value.trim();
