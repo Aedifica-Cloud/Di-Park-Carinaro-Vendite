@@ -1233,7 +1233,105 @@ function renderDashboard() {
     </div>`;
   }).join('');
 
+  // ── Previsione incassi ──
+  const today = new Date(); today.setHours(0,0,0,0);
+  let totPianificato=0, totIncassato=0, totConData=0, totSenzaData=0;
+  const prossimi = []; // pagamenti futuri non incassati
+
+  allUnitsFlat.forEach(({uid, u, proj: pName}) => {
+    (u.sal||[]).forEach(r => {
+      const imp = parseFloat(r.importo)||0;
+      totPianificato += imp;
+      if (r.incassato) {
+        totIncassato += imp;
+      } else if (r.dataPrev) {
+        totConData += imp;
+        const d = new Date(r.dataPrev);
+        prossimi.push({ data:d, dataTxt: r.dataPrev.split('-').reverse().join('/'), label: r.label||'', importo: imp, owner: u.owner||uid, proj: pName, scaduto: d < today });
+      } else {
+        totSenzaData += imp;
+      }
+    });
+  });
+  prossimi.sort((a,b) => a.data - b.data);
+
+  // previsione mensile futura
+  const prevMap = {};
+  prossimi.forEach(r => {
+    const ym = r.data.toISOString().slice(0,7);
+    prevMap[ym] = (prevMap[ym]||0) + r.importo;
+  });
+  const prevKeys = Object.keys(prevMap).sort();
+  const prevMax  = Math.max(...Object.values(prevMap), 1);
+  let prevCumul  = totIncassato;
+  const prevBars = prevKeys.map(ym => {
+    const v = prevMap[ym];
+    prevCumul += v;
+    const pct = Math.round(v/prevMax*100);
+    const [y,m] = ym.split('-');
+    const mName = new Date(y,m-1).toLocaleString('it-IT',{month:'short',year:'2-digit'});
+    const isScaduto = new Date(ym+'-01') < today;
+    return `<div class="cf-bar-row">
+      <div class="cf-bar-lbl">${mName}</div>
+      <div class="cf-bar-track"><div class="cf-bar-fill" style="width:${pct}%;background:${isScaduto?'#c62828':'#2e7d32'}">€ ${v.toLocaleString('it-IT')}</div></div>
+      <div class="cf-bar-val" style="color:${isScaduto?'#c62828':'var(--navy)'}">cum. € ${prevCumul.toLocaleString('it-IT')}</div>
+    </div>`;
+  }).join('');
+
+  const prossimiRows = prossimi.slice(0,20).map(r => {
+    const cls = r.scaduto ? 'color:#c62828;font-weight:700' : 'color:#333';
+    const badge = r.scaduto ? '<span style="background:#ffebee;color:#c62828;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px;">SCADUTO</span>' : '';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0e8dc;gap:8px;flex-wrap:wrap;">
+      <div style="min-width:90px;font-size:12px;font-weight:700;${cls}">${r.dataTxt}${badge}</div>
+      <div style="flex:1;min-width:140px;">
+        <div style="font-size:12px;font-weight:700;color:#1a2e4a;">${esc(r.owner)}</div>
+        <div style="font-size:10px;color:#999;">${r.proj} · ${esc(r.label)}</div>
+      </div>
+      <div style="font-size:13px;font-weight:800;color:#2e7d32;">€ ${r.importo.toLocaleString('it-IT')}</div>
+    </div>`;
+  }).join('');
+
+  const previsioneHtml = allUnitsFlat.length ? `
+  <div>
+    <div class="dash-section-title">📅 Previsione Incassi SAL</div>
+    <div class="cf-wrap" style="margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:20px;">
+        <div style="background:var(--bg);border-radius:8px;padding:12px 16px;">
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:4px;">Totale SAL Pianificato</div>
+          <div style="font-size:18px;font-weight:800;color:#1a2e4a;">€ ${totPianificato.toLocaleString('it-IT')}</div>
+        </div>
+        <div style="background:#e8f5e9;border-radius:8px;padding:12px 16px;">
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:4px;">Già Incassato</div>
+          <div style="font-size:18px;font-weight:800;color:#2e7d32;">€ ${totIncassato.toLocaleString('it-IT')}</div>
+          <div style="font-size:10px;color:#999;">${totPianificato>0?Math.round(totIncassato/totPianificato*100):0}% del totale</div>
+        </div>
+        <div style="background:#fff3e0;border-radius:8px;padding:12px 16px;">
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:4px;">Da Incassare (con data)</div>
+          <div style="font-size:18px;font-weight:800;color:#e65100;">€ ${totConData.toLocaleString('it-IT')}</div>
+          <div style="font-size:10px;color:#999;">${prossimi.length} rata/e programmate</div>
+        </div>
+        <div style="background:#fafafa;border:1px solid #eee;border-radius:8px;padding:12px 16px;">
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:4px;">Da Pianificare (senza data)</div>
+          <div style="font-size:18px;font-weight:800;color:#888;">€ ${totSenzaData.toLocaleString('it-IT')}</div>
+        </div>
+      </div>
+      ${prossimi.length ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:10px;">Prossimi Incassi</div>
+          ${prossimiRows}
+          ${prossimi.length>20?`<div style="font-size:11px;color:#999;padding-top:8px;">... e altri ${prossimi.length-20} pagamenti</div>`:''}
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:10px;">Previsione Mensile <span style="color:#c62828;">■</span> scaduto <span style="color:#2e7d32;">■</span> futuro</div>
+          ${prevBars||'<p style="color:#999;font-size:12px;">Nessuna data prevista inserita.</p>'}
+        </div>
+      </div>` : '<p style="color:#999;font-size:13px;padding:8px 0">Nessuna rata futura programmata. Aggiungi date previste nelle schede SAL.</p>'}
+    </div>
+  </div>` : '';
+
   const salSection = `
+  ${previsioneHtml}
   <div>
     <div class="dash-section-title">SAL per Cliente</div>
     <div class="cf-wrap">
