@@ -679,7 +679,7 @@ function renderKPI() {
   const eurF = u => parseFloat((u.price||'').replace(/\./g,'').replace(',','.')) || 0;
   const eur = vUnits.reduce((s,u)=>s+eurF(u),0);
   // ricavi preventivati = €2500 × mq di tutte le unità
-  const prevTot = Math.round(allUnits.reduce((s,u)=>s+parseSL(u.sl),0) * PRICE_PER_MQ);
+  const prevTot = Math.round(allUnits.reduce((s,u)=>s+parseSL(u.sl),0) * PRICE_PER_MQ) + calcBoxRevenue(proj);
   // mq venduti (con prezzo inserito)
   const vConPrezzo = vUnits.filter(u=>eurF(u)>0);
   const mqVenduti = vConPrezzo.reduce((s,u)=>s+parseSL(u.sl),0);
@@ -697,7 +697,7 @@ function renderKPI() {
     <div class="kpi" style="background:#f0f4ff;border-color:#c8d8f8">
       <div class="kl">Ricavi Preventivati</div>
       <div class="kv" style="color:#3a5fa0;font-size:15px">€ ${prevTot.toLocaleString('it-IT')}</div>
-      <div class="ks">€${PRICE_PER_MQ.toLocaleString('it-IT')}/mq × tot. mq</div>
+      <div class="ks">appart. €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq${proj==='a1'?' + box €'+BOX_PRICE_PER_MQ.toLocaleString('it-IT')+'/mq':''}</div>
     </div>
     <div class="kpi" style="background:#fffbe6;border-color:#f0d060">
       <div class="kl">Ricavi Effettivi</div>
@@ -764,57 +764,81 @@ function renderPlan() {
     });
     html += `</div></div>`;
   });
-  // Aggiungi box auto sotto Armonia 1
-  if (proj === 'a1') html += renderBoxAuto();
+  // Aggiungi box auto sotto Armonia 1 e sotto Vittoria
+  if (proj === 'a1')       html += renderBoxAuto();
+  if (proj === 'vittoria') html += renderBoxAutoVittoria();
+  if (proj === 'passione') html += renderBoxAutoPassione();
   document.getElementById('content').innerHTML = html;
 }
 
 // ─── BOX AUTO ARMONIA 1 E 2 ───
+// ── Dati box Armonia 1 e 2 ──
 const BOXES_A1A2 = [
-  // Fila sinistra — box grandi
   {n:1,  mq:'42,80', tipo:'singolo'}, {n:2,  mq:'37,15', tipo:'singolo'},
   {n:3,  mq:'34,50', tipo:'singolo'}, {n:4,  mq:'33,60', tipo:'singolo'},
   {n:5,  mq:'29,70', tipo:'singolo'}, {n:6,  mq:'29,00', tipo:'singolo'},
-  // Fila centrale — medi
   {n:7,  mq:'21,28', tipo:'singolo'}, {n:8,  mq:'21,70', tipo:'singolo'},
   {n:9,  mq:'23,50', tipo:'singolo'}, {n:10, mq:'51,00', tipo:'doppio'},
-  // Fila centrale bassa
   {n:11, mq:'25,50', tipo:'singolo'}, {n:12, mq:'29,00', tipo:'singolo'},
   {n:13, mq:'24,10', tipo:'singolo'}, {n:14, mq:'18,60', tipo:'singolo'},
   {n:15, mq:'21,30', tipo:'singolo'}, {n:16, mq:'21,30', tipo:'singolo'},
-  {n:17, mq:'23,00', tipo:'singolo'},
-  // Fila destra — singoli piccoli
-  {n:18, mq:'18,00', tipo:'singolo'}, {n:19, mq:'18,00', tipo:'singolo'},
-  {n:20, mq:'18,00', tipo:'singolo'}, {n:21, mq:'18,00', tipo:'singolo'},
-  {n:22, mq:'15,70', tipo:'singolo'}, {n:23, mq:'15,70', tipo:'singolo'},
-  {n:24, mq:'15,70', tipo:'singolo'},
-  // Doppi e box extra
+  {n:17, mq:'23,00', tipo:'singolo'}, {n:18, mq:'18,00', tipo:'singolo'},
+  {n:19, mq:'18,00', tipo:'singolo'}, {n:20, mq:'18,00', tipo:'singolo'},
+  {n:21, mq:'18,00', tipo:'singolo'}, {n:22, mq:'15,70', tipo:'singolo'},
+  {n:23, mq:'15,70', tipo:'singolo'}, {n:24, mq:'15,70', tipo:'singolo'},
   {n:25, mq:'52,00', tipo:'doppio'},  {n:26, mq:'20,50', tipo:'singolo'},
   {n:27, mq:'31,15', tipo:'doppio'},  {n:28, mq:'32,10', tipo:'doppio'},
   {n:29, mq:'30,30', tipo:'doppio'},  {n:30, mq:'31,10', tipo:'doppio'},
-  // Fila finale — singoli piccoli
   {n:31, mq:'18,00', tipo:'singolo'}, {n:32, mq:'18,00', tipo:'singolo'},
   {n:33, mq:'18,00', tipo:'singolo'}, {n:34, mq:'18,00', tipo:'singolo'},
   {n:35, mq:'15,70', tipo:'singolo'},
 ];
 
-function renderBoxAuto() {
-  // Raggruppa i box per aree corrispondenti al piano interrato
-  const sezioni = [
-    { label: 'Fila A — Box grandi', box: [1,2,3,4,5,6] },
-    { label: 'Fila B — Box medi', box: [7,8,9,10] },
-    { label: 'Fila C', box: [11,12,13,14,15,16,17] },
-    { label: 'Fila D — Box piccoli', box: [18,19,20,21,22,23,24] },
-    { label: 'Fila E — Box doppi e singoli', box: [25,26,27,28,29,30] },
-    { label: 'Fila F — Box piccoli', box: [31,32,33,34,35] },
-  ];
+// ── Dati box Vittoria ──
+const BOXES_VITTORIA = [
+  // Edilizia Privata
+  {n:1,  mq:'34,68', tipo:'doppio',  cat:'privata'},
+  {n:2,  mq:'32,62', tipo:'singolo', cat:'privata'},
+  {n:3,  mq:'30,00', tipo:'singolo', cat:'privata'},
+  {n:4,  mq:'36,00', tipo:'doppio',  cat:'privata'},
+  {n:5,  mq:'35,40', tipo:'doppio',  cat:'privata'},
+  {n:6,  mq:'50,00', tipo:'doppio',  cat:'privata'},
+  {n:7,  mq:'27,00', tipo:'singolo', cat:'privata'},
+  {n:8,  mq:'44,00', tipo:'doppio',  cat:'privata'},
+  {n:9,  mq:'42,00', tipo:'doppio',  cat:'privata'},
+  {n:10, mq:'40,00', tipo:'doppio',  cat:'privata'},
+  {n:11, mq:'33,60', tipo:'singolo', cat:'privata'},
+  {n:12, mq:'33,60', tipo:'singolo', cat:'privata'},
+  {n:13, mq:'33,60', tipo:'singolo', cat:'privata'},
+  {n:14, mq:'33,60', tipo:'singolo', cat:'privata'},
+  {n:15, mq:'30,00', tipo:'singolo', cat:'privata'},
+  {n:16, mq:'22,47', tipo:'singolo', cat:'privata'},
+  {n:17, mq:'25,90', tipo:'singolo', cat:'privata'},
+  {n:18, mq:'21,00', tipo:'singolo', cat:'privata'},
+  {n:19, mq:'20,00', tipo:'singolo', cat:'privata'},
+  {n:20, mq:'19,80', tipo:'singolo', cat:'privata'},
+  {n:21, mq:'28,62', tipo:'singolo', cat:'privata'},
+  {n:22, mq:'28,80', tipo:'singolo', cat:'privata'},
+  // Edilizia Sociale (ERS)
+  {n:23, mq:'38,70', tipo:'doppio',  cat:'sociale'},
+  {n:24, mq:'42,00', tipo:'doppio',  cat:'sociale'},
+  {n:25, mq:'38,70', tipo:'doppio',  cat:'sociale'},
+  {n:26, mq:'41,80', tipo:'doppio',  cat:'sociale'},
+  {n:27, mq:'60,00', tipo:'doppio',  cat:'sociale'},
+  {n:28, mq:'30,00', tipo:'singolo', cat:'sociale'},
+  {n:29, mq:'29,60', tipo:'doppio',  cat:'sociale'},
+  {n:30, mq:'19,61', tipo:'doppio',  cat:'sociale'},
+  {n:31, mq:'21,20', tipo:'doppio',  cat:'sociale'},
+];
 
+// ── Funzione generica per rendering sezione box ──
+function renderBoxSection(titolo, boxes, sezioni, projKeys) {
   const boxMap = {};
-  BOXES_A1A2.forEach(b => boxMap[b.n] = b);
+  boxes.forEach(b => boxMap[b.n] = b);
 
-  // Trova proprietario da D (confrontando il campo box degli appartamenti)
   const ownerMap = {};
-  ['a1','a2'].forEach(pk => {
+  projKeys.forEach(pk => {
+    if (!D[pk]) return;
     Object.values(D[pk].units).forEach(u => {
       if (u.box) {
         String(u.box).split('/').forEach(nb => {
@@ -825,13 +849,19 @@ function renderBoxAuto() {
     });
   });
 
+  const totMq = boxes.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')), 0);
+  const totRev = Math.round(totMq * BOX_PRICE_PER_MQ);
+
   let html = `
   <div style="margin-top:32px;">
-    <div class="proj-title">🅿️ Box Auto — Armonia 1 e 2 <span style="font-size:12px;font-weight:400;color:#888;">(Piano Interrato)</span></div>
-    <div style="display:flex;gap:16px;margin-bottom:18px;flex-wrap:wrap;">
-      <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:18px;height:18px;background:#dbeafe;border:1.5px solid #93c5fd;border-radius:3px;display:inline-block;"></span> Singolo</div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:18px;height:18px;background:#fef9c3;border:1.5px solid #fde047;border-radius:3px;display:inline-block;"></span> Doppio</div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:18px;height:18px;background:#dcfce7;border:1.5px solid #86efac;border-radius:3px;display:inline-block;"></span> Assegnato</div>
+    <div class="proj-title">🅿️ ${titolo} <span style="font-size:12px;font-weight:400;color:#888;">(Piano Interrato)</span></div>
+    <div style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:16px;height:16px;background:#dbeafe;border:1.5px solid #93c5fd;border-radius:3px;display:inline-block;"></span> Singolo</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:16px;height:16px;background:#fef9c3;border:1.5px solid #fde047;border-radius:3px;display:inline-block;"></span> Doppio</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:16px;height:16px;background:#dcfce7;border:1.5px solid #86efac;border-radius:3px;display:inline-block;"></span> Assegnato</div>
+      <div style="margin-left:auto;background:#f0f4ff;border:1px solid #c8d8f8;border-radius:8px;padding:6px 14px;font-size:12px;color:#3a5fa0;font-weight:700;">
+        ${boxes.length} box · ${totMq.toLocaleString('it-IT',{maximumFractionDigits:0})} mq totali · Rev. prev. € ${totRev.toLocaleString('it-IT')}
+      </div>
     </div>`;
 
   sezioni.forEach(sez => {
@@ -841,11 +871,12 @@ function renderBoxAuto() {
     sez.box.forEach(n => {
       const b = boxMap[n];
       if (!b) return;
-      const owner = ownerMap[n] || '';
+      const owner    = ownerMap[n] || '';
       const isDoppio = b.tipo === 'doppio';
-      const bg   = owner ? '#dcfce7' : isDoppio ? '#fef9c3' : '#dbeafe';
-      const brd  = owner ? '#86efac' : isDoppio ? '#fde047' : '#93c5fd';
-      const w    = isDoppio ? 110 : 80;
+      const isSoc    = b.cat === 'sociale';
+      const bg  = owner ? '#dcfce7' : isSoc ? '#ede9f8' : isDoppio ? '#fef9c3' : '#dbeafe';
+      const brd = owner ? '#86efac' : isSoc ? '#c4b5fd' : isDoppio ? '#fde047' : '#93c5fd';
+      const w   = isDoppio ? 110 : 80;
       html += `<div style="width:${w}px;background:${bg};border:2px solid ${brd};border-radius:6px;padding:8px 6px;text-align:center;">
         <div style="font-size:16px;font-weight:800;color:#1a2e4a;">${n}</div>
         <div style="font-size:9px;color:#555;margin:2px 0;">${b.mq} mq</div>
@@ -858,6 +889,56 @@ function renderBoxAuto() {
 
   html += `</div>`;
   return html;
+}
+
+function renderBoxAuto() {
+  const sezioni = [
+    { label: 'Fila A — Box grandi',         box: [1,2,3,4,5,6] },
+    { label: 'Fila B — Box medi',            box: [7,8,9,10] },
+    { label: 'Fila C',                       box: [11,12,13,14,15,16,17] },
+    { label: 'Fila D — Box piccoli',         box: [18,19,20,21,22,23,24] },
+    { label: 'Fila E — Box doppi e singoli', box: [25,26,27,28,29,30] },
+    { label: 'Fila F — Box piccoli',         box: [31,32,33,34,35] },
+  ];
+  return renderBoxSection('Box Auto — Armonia 1 e 2', BOXES_A1A2, sezioni, ['a1','a2']);
+}
+
+function renderBoxAutoVittoria() {
+  const sezioni = [
+    { label: 'Edilizia Privata — Corsia superiore', box: [20,19,18,17,16,1,2,3,4,5,21] },
+    { label: 'Edilizia Privata — Corsia inferiore', box: [15,14,13,12,11,10,9,8,7,6,22] },
+    { label: 'Edilizia Sociale (ERS) — Fila A',     box: [28,29,30,31] },
+    { label: 'Edilizia Sociale (ERS) — Fila B',     box: [27,26,25,24,23] },
+  ];
+  return renderBoxSection('Box Auto — Vittoria', BOXES_VITTORIA, sezioni, ['vittoria']);
+}
+
+// ── Dati box Passione ──
+const BOXES_PASSIONE = [
+  {n:1,  mq:'39,64', tipo:'singolo'},
+  {n:2,  mq:'27,40', tipo:'singolo'},
+  {n:3,  mq:'30,00', tipo:'singolo'},
+  {n:4,  mq:'27,20', tipo:'singolo'},
+  {n:5,  mq:'20,60', tipo:'singolo'},
+  {n:6,  mq:'29,55', tipo:'singolo'},
+  {n:7,  mq:'18,50', tipo:'singolo'},
+  {n:8,  mq:'18,50', tipo:'singolo'},
+  {n:9,  mq:'18,50', tipo:'singolo'},
+  {n:10, mq:'27,00', tipo:'singolo'},
+  {n:11, mq:'20,60', tipo:'singolo'},
+  {n:12, mq:'18,50', tipo:'singolo'},
+  {n:13, mq:'18,50', tipo:'singolo'},
+  {n:14, mq:'30,00', tipo:'singolo'},
+  {n:15, mq:'29,00', tipo:'singolo'},
+  {n:16, mq:'25,00', tipo:'singolo'},
+];
+
+function renderBoxAutoPassione() {
+  const sezioni = [
+    { label: 'Fila superiore', box: [7,8,9,11,12,13,16] },
+    { label: 'Fila inferiore', box: [1,2,3,4,5,6,10,14,15] },
+  ];
+  return renderBoxSection('Box Auto — Passione', BOXES_PASSIONE, sezioni, ['passione']);
 }
 
 // ─── SWITCH PROJECT ───
@@ -876,6 +957,14 @@ function sw(p) {
 
 // ─── DASHBOARD ───
 const PRICE_PER_MQ = 2000;
+const BOX_PRICE_PER_MQ = 1000;
+// Ricavo preventivato box per progetto
+function calcBoxRevenue(proj) {
+  if (proj === 'a1')       return Math.round(BOXES_A1A2.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
+  if (proj === 'vittoria') return Math.round(BOXES_VITTORIA.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
+  if (proj === 'passione') return Math.round(BOXES_PASSIONE.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
+  return 0;
+}
 
 function parseSL(sl) {
   if (!sl || sl === '—') return 0;
@@ -895,7 +984,7 @@ function projStats(key) {
   const prev = u => Math.round(parseSL(u.sl) * PRICE_PER_MQ);
   const ricavi       = v.reduce((s,u)=>s+eur(u),0);
   const prevTotRes   = res.reduce((s,u)=>s+prev(u),0);
-  const prevTotAll   = all.reduce((s,u)=>s+prev(u),0);
+  const prevTotAll   = all.reduce((s,u)=>s+prev(u),0) + calcBoxRevenue(key);
   const prevVenduti  = v.reduce((s,u)=>s+prev(u),0);
   const acq = [...v,...r].filter(u=>u.accordo==='Acquisto');
   const per = [...v,...r].filter(u=>u.accordo==='Permuta');
