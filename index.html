@@ -362,7 +362,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
         </div>
         <div class="fg">
           <label>Prezzo Concordato (€)</label>
-          <input id="fpr" type="text" placeholder="es. 185000">
+          <input id="fpr" type="text" placeholder="es. 185.000">
         </div>
         <div class="fg">
           <label>Data Accordo</label>
@@ -697,7 +697,7 @@ function renderKPI() {
     <div class="kpi" style="background:#f0f4ff;border-color:#c8d8f8">
       <div class="kl">Ricavi Preventivati</div>
       <div class="kv" style="color:#3a5fa0;font-size:15px">€ ${prevTot.toLocaleString('it-IT')}</div>
-      <div class="ks">appart. €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq${proj==='a1'?' + box €'+BOX_PRICE_PER_MQ.toLocaleString('it-IT')+'/mq':''}</div>
+      <div class="ks">appart. €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq${(proj==='a1'||proj==='a2')?' + box €'+BOX_PRICE_PER_MQ.toLocaleString('it-IT')+'/mq (50%)':''}</div>
     </div>
     <div class="kpi" style="background:#fffbe6;border-color:#f0d060">
       <div class="kl">Ricavi Effettivi</div>
@@ -960,7 +960,9 @@ const PRICE_PER_MQ = 2000;
 const BOX_PRICE_PER_MQ = 1000;
 // Ricavo preventivato box per progetto
 function calcBoxRevenue(proj) {
-  if (proj === 'a1')       return Math.round(BOXES_A1A2.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
+  const totA1A2 = BOXES_A1A2.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0);
+  if (proj === 'a1')       return Math.round(totA1A2 / 2);
+  if (proj === 'a2')       return Math.floor(totA1A2 / 2);
   if (proj === 'vittoria') return Math.round(BOXES_VITTORIA.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
   if (proj === 'passione') return Math.round(BOXES_PASSIONE.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
   return 0;
@@ -1001,6 +1003,18 @@ function projStats(key) {
     deltaV, vConPrezzo: vConPrezzo.length,
     acq:acq.length, per:per.length, tra:tra.length, boxN, drv
   };
+}
+
+// Formatta stringa prezzo con separatore migliaia italiano: "310000" → "310.000"
+function formatPriceDisplay(str) {
+  if (!str) return '';
+  const n = parseFloat(String(str).replace(/\./g,'').replace(',','.'));
+  if (isNaN(n)) return str;
+  return n.toLocaleString('it-IT', {maximumFractionDigits:0});
+}
+// Rimuove formattazione per salvare: "310.000" → "310000"
+function parsePriceInput(str) {
+  return String(str).replace(/\./g,'').replace(',','').trim();
 }
 
 function fmtEur(n) {
@@ -1414,7 +1428,7 @@ function openM(uid) {
   document.getElementById('fcod').value  = u.codice  || '';
   document.getElementById('fph').value   = u.phone   || '';
   document.getElementById('fem').value   = u.email   || '';
-  document.getElementById('fpr').value   = u.price   || '';
+  document.getElementById('fpr').value   = formatPriceDisplay(u.price);
   document.getElementById('fda').value   = u.date    || '';
   document.getElementById('fbx').value   = u.box     || '';
   document.getElementById('fac').value   = u.accordo || '';
@@ -1505,7 +1519,17 @@ document.addEventListener('input', e => {
   if (e.target.id==='fpr' && curId) {
     const u = D[proj].units[curId];
     const sl = parseSL(u.sl), prevEur = sl>0?Math.round(sl*PRICE_PER_MQ):0;
-    const concEur = parseFloat((e.target.value||'').replace(/\./g,'').replace(',','.')) || 0;
+    // Formatta con separatore migliaia mentre si digita
+    const raw = e.target.value.replace(/\./g,'').replace(/[^0-9]/g,'');
+    if (raw !== '') {
+      const cursor = e.target.selectionStart;
+      const formatted = parseInt(raw,10).toLocaleString('it-IT');
+      e.target.value = formatted;
+      // Riposiziona il cursore tenendo conto dei punti aggiunti
+      const diff = formatted.length - (e.target.value.length);
+      try { e.target.setSelectionRange(cursor + (formatted.length - raw.length), cursor + (formatted.length - raw.length)); } catch(_){}
+    }
+    const concEur = parseFloat(raw) || 0;
     const delta = prevEur>0 && concEur>0 ? concEur-prevEur : null;
     const box2 = document.getElementById('mprev').children[1];
     if (box2) box2.querySelector('.mprev-val').textContent = concEur>0 ? '€ '+concEur.toLocaleString('it-IT') : '—';
@@ -1627,7 +1651,7 @@ function save() {
   u.codice  = document.getElementById('fcod').value.trim();
   u.phone   = document.getElementById('fph').value.trim();
   u.email   = document.getElementById('fem').value.trim();
-  u.price   = document.getElementById('fpr').value.trim();
+  u.price   = parsePriceInput(document.getElementById('fpr').value);
   u.date    = document.getElementById('fda').value;
   u.box     = document.getElementById('fbx').value.trim();
   u.accordo = document.getElementById('fac').value;
