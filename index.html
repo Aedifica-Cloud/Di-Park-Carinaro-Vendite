@@ -697,7 +697,7 @@ function renderKPI() {
     <div class="kpi" style="background:#f0f4ff;border-color:#c8d8f8">
       <div class="kl">Ricavi Preventivati</div>
       <div class="kv" style="color:#3a5fa0;font-size:15px">€ ${prevTot.toLocaleString('it-IT')}</div>
-      <div class="ks">appart. €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq${(proj==='a1'||proj==='a2')?' + box €'+BOX_PRICE_PER_MQ.toLocaleString('it-IT')+'/mq (50%)':''}</div>
+      <div class="ks">appart. €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq + box €${BOX_PRICE_PER_MQ.toLocaleString('it-IT')}/mq${(proj==='a1'||proj==='a2')?' (50%)':''}</div>
     </div>
     <div class="kpi" style="background:#fffbe6;border-color:#f0d060">
       <div class="kl">Ricavi Effettivi</div>
