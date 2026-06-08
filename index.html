@@ -295,7 +295,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
 </div>
 
 <div class="tabs">
-  <div class="tab active" onclick="sw('a1')">Armonia 1</div>
+  <div class="tab active" onclick="sw('lotti')">🗺️ Lotti</div>
+  <div class="tab" onclick="sw('a1')">Armonia 1</div>
   <div class="tab" onclick="sw('a2')">Armonia 2</div>
   <div class="tab" onclick="sw('passione')">Passione</div>
   <div class="tab" onclick="sw('vittoria')">Vittoria</div>
@@ -303,7 +304,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   <div class="tab" onclick="sw('sorriso')">Sorriso</div>
   <div class="tab" onclick="sw('audacia')">Audacia</div>
   <div class="tab" onclick="sw('incassi')">💶 Incassi</div>
-  <div class="tab" onclick="sw('lotti')">🗺️ Lotti</div>
   <div class="tab" onclick="sw('check')">⚠️ Completezza</div>
   <div class="tab" onclick="sw('riepilogo')" style="margin-left:auto;">📊 Riepilogo</div>
 </div>
@@ -1130,7 +1130,7 @@ function renderBoxAutoPassione() {
 // ─── SWITCH PROJECT ───
 function sw(p) {
   proj = p;
-  const keys = ['a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','lotti','check','riepilogo'];
+  const keys = ['lotti','a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','check','riepilogo'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',keys[i]===p));
   const isDash  = p==='riepilogo';
   const isInc   = p==='incassi';
@@ -2272,7 +2272,7 @@ function renderCheck() {
 }
 
 // ─── INIT ───
-load(); sw('a1');
+load(); sw('lotti');
 </script>
 </body>
 </html>
