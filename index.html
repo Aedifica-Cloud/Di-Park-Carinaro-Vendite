@@ -298,6 +298,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   <div class="tab" onclick="sw('a2')">Armonia 2</div>
   <div class="tab" onclick="sw('passione')">Passione</div>
   <div class="tab" onclick="sw('vittoria')">Vittoria</div>
+  <div class="tab" onclick="sw('equilibrio')">Equilibrio</div>
+  <div class="tab" onclick="sw('sorriso')">Sorriso</div>
+  <div class="tab" onclick="sw('audacia')">Audacia</div>
   <div class="tab" onclick="sw('incassi')">💶 Incassi</div>
   <div class="tab" onclick="sw('riepilogo')" style="margin-left:auto;">📊 Riepilogo</div>
 </div>
@@ -574,6 +577,105 @@ const BASE = {
       CL1:{lbl:'L3', sc:'C',sl:'108,35',  tipo:'Locale Commerciale', st:'locale',owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
       CL2:{lbl:'L4', sc:'C',sl:'108,35',  tipo:'Locale Commerciale', st:'locale',owner:'',           price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
     }
+  },
+  equilibrio:{
+    name:'Equilibrio ERS', sub:'D|Park Carinaro DUE',
+    floors:[
+      {id:'pt',   name:'Piano Terra',    quota:'±0,00',   layout:[{sc:'A',ids:['A01','A02']},{sc:'B',ids:['B01','B02']}]},
+      {id:'p1',   name:'Piano Primo',    quota:'+3,30',   layout:[{sc:'A',ids:['A13','A14']},{sc:'B',ids:['B13','B14']}]},
+      {id:'p2',   name:'Piano Secondo',  quota:'+6,45',   layout:[{sc:'A',ids:['A25','A26']},{sc:'B',ids:['B25','B26']}]},
+      {id:'p3',   name:'Piano Terzo',    quota:'+9,60',   layout:[{sc:'A',ids:['A37','A38']},{sc:'B',ids:['B37','B38']}]},
+      {id:'mans', name:'Piano Mansarda', quota:'+12,75',  layout:[{sc:'A',ids:['AMS1','AMS2']},{sc:'B',ids:['BMS1','BMS2']}]},
+    ],
+    units:{
+      // ─ Scala A ─
+      A01: {lbl:'1',  sc:'A', sl:'97,00', tipo:'ERS Trilocale', st:'disponibile', owner:'', codice:'DPEQA01', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A02: {lbl:'2',  sc:'A', sl:'90,00', tipo:'ERS Bilocale',  st:'disponibile', owner:'', codice:'DPEQA02', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A13: {lbl:'3',  sc:'A', sl:'92,00', tipo:'ERS Trilocale', st:'disponibile', owner:'', codice:'DPEQA13', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A14: {lbl:'4',  sc:'A', sl:'92,00', tipo:'ERS Trilocale', st:'disponibile', owner:'', codice:'DPEQA14', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A25: {lbl:'5',  sc:'A', sl:'92,00', tipo:'ERS Trilocale', st:'disponibile', owner:'', codice:'DPEQA25', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A26: {lbl:'6',  sc:'A', sl:'92,00', tipo:'ERS Trilocale', st:'disponibile', owner:'', codice:'DPEQA26', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A37: {lbl:'7',  sc:'A', sl:'92,00', tipo:'ERS Trilocale', st:'disponibile', owner:'', codice:'DPEQA37', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A38: {lbl:'8',  sc:'A', sl:'92,00', tipo:'ERS Trilocale', st:'disponibile', owner:'', codice:'DPEQA38', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      AMS1:{lbl:'S1', sc:'A', sl:'92,00', tipo:'ERS Mansarda',  st:'disponibile', owner:'', codice:'DPEQAMS1',price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      AMS2:{lbl:'S2', sc:'A', sl:'92,00', tipo:'ERS Mansarda',  st:'disponibile', owner:'', codice:'DPEQAMS2',price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      // ─ Scala B ─
+      B01: {lbl:'1',  sc:'B', sl:'97,00', tipo:'ERS Trilocale', st:'disponibile', owner:'',               codice:'DPEQB01', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B02: {lbl:'2',  sc:'B', sl:'90,00', tipo:'ERS Bilocale',  st:'disponibile', owner:'',               codice:'DPEQB02', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B13: {lbl:'3',  sc:'B', sl:'92,00', tipo:'ERS Trilocale', st:'venduto',     owner:'Barbato Angelo', codice:'DPEQB13', price:'',accordo:'Acquisto',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B14: {lbl:'4',  sc:'B', sl:'92,00', tipo:'ERS Trilocale', st:'venduto',     owner:'Barbato Angelo', codice:'DPEQB14', price:'',accordo:'Acquisto',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B25: {lbl:'5',  sc:'B', sl:'92,00', tipo:'ERS Trilocale', st:'disponibile', owner:'',               codice:'DPEQB25', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B26: {lbl:'6',  sc:'B', sl:'92,00', tipo:'ERS Trilocale', st:'disponibile', owner:'',               codice:'DPEQB26', price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B37: {lbl:'7',  sc:'B', sl:'92,00', tipo:'ERS Trilocale', st:'venduto',     owner:'Barbato Michele',codice:'DPEQB37', price:'',accordo:'Acquisto',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B38: {lbl:'8',  sc:'B', sl:'92,00', tipo:'ERS Trilocale', st:'venduto',     owner:'Barbato Michele',codice:'DPEQB38', price:'',accordo:'Acquisto',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      BMS1:{lbl:'S1', sc:'B', sl:'92,00', tipo:'ERS Mansarda',  st:'disponibile', owner:'',               codice:'DPEQBMS1',price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      BMS2:{lbl:'S2', sc:'B', sl:'92,00', tipo:'ERS Mansarda',  st:'disponibile', owner:'',               codice:'DPEQBMS2',price:'',accordo:'',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+    }
+  },
+
+  // ══════════════════════════════════════
+  sorriso:{
+    name:'Sorriso', sub:'D|Park Carinaro DUE',
+    floors:[
+      {id:'pt',   name:'Piano Terra',    quota:'±0,00',  layout:[{sc:'A',ids:['AL1','A1']},{sc:'B',ids:['B1']}]},
+      {id:'p1',   name:'Piano Primo',    quota:'+3,30',  layout:[{sc:'A',ids:['A2','A3']},{sc:'B',ids:['B2']}]},
+      {id:'p2',   name:'Piano Secondo',  quota:'+6,45',  layout:[{sc:'A',ids:['A4','A5']},{sc:'B',ids:['B3']}]},
+      {id:'p3',   name:'Piano Terzo',    quota:'+9,60',  layout:[{sc:'A',ids:['A6','A7']},{sc:'B',ids:['B4']}]},
+      {id:'mans', name:'Piano Mansarda', quota:'+12,75', layout:[{sc:'A',ids:['AS1','AS2']},{sc:'B',ids:['BS1']}]},
+    ],
+    units:{
+      AL1:{lbl:'L1',sc:'A',sl:'93,00', tipo:'Locale Commerciale',st:'locale',  owner:'',           codice:'',      price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      A1: {lbl:'1', sc:'A',sl:'112,00',tipo:'ERS Trilocale',     st:'disponibile',owner:'',         codice:'',      price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A2: {lbl:'2', sc:'A',sl:'94,00', tipo:'ERS Bilocale',      st:'disponibile',owner:'',         codice:'',      price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A3: {lbl:'3', sc:'A',sl:'112,00',tipo:'ERS Trilocale',     st:'disponibile',owner:'',         codice:'',      price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A4: {lbl:'4', sc:'A',sl:'94,00', tipo:'ERS Bilocale',      st:'disponibile',owner:'',         codice:'',      price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A5: {lbl:'5', sc:'A',sl:'112,00',tipo:'ERS Trilocale',     st:'disponibile',owner:'',         codice:'',      price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A6: {lbl:'6', sc:'A',sl:'94,00', tipo:'ERS Bilocale',      st:'venduto',    owner:'Ugo Gloria',codice:'',     price:'',accordo:'Acquisto',drive:'',phone:'',email:'',date:'',box:'9', notaio:'',notes:'',history:[]},
+      A7: {lbl:'7', sc:'A',sl:'112,00',tipo:'ERS Trilocale',     st:'disponibile',owner:'',         codice:'',      price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      AS1:{lbl:'S1',sc:'A',sl:'94,00', tipo:'ERS Mansarda',      st:'venduto',    owner:'Ugo Gloria',codice:'',     price:'',accordo:'Acquisto',drive:'',phone:'',email:'',date:'',box:'10',notaio:'',notes:'',history:[]},
+      AS2:{lbl:'S2',sc:'A',sl:'112,00',tipo:'ERS Mansarda',      st:'disponibile',owner:'',         codice:'',      price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B1: {lbl:'1', sc:'B',sl:'125,45',tipo:'Trilocale',         st:'venduto',    owner:'Sglavo',   codice:'',      price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Proprietà Sglavo - Permuta',history:[]},
+      B2: {lbl:'2', sc:'B',sl:'125,45',tipo:'Trilocale',         st:'venduto',    owner:'Sglavo',   codice:'',      price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Proprietà Sglavo - Permuta',history:[]},
+      B3: {lbl:'3', sc:'B',sl:'125,45',tipo:'Trilocale',         st:'venduto',    owner:'Sglavo',   codice:'',      price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Proprietà Sglavo - Permuta',history:[]},
+      B4: {lbl:'4', sc:'B',sl:'125,45',tipo:'Trilocale',         st:'venduto',    owner:'Sglavo',   codice:'',      price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Proprietà Sglavo - Permuta',history:[]},
+      BS1:{lbl:'S1',sc:'B',sl:'125,45',tipo:'Mansarda',          st:'venduto',    owner:'Sglavo',   codice:'',      price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Proprietà Sglavo - Permuta',history:[]},
+    }
+  },
+
+  // ══════════════════════════════════════
+  audacia:{
+    name:'Audacia', sub:'D|Park Carinaro DUE',
+    floors:[
+      {id:'pt', name:'Piano Terra',      quota:'±0,00',  layout:[{sc:'A',ids:['L1','L2','L3','L4']},{sc:'B',ids:['B01','B02']}]},
+      {id:'p1', name:'Piano Primo',      quota:'+3,15',  layout:[{sc:'A',ids:['A11','A12']},          {sc:'B',ids:['B13','B14']}]},
+      {id:'p2', name:'Piano Secondo',    quota:'+6,30',  layout:[{sc:'A',ids:['A23','A24']},          {sc:'B',ids:['B25','B26']}]},
+      {id:'p3', name:'Piano Terzo',      quota:'+9,45',  layout:[{sc:'A',ids:['A35','A36']},          {sc:'B',ids:['B37','B38']}]},
+      {id:'st', name:'Piano Sottotetto', quota:'+12,60', layout:[{sc:'A',ids:['AS1','AS2']},          {sc:'B',ids:['BS1','BS2']}]},
+    ],
+    units:{
+      L1:  {lbl:'L1',sc:'A',sl:'40,00', tipo:'Locale Commerciale',st:'venduto',    owner:'Sepe',          codice:'DPAUA0L1',price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      L2:  {lbl:'L2',sc:'A',sl:'50,00', tipo:'Locale Commerciale',st:'venduto',    owner:'Sepe',          codice:'DPAUA0L2',price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      L3:  {lbl:'L3',sc:'A',sl:'50,00', tipo:'Locale Commerciale',st:'venduto',    owner:'Sepe',          codice:'DPAUA0L3',price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      L4:  {lbl:'L4',sc:'A',sl:'50,00', tipo:'Locale Commerciale',st:'locale',     owner:'',              codice:'DPAUA0L4',price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      B01: {lbl:'1', sc:'B',sl:'68,56', tipo:'ERS Bilocale',      st:'disponibile',owner:'',              codice:'DPAUB01', price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B02: {lbl:'2', sc:'B',sl:'68,56', tipo:'ERS Bilocale',      st:'disponibile',owner:'',              codice:'DPAUB02', price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A11: {lbl:'1', sc:'A',sl:'100,00',tipo:'Trilocale',         st:'venduto',    owner:'Sepe',          codice:'DPAUA11', price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      A12: {lbl:'2', sc:'A',sl:'100,00',tipo:'Trilocale',         st:'venduto',    owner:'Coppola',       codice:'DPAUA12', price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      B13: {lbl:'3', sc:'B',sl:'71,00', tipo:'ERS Trilocale',     st:'disponibile',owner:'',              codice:'DPAUB13', price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B14: {lbl:'4', sc:'B',sl:'71,00', tipo:'ERS Trilocale',     st:'disponibile',owner:'',              codice:'DPAUB14', price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A23: {lbl:'3', sc:'A',sl:'100,00',tipo:'Trilocale',         st:'venduto',    owner:'Sepe',          codice:'DPAUA23', price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      A24: {lbl:'4', sc:'A',sl:'100,00',tipo:'Trilocale',         st:'disponibile',owner:'',              codice:'DPAUA24', price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      B25: {lbl:'5', sc:'B',sl:'71,00', tipo:'ERS Trilocale',     st:'disponibile',owner:'',              codice:'DPAUB25', price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B26: {lbl:'6', sc:'B',sl:'71,00', tipo:'ERS Trilocale',     st:'venduto',    owner:'Puca Giulia',   codice:'DPAUB26', price:'',accordo:'Acquisto',drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      A35: {lbl:'5', sc:'A',sl:'100,00',tipo:'Trilocale',         st:'venduto',    owner:'Sepe',          codice:'DPAUA35', price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta',history:[]},
+      A36: {lbl:'6', sc:'A',sl:'100,00',tipo:'Trilocale',         st:'venduto',    owner:'Domenico Primo',codice:'DPAUA36', price:'',accordo:'Permuta', drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Permuta - Comunale',history:[]},
+      B37: {lbl:'7', sc:'B',sl:'71,00', tipo:'ERS Trilocale',     st:'disponibile',owner:'',              codice:'DPAUB37', price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      B38: {lbl:'8', sc:'B',sl:'71,00', tipo:'ERS Trilocale',     st:'disponibile',owner:'',              codice:'DPAUB38', price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      AS1: {lbl:'S1',sc:'A',sl:'100,00',tipo:'Mansarda',          st:'disponibile',owner:'',              codice:'DPAUA3S1',price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      AS2: {lbl:'S2',sc:'A',sl:'100,00',tipo:'Mansarda',          st:'disponibile',owner:'',              codice:'DPAUA3S2',price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'',history:[]},
+      BS1: {lbl:'S1',sc:'B',sl:'71,00', tipo:'ERS Mansarda',      st:'disponibile',owner:'',              codice:'DPAUBS1', price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+      BS2: {lbl:'S2',sc:'B',sl:'71,00', tipo:'ERS Mansarda',      st:'disponibile',owner:'',              codice:'DPAUBS2', price:'',accordo:'',        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:'Edilizia Residenziale Sociale',history:[]},
+    }
   }
 };
 
@@ -765,9 +867,12 @@ function renderPlan() {
     html += `</div></div>`;
   });
   // Aggiungi box auto sotto Armonia 1 e sotto Vittoria
-  if (proj === 'a1')       html += renderBoxAuto();
-  if (proj === 'vittoria') html += renderBoxAutoVittoria();
-  if (proj === 'passione') html += renderBoxAutoPassione();
+  if (proj === 'a1')         html += renderBoxAuto();
+  if (proj === 'vittoria')   html += renderBoxAutoVittoria();
+  if (proj === 'passione')   html += renderBoxAutoPassione();
+  if (proj === 'equilibrio') html += renderBoxAutoEquilibrio();
+  if (proj === 'sorriso')    html += renderBoxAutoSorriso();
+  if (proj === 'audacia')    html += renderBoxAutoAudacia();
   document.getElementById('content').innerHTML = html;
 }
 
@@ -913,6 +1018,83 @@ function renderBoxAutoVittoria() {
   return renderBoxSection('Box Auto — Vittoria', BOXES_VITTORIA, sezioni, ['vittoria']);
 }
 
+// ── Dati box Equilibrio ──
+const BOXES_EQUILIBRIO = [
+  {n:1,  mq:'20,90', tipo:'singolo'},
+  {n:2,  mq:'30,50', tipo:'singolo'},
+  {n:3,  mq:'21,20', tipo:'singolo'},
+  {n:4,  mq:'26,40', tipo:'singolo'},
+  {n:5,  mq:'21,94', tipo:'singolo'},
+  {n:6,  mq:'22,40', tipo:'singolo'},
+  {n:7,  mq:'30,00', tipo:'singolo'},
+  {n:8,  mq:'38,00', tipo:'doppio'},
+  {n:9,  mq:'21,20', tipo:'singolo'},
+  {n:10, mq:'25,00', tipo:'singolo'},
+  {n:11, mq:'22,75', tipo:'singolo'},
+  {n:12, mq:'30,50', tipo:'singolo'},
+  {n:13, mq:'21,20', tipo:'singolo'},
+  {n:14, mq:'18,50', tipo:'singolo'},
+];
+
+function renderBoxAutoEquilibrio() {
+  const sezioni = [
+    { label: 'Fila A — Scala A', box: [1,2,3,4,5,6,7] },
+    { label: 'Fila B — Scala B', box: [8,9,10,11,12,13,14] },
+  ];
+  return renderBoxSection('Box Auto — Equilibrio ERS', BOXES_EQUILIBRIO, sezioni, ['equilibrio']);
+}
+
+// ── Dati box Sorriso ──
+const BOXES_SORRISO = [
+  {n:1,  mq:'32,30', tipo:'doppio'},
+  {n:2,  mq:'32,30', tipo:'doppio'},
+  {n:3,  mq:'27,20', tipo:'singolo'},
+  {n:4,  mq:'41,60', tipo:'doppio'},
+  {n:5,  mq:'32,80', tipo:'doppio'},
+  {n:6,  mq:'24,40', tipo:'singolo'},
+  {n:7,  mq:'34,00', tipo:'doppio'},
+  {n:8,  mq:'34,16', tipo:'doppio'},
+  {n:9,  mq:'27,00', tipo:'singolo'},
+  {n:10, mq:'19,50', tipo:'doppio'},
+];
+
+function renderBoxAutoSorriso() {
+  const sezioni = [
+    { label: 'Fila A', box: [1,2,3,4,5] },
+    { label: 'Fila B', box: [6,7,8,9,10] },
+  ];
+  return renderBoxSection('Box Auto — Sorriso', BOXES_SORRISO, sezioni, ['sorriso']);
+}
+
+// ── Dati box Audacia ──
+const BOXES_AUDACIA = [
+  {n:1,  mq:'42,35', tipo:'doppio'},
+  {n:2,  mq:'46,00', tipo:'doppio'},
+  {n:3,  mq:'49,00', tipo:'doppio'},
+  {n:4,  mq:'41,00', tipo:'doppio'},
+  {n:5,  mq:'42,20', tipo:'doppio'},
+  {n:6,  mq:'30,00', tipo:'doppio'},
+  {n:7,  mq:'34,00', tipo:'doppio'},
+  {n:8,  mq:'29,00', tipo:'singolo'},
+  {n:9,  mq:'22,00', tipo:'singolo'},
+  {n:10, mq:'20,70', tipo:'singolo'},
+  {n:11, mq:'20,24', tipo:'singolo'},
+  {n:12, mq:'17,80', tipo:'singolo'},
+  {n:13, mq:'21,00', tipo:'singolo'},
+  {n:14, mq:'19,08', tipo:'singolo'},
+  {n:15, mq:'19,00', tipo:'singolo'},
+  {n:16, mq:'18,50', tipo:'singolo'},
+  {n:17, mq:'18,50', tipo:'singolo'},
+];
+
+function renderBoxAutoAudacia() {
+  const sezioni = [
+    { label: 'Box doppi — Scala A', box: [1,2,3,4,5,6,7] },
+    { label: 'Box singoli — Scala B', box: [8,9,10,11,12,13,14,15,16,17] },
+  ];
+  return renderBoxSection('Box Auto — Audacia', BOXES_AUDACIA, sezioni, ['audacia']);
+}
+
 // ── Dati box Passione ──
 const BOXES_PASSIONE = [
   {n:1,  mq:'39,64', tipo:'singolo'},
@@ -944,7 +1126,7 @@ function renderBoxAutoPassione() {
 // ─── SWITCH PROJECT ───
 function sw(p) {
   proj = p;
-  const keys = ['a1','a2','passione','vittoria','incassi','riepilogo'];
+  const keys = ['a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','riepilogo'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',keys[i]===p));
   const isDash = p==='riepilogo';
   const isInc  = p==='incassi';
@@ -964,7 +1146,10 @@ function calcBoxRevenue(proj) {
   if (proj === 'a1')       return Math.round(totA1A2 / 2);
   if (proj === 'a2')       return Math.floor(totA1A2 / 2);
   if (proj === 'vittoria') return Math.round(BOXES_VITTORIA.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
-  if (proj === 'passione') return Math.round(BOXES_PASSIONE.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
+  if (proj === 'passione')   return Math.round(BOXES_PASSIONE.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
+  if (proj === 'equilibrio') return Math.round(BOXES_EQUILIBRIO.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
+  if (proj === 'sorriso')    return Math.round(BOXES_SORRISO.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
+  if (proj === 'audacia')    return Math.round(BOXES_AUDACIA.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
   return 0;
 }
 
@@ -1028,7 +1213,7 @@ function fmtEur(n) {
 function fmtN(n) { return n.toLocaleString('it-IT'); }
 
 function renderDashboard() {
-  const keys  = ['a1','a2','passione','vittoria'];
+  const keys  = ['a1','a2','passione','vittoria','equilibrio','sorriso','audacia'];
   const stats = keys.map(projStats);
 
   const G = stats.reduce((a,s)=>({
@@ -1767,8 +1952,8 @@ function fmtEurInc(n) {
 }
 
 function renderIncassi() {
-  const projKeys  = ['a1','a2','passione','vittoria'];
-  const projNames = {a1:'Armonia 1', a2:'Armonia 2', passione:'Passione', vittoria:'Vittoria'};
+  const projKeys  = ['a1','a2','passione','vittoria','equilibrio','sorriso','audacia'];
+  const projNames = {a1:'Armonia 1', a2:'Armonia 2', passione:'Passione', vittoria:'Vittoria', equilibrio:'Equilibrio ERS', sorriso:'Sorriso', audacia:'Audacia'};
   let gTotale=0, gIncassato=0, tableRows='';
 
   for (const pk of projKeys) {
