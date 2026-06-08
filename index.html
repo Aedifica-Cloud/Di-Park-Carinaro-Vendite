@@ -993,15 +993,20 @@ function projStats(key) {
   const tra = [...v,...r].filter(u=>u.accordo==='In trattativa');
   const boxN = [...v,...r].filter(u=>u.box).length;
   const drv  = [...v,...r].filter(u=>u.drive).length;
-  // delta: concordato vs previsionale (solo unità vendute con prezzo inserito)
   const vConPrezzo = v.filter(u=>eur(u)>0);
   const deltaV = vConPrezzo.reduce((s,u)=>s+(eur(u)-prev(u)),0);
+  // Ricavi per tipo accordo
+  const ricaviAcquisto = v.filter(u=>u.accordo==='Acquisto').reduce((s,u)=>s+eur(u),0);
+  const ricaviPermuta  = v.filter(u=>u.accordo==='Permuta').reduce((s,u)=>s+prev(u),0); // valore previsionale
+  const nAcq = v.filter(u=>u.accordo==='Acquisto').length;
+  const nPer = v.filter(u=>u.accordo==='Permuta').length;
   return {
     key, name:p.name, sub:p.sub, units: all,
     totAll: all.length, tot, v:v.length, r:r.length, d:d.length, loc:loc.length,
     ricavi, prevTotRes, prevTotAll, prevVenduti,
     deltaV, vConPrezzo: vConPrezzo.length,
-    acq:acq.length, per:per.length, tra:tra.length, boxN, drv
+    acq:acq.length, per:per.length, tra:tra.length, boxN, drv,
+    ricaviAcquisto, ricaviPermuta, nAcq, nPer
   };
 }
 
@@ -1032,7 +1037,9 @@ function renderDashboard() {
     prevTotRes:a.prevTotRes+s.prevTotRes, prevTotAll:(a.prevTotAll||0)+s.prevTotAll,
     prevVenduti:a.prevVenduti+s.prevVenduti, deltaV:a.deltaV+s.deltaV,
     vConPrezzo:a.vConPrezzo+s.vConPrezzo,
-    acq:a.acq+s.acq, per:a.per+s.per, tra:a.tra+s.tra, boxN:a.boxN+s.boxN, drv:a.drv+s.drv
+    acq:a.acq+s.acq, per:a.per+s.per, tra:a.tra+s.tra, boxN:a.boxN+s.boxN, drv:a.drv+s.drv,
+    ricaviAcquisto:(a.ricaviAcquisto||0)+s.ricaviAcquisto, ricaviPermuta:(a.ricaviPermuta||0)+s.ricaviPermuta,
+    nAcq:(a.nAcq||0)+s.nAcq, nPer:(a.nPer||0)+s.nPer
   }), {totAll:0,tot:0,v:0,r:0,d:0,loc:0,ricavi:0,prevTotRes:0,prevTotAll:0,prevVenduti:0,deltaV:0,vConPrezzo:0,acq:0,per:0,tra:0,boxN:0,drv:0});
 
   const pct = (n,t) => t ? Math.round(n/t*100) : 0;
@@ -1070,6 +1077,13 @@ function renderDashboard() {
           <span class="drow-val gold">${s.ricavi?'€ '+fmtN(s.ricavi):'—'}</span></div>
         ${s.vConPrezzo>0?`<div class="drow"><span class="drow-lbl">↕ Delta (effettivo vs prev.)</span>
           <span class="${deltaClass}">${deltaSign} € ${fmtN(Math.abs(s.deltaV))}</span></div>`:''}
+        <hr class="dsep">
+        <div class="drow"><span class="drow-lbl" style="font-size:11px;font-weight:700;">🛒 Ricavi da Acquisto</span>
+          <span class="drow-val" style="color:#1565c0;font-size:13px;">${s.ricaviAcquisto?'€ '+fmtN(s.ricaviAcquisto):'—'}</span></div>
+        <div class="drow" style="margin-top:0"><span class="drow-lbl" style="font-size:10px;color:#aaa">${s.nAcq} unità vendute per acquisto</span></div>
+        <div class="drow"><span class="drow-lbl" style="font-size:11px;font-weight:700;">🔄 Valore Permute</span>
+          <span class="drow-val" style="color:#e65100;font-size:13px;">${s.ricaviPermuta?'€ '+fmtN(s.ricaviPermuta):'—'}</span></div>
+        <div class="drow" style="margin-top:0"><span class="drow-lbl" style="font-size:10px;color:#aaa">${s.nPer} unità in permuta · val. prev. €2.000/mq</span></div>
         <hr class="dsep">
         <div class="drow"><span class="drow-lbl">🏪 Locali commerciali</span><span class="drow-val">${s.loc}</span></div>
         <div class="drow"><span class="drow-lbl">🚗 Box auto assegnati</span><span class="drow-val">${s.boxN}</span></div>
@@ -1111,6 +1125,18 @@ function renderDashboard() {
         <span class="drow-lbl" style="font-size:12px;font-weight:700;">↕ Delta complessivo (effettivo vs previsionale)</span>
         <span class="${gDeltaClass}" style="font-size:15px;">${gDeltaSign} € ${fmtN(Math.abs(G.deltaV))}</span>
       </div>`:''}
+      <hr class="dsep">
+      <div class="drow">
+        <span class="drow-lbl" style="font-size:13px;font-weight:700;">🛒 Ricavi da Acquisto (tutti i lotti)</span>
+        <span class="drow-val" style="color:#1565c0;font-size:16px;">${G.ricaviAcquisto?'€ '+fmtN(G.ricaviAcquisto):'—'}</span>
+      </div>
+      <div class="drow" style="margin-top:0"><span class="drow-lbl" style="font-size:10px;color:#aaa">${G.nAcq} unità vendute per acquisto</span></div>
+      <div class="drow">
+        <span class="drow-lbl" style="font-size:13px;font-weight:700;">🔄 Valore Permute (tutti i lotti)</span>
+        <span class="drow-val" style="color:#e65100;font-size:16px;">${G.ricaviPermuta?'€ '+fmtN(G.ricaviPermuta):'—'}</span>
+      </div>
+      <div class="drow" style="margin-top:0"><span class="drow-lbl" style="font-size:10px;color:#aaa">${G.nPer} unità in permuta · valore previsionale €2.000/mq</span></div>
+      <hr class="dsep">
       <div class="drow">
         <span class="drow-lbl">Ancora da vendere (disponibili + riservate)</span>
         <span class="drow-val">${G.d+G.r} unità · prev. € ${fmtN(stats.reduce((s,st)=>{
