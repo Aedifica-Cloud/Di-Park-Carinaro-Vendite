@@ -303,6 +303,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   <div class="tab" onclick="sw('sorriso')">Sorriso</div>
   <div class="tab" onclick="sw('audacia')">Audacia</div>
   <div class="tab" onclick="sw('incassi')">💶 Incassi</div>
+  <div class="tab" onclick="sw('lotti')">🗺️ Lotti</div>
   <div class="tab" onclick="sw('check')">⚠️ Completezza</div>
   <div class="tab" onclick="sw('riepilogo')" style="margin-left:auto;">📊 Riepilogo</div>
 </div>
@@ -1129,16 +1130,18 @@ function renderBoxAutoPassione() {
 // ─── SWITCH PROJECT ───
 function sw(p) {
   proj = p;
-  const keys = ['a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','check','riepilogo'];
+  const keys = ['a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','lotti','check','riepilogo'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',keys[i]===p));
   const isDash  = p==='riepilogo';
   const isInc   = p==='incassi';
-  const isCheck = p==='check';
-  document.getElementById('kpi').style.display   = (isDash||isInc||isCheck) ? 'none' : '';
-  document.querySelector('.legend').style.display = (isDash||isInc||isCheck) ? 'none' : '';
+  const isCheck  = p==='check';
+  const isLotti  = p==='lotti';
+  document.getElementById('kpi').style.display   = (isDash||isInc||isCheck||isLotti) ? 'none' : '';
+  document.querySelector('.legend').style.display = (isDash||isInc||isCheck||isLotti) ? 'none' : '';
   if (isDash)       { renderDashboard(); }
   else if (isInc)   { renderIncassi(); }
-  else if (isCheck) { renderCheck(); }
+  else if (isLotti) { renderLotti(); }
+  else if (isCheck)  { renderCheck(); }
   else              { renderKPI(); renderPlan(); }
 }
 
@@ -2069,6 +2072,104 @@ function renderIncassi() {
     </div>`;
 }
 
+
+
+// ─── LOTTI / SCHEMA INIZIALE ───
+function renderLotti() {
+  const TIPO_COLOR = {
+    'Permuta':                {bg:'#fff3e0', color:'#e65100'},
+    'Compravendita':          {bg:'#e3f2fd', color:'#1565c0'},
+    'Da Comprare':            {bg:'#f3e5f5', color:'#6a1b9a'},
+    'Costruisce in Autonomia':{bg:'#e8f5e9', color:'#2e7d32'},
+    'In Trattativa – Permuta':{bg:'#fce4ec', color:'#c62828'},
+  };
+  function tipoPill(tipo) {
+    const c = TIPO_COLOR[tipo] || {bg:'#f5f0e8', color:'#555'};
+    return `<span style="background:${c.bg};color:${c.color};font-size:10px;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;">${tipo}</span>`;
+  }
+
+  const LOTTI = [
+    { n:1, lotto:'AUDACIA', tipo:'Permuta',
+      proprietari:['Sepe Domenico','Sepe Nicola','Sepe Paolo','Sepe Vincenzo'],
+      note:'3 APT da 110 mq · 3 Locali da 50 mq · 6 Box Auto' },
+    { n:2, lotto:'ARMONIA', tipo:'Compravendita',
+      proprietari:['Colella Giorgio','Colella Livio','Colella Antonietta','Mosella Livio','Mosella Mariano','Grassia Maria'],
+      note:'' },
+    { n:3, lotto:'IDEALE', tipo:'Da Comprare / Permuta',
+      proprietari:['Perfetto Nicola','Perfetto Salvatore','Perfetto Ferdinando → Elfo'],
+      note:'Perfetto Ferdinando: Permuta' },
+    { n:4, lotto:'IDEALE', tipo:'Permuta',
+      proprietari:['Barbato Giuseppe','Barbato Luciano','Barbato Michele'],
+      note:'3 APT grezzi dentro e completi fuori · 3 Garage 85 mq' },
+    { n:5, lotto:'SORRISO', tipo:'Permuta',
+      proprietari:['Gloria Angelo','Gloria Raffaele','Gloria Teresa','Gloria Ugo'],
+      note:'Comprende ERS · 1 APT 80 mq · 1 Mansarda 80 mq' },
+    { n:6, lotto:'SORRISO', tipo:'Costruisce in Autonomia',
+      proprietari:['Sglavo Luigi','Turco Annunziata'],
+      note:'' },
+    { n:7, lotto:'VITTORIA', tipo:'Permuta',
+      proprietari:['Motti Giovanni'],
+      note:'20% fabbricato: 3 APT 115 mq · 1 Locale 50 mq · 2 Mansarde 115 mq · 1 Mansarda · 2 APT 89 mq (terreno agricolo)' },
+    { n:8, lotto:'PASSIONE', tipo:'Permuta',
+      proprietari:['Della Libera Nicola','Menditto Giovanni'],
+      note:'Della Libera: 20% fabb. · 2 APT 75 mq · 2 Box Auto — Menditto: 1 APT 115 mq · 1 Locale 40 mq · 1 Box Auto' },
+    { n:9, lotto:'EUFORIA', tipo:'In Trattativa – Permuta',
+      proprietari:['Barbato Angela','Barbato Giuseppe'],
+      note:'' },
+    { n:10, lotto:'AMORE', tipo:'Permuta',
+      proprietari:['Coppola Ferdinando','Coppola Giuseppa'],
+      note:'1 APT piano terra 100 mq · 1 APT 1° piano 50 mq' },
+    { n:11, lotto:'ENERGIA', tipo:'Costruisce in Autonomia',
+      proprietari:['Barbato Angelo → Improda','Zampella Stefanina → Improda'],
+      note:'' },
+    { n:12, lotto:'ENERGIA', tipo:'Permuta',
+      proprietari:['Sepe Domenico','Sepe Nicola','Sepe Vincenzo'],
+      note:'' },
+  ];
+
+  // Raggruppa per lotto
+  const rows = LOTTI.map(l => {
+    const propList = l.proprietari.map(p => `<div style="font-size:12px;line-height:1.6;">${esc(p)}</div>`).join('');
+    const noteCell = l.note ? `<div style="font-size:11px;color:#666;font-style:italic;margin-top:4px;">${esc(l.note)}</div>` : '';
+    return `<tr style="border-bottom:1px solid #f0e8dc;vertical-align:top;">
+      <td style="padding:12px 14px;font-size:22px;font-weight:800;color:var(--navy);text-align:center;white-space:nowrap;">${l.n}</td>
+      <td style="padding:12px 14px;">${propList}</td>
+      <td style="padding:12px 14px;font-size:13px;font-weight:800;color:var(--navy);">${esc(l.lotto)}</td>
+      <td style="padding:12px 14px;">${tipoPill(l.tipo)}</td>
+      <td style="padding:12px 14px;">${noteCell}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+  <div style="padding:24px;max-width:980px;margin:0 auto;">
+    <h2 style="font-size:20px;font-weight:800;color:var(--navy);margin-bottom:4px;">🗺️ Schema Lotti — Disposizione</h2>
+    <p style="font-size:13px;color:#888;margin-bottom:24px;">Quadro riepilogativo dei lotti: proprietari originari, edificio assegnato e tipo di accordo.</p>
+
+    <div style="background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
+      <div style="background:var(--navy);color:#fff;padding:14px 20px;">
+        <span style="font-size:14px;font-weight:800;">Disposizione LOTTI</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#f5f0e8;">
+              <th style="padding:10px 14px;text-align:center;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;width:60px;">Lotto</th>
+              <th style="padding:10px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;">Proprietario/i</th>
+              <th style="padding:10px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;">Edificio</th>
+              <th style="padding:10px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;">Tipo Accordo</th>
+              <th style="padding:10px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;">Dettaglio</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;background:#f5f0e8;border-radius:10px;padding:14px 18px;font-size:12px;color:#888;">
+      ℹ️ I progetti <strong>Ideale, Euforia, Amore, Energia</strong> non sono ancora presenti nel gestionale vendite.
+    </div>
+  </div>`;
+}
 
 // ─── CHECK COMPLETEZZA ───
 function renderCheck() {
