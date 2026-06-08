@@ -303,6 +303,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   <div class="tab" onclick="sw('sorriso')">Sorriso</div>
   <div class="tab" onclick="sw('audacia')">Audacia</div>
   <div class="tab" onclick="sw('incassi')">💶 Incassi</div>
+  <div class="tab" onclick="sw('check')">⚠️ Completezza</div>
   <div class="tab" onclick="sw('riepilogo')" style="margin-left:auto;">📊 Riepilogo</div>
 </div>
 
@@ -1128,15 +1129,17 @@ function renderBoxAutoPassione() {
 // ─── SWITCH PROJECT ───
 function sw(p) {
   proj = p;
-  const keys = ['a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','riepilogo'];
+  const keys = ['a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','check','riepilogo'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',keys[i]===p));
-  const isDash = p==='riepilogo';
-  const isInc  = p==='incassi';
-  document.getElementById('kpi').style.display   = (isDash||isInc) ? 'none' : '';
-  document.querySelector('.legend').style.display = (isDash||isInc) ? 'none' : '';
-  if (isDash)     { renderDashboard(); }
-  else if (isInc) { renderIncassi(); }
-  else            { renderKPI(); renderPlan(); }
+  const isDash  = p==='riepilogo';
+  const isInc   = p==='incassi';
+  const isCheck = p==='check';
+  document.getElementById('kpi').style.display   = (isDash||isInc||isCheck) ? 'none' : '';
+  document.querySelector('.legend').style.display = (isDash||isInc||isCheck) ? 'none' : '';
+  if (isDash)       { renderDashboard(); }
+  else if (isInc)   { renderIncassi(); }
+  else if (isCheck) { renderCheck(); }
+  else              { renderKPI(); renderPlan(); }
 }
 
 // ─── DASHBOARD ───
@@ -2064,6 +2067,103 @@ function renderIncassi() {
         </table>
       </div>` : '<p style="color:#999;font-size:13px;">Nessun appartamento ha ancora il campo "Codice" compilato.</p>'}
     </div>`;
+}
+
+
+// ─── CHECK COMPLETEZZA ───
+function renderCheck() {
+  const projKeys  = ['a1','a2','passione','vittoria','equilibrio','sorriso','audacia'];
+  const projNames = {a1:'Armonia 1', a2:'Armonia 2', passione:'Passione', vittoria:'Vittoria', equilibrio:'Equilibrio ERS', sorriso:'Sorriso', audacia:'Audacia'};
+
+  const RULES = [
+    { field:'owner', label:'Proprietario / Acquirente' },
+    { field:'price', label:'Prezzo Concordato (€)'     },
+    { field:'drive', label:'Link Google Drive'          },
+  ];
+
+  let totalIssues = 0;
+  const sections = [];
+
+  projKeys.forEach(pk => {
+    const p = D[pk];
+    const issues = [];
+    const floorOf = {};
+    p.floors.forEach(f => { f.layout.forEach(g => { g.ids.forEach(uid => { floorOf[uid] = f.name; }); }); });
+
+    Object.entries(p.units).forEach(([uid, u]) => {
+      if (u.st !== 'venduto') return;
+      const missing = RULES.filter(r => !u[r.field] || !String(u[r.field]).trim()).map(r => r.label);
+      if (missing.length) { issues.push({ uid, u, missing, floor: floorOf[uid]||'' }); totalIssues++; }
+    });
+    sections.push({ pk, name: projNames[pk], issues });
+  });
+
+  const summaryColor = totalIssues===0 ? '#2e7d32' : '#c62828';
+  const summaryBg    = totalIssues===0 ? '#e8f5e9' : '#ffebee';
+  const summaryIcon  = totalIssues===0 ? '✅' : '⚠️';
+
+  const sectionsHtml = sections.map(({ pk, name, issues }) => {
+    if (!issues.length) {
+      return `<div style="background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px;">
+        <div style="background:#2e7d32;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:16px;">✅</span>
+          <span style="font-size:14px;font-weight:800;">${name}</span>
+          <span style="font-size:11px;opacity:.75;margin-left:4px;">— tutte le unità vendute sono complete</span>
+        </div>
+      </div>`;
+    }
+    const rows = issues.map(({ uid, u, missing, floor }) => {
+      const pills = missing.map(m =>
+        `<span style="background:#ffebee;color:#c62828;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-right:4px;white-space:nowrap;">${esc(m)}</span>`
+      ).join('');
+      return `<tr style="border-bottom:1px solid #f0e8dc;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='#faf7f2'" onmouseout="this.style.background=''" onclick="sw('${pk}');setTimeout(()=>openM('${uid}'),200)">
+        <td style="padding:9px 12px;font-size:12px;color:#888;">${esc(floor)}</td>
+        <td style="padding:9px 12px;font-size:12px;font-weight:700;">${esc(u.sc||'—')}</td>
+        <td style="padding:9px 12px;font-size:12px;">${esc(u.lbl)}</td>
+        <td style="padding:9px 12px;font-size:12px;">${esc(u.tipo)}</td>
+        <td style="padding:9px 12px;font-size:12px;">${u.owner?esc(u.owner):'<span style="color:#bbb;font-style:italic;">—</span>'}</td>
+        <td style="padding:9px 12px;">${pills}</td>
+        <td style="padding:9px 12px;font-size:11px;color:#3a5fa0;font-weight:700;">↗ Apri</td>
+      </tr>`;
+    }).join('');
+
+    return `<div style="background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px;">
+      <div style="background:var(--navy);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:14px;font-weight:800;">${name}</span>
+        <span style="background:#c62828;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">${issues.length} da completare</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="background:#f5f0e8;">
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;">Piano</th>
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;">Scala</th>
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;">Int.</th>
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;">Tipologia</th>
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;">Proprietario</th>
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;">Campi Mancanti</th>
+            <th style="padding:8px 12px;"></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+  <div style="padding:24px;max-width:960px;margin:0 auto;">
+    <h2 style="font-size:20px;font-weight:800;color:var(--navy);margin-bottom:6px;">⚠️ Completezza Schede</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:20px;">Unità vendute con campi obbligatori mancanti. Clicca su una riga per aprire direttamente la scheda.</p>
+    <div style="background:${summaryBg};border-radius:12px;padding:16px 24px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:28px;">${summaryIcon}</span>
+      <div>
+        <div style="font-size:16px;font-weight:800;color:${summaryColor};">
+          ${totalIssues===0 ? 'Tutto in ordine! Tutte le schede sono complete.' : `${totalIssues} unit${totalIssues===1?'à':'à'} da completare su tutti i progetti`}
+        </div>
+        <div style="font-size:12px;color:#888;margin-top:2px;">Campi obbligatori per le unità vendute: Proprietario / Acquirente · Prezzo Concordato · Link Google Drive</div>
+      </div>
+    </div>
+    ${sectionsHtml}
+  </div>`;
 }
 
 // ─── INIT ───
