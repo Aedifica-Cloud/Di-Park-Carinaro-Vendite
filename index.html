@@ -270,6 +270,22 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
 .delta-nd{color:#bbb;font-style:italic;}
 .ptable tfoot td{font-weight:800;background:#f5f0e8;border-top:2px solid #e0d8cc;padding:10px 12px;}
 
+
+/* ── CHECK PANEL ── */
+#check-panel{background:#fff;border-bottom:1px solid #e0d8cc;}
+.cp-header{display:flex;align-items:center;gap:10px;padding:8px 24px;cursor:pointer;user-select:none;}
+.cp-header:hover{background:#faf7f2;}
+.cp-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
+.cp-badge.warn{background:#fff3e0;color:#e65100;}
+.cp-badge.ok{background:#e8f5e9;color:#2e7d32;}
+.cp-toggle{font-size:10px;color:#aaa;margin-left:auto;}
+.cp-body{padding:0 24px 12px;display:none;}
+.cp-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f5f0e8;cursor:pointer;font-size:12px;}
+.cp-row:last-child{border-bottom:none;}
+.cp-row:hover{color:var(--navy);}
+.cp-pills{display:flex;gap:4px;flex-wrap:wrap;}
+.cp-pill{background:#ffebee;color:#c62828;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;}
+
 /* ── HISTORY SECTION ── */
 .hsep{border:none;border-top:1px solid #f0e8dc;margin:8px 0;}
 .history-wrap{padding:0 24px 20px;}
@@ -304,7 +320,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   <div class="tab" onclick="sw('sorriso')">Sorriso</div>
   <div class="tab" onclick="sw('audacia')">Audacia</div>
   <div class="tab" onclick="sw('incassi')">💶 Incassi</div>
-  <div class="tab" onclick="sw('check')">⚠️ Completezza</div>
   <div class="tab" onclick="sw('riepilogo')" style="margin-left:auto;">📊 Riepilogo</div>
 </div>
 
@@ -317,6 +332,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   <div class="leg"><div class="leg-dot locale"></div>Locale</div>
 </div>
 
+<div id="check-panel"></div>
 <div id="content"></div>
 
 <!-- MODAL -->
@@ -1130,19 +1146,17 @@ function renderBoxAutoPassione() {
 // ─── SWITCH PROJECT ───
 function sw(p) {
   proj = p;
-  const keys = ['lotti','a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','check','riepilogo'];
+  const keys = ['lotti','a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','riepilogo'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',keys[i]===p));
   const isDash  = p==='riepilogo';
   const isInc   = p==='incassi';
-  const isCheck  = p==='check';
   const isLotti  = p==='lotti';
-  document.getElementById('kpi').style.display   = (isDash||isInc||isCheck||isLotti) ? 'none' : '';
-  document.querySelector('.legend').style.display = (isDash||isInc||isCheck||isLotti) ? 'none' : '';
+  document.getElementById('kpi').style.display   = (isDash||isInc||isLotti) ? 'none' : '';
+  document.querySelector('.legend').style.display = (isDash||isInc||isLotti) ? 'none' : '';
   if (isDash)       { renderDashboard(); }
   else if (isInc)   { renderIncassi(); }
   else if (isLotti) { renderLotti(); }
-  else if (isCheck)  { renderCheck(); }
-  else              { renderKPI(); renderPlan(); }
+  else              { renderKPI(); renderPlan(); renderCheckPanel(p); }
 }
 
 // ─── DASHBOARD ───
@@ -1896,7 +1910,7 @@ function save() {
     u.history.push({ts: tsNow(), changes});
   }
 
-  store(); renderKPI(); renderPlan(); renderHistory(u);
+  store(); renderKPI(); renderPlan(); renderHistory(u); renderCheckPanel(proj);
   setFormLocked(true);
   document.getElementById('msaved').style.display = 'inline';
   setTimeout(()=>{ document.getElementById('msaved').style.display='none'; }, 2000);
@@ -2173,6 +2187,68 @@ function renderLotti() {
       ℹ️ I progetti <strong>Ideale, Euforia, Amore, Energia</strong> non sono ancora presenti nel gestionale vendite.
     </div>
   </div>`;
+}
+
+
+// ─── CHECK PANEL (inline per progetto) ───
+let _cpOpen = false;
+function renderCheckPanel(p) {
+  const panel = document.getElementById('check-panel');
+  if (!p || !D[p]) { panel.innerHTML = ''; return; }
+
+  const RULES = [
+    { field:'owner', label:'Proprietario' },
+    { field:'price', label:'Prezzo'       },
+    { field:'drive', label:'Link Drive'   },
+  ];
+  const floorOf = {};
+  D[p].floors.forEach(f => { f.layout.forEach(g => { g.ids.forEach(uid => { floorOf[uid]=f.name; }); }); });
+
+  const issues = Object.entries(D[p].units)
+    .filter(([,u]) => u.st === 'venduto')
+    .map(([uid,u]) => {
+      const missing = RULES.filter(r => !u[r.field]||!String(u[r.field]).trim()).map(r=>r.label);
+      return missing.length ? {uid,u,missing,floor:floorOf[uid]||''} : null;
+    }).filter(Boolean);
+
+  if (!issues.length) {
+    panel.innerHTML = `<div class="cp-header" style="cursor:default;">
+      <span class="cp-badge ok">✅ Tutte le schede vendute sono complete</span>
+    </div>`;
+    return;
+  }
+
+  const rows = issues.map(({uid,u,missing,floor}) => {
+    const pills = missing.map(m=>`<span class="cp-pill">${esc(m)}</span>`).join('');
+    return `<div class="cp-row" onclick="openM('${uid}')">
+      <span style="color:#888;min-width:90px;">${esc(floor)}</span>
+      <span style="font-weight:700;min-width:60px;">Sc.${esc(u.sc||'—')} Int.${esc(u.lbl)}</span>
+      <span style="color:#666;min-width:100px;">${u.owner?esc(u.owner):'<em style="color:#bbb">—</em>'}</span>
+      <div class="cp-pills">${pills}</div>
+      <span style="margin-left:auto;font-size:11px;color:#3a5fa0;">↗ Apri</span>
+    </div>`;
+  }).join('');
+
+  const open = _cpOpen;
+  panel.innerHTML = `
+    <div class="cp-header" onclick="toggleCP()">
+      <span class="cp-badge warn">⚠️ ${issues.length} unità vendute da completare</span>
+      <span class="cp-toggle" id="cp-arrow">${open?'▲':'▼'}</span>
+    </div>
+    <div class="cp-body" id="cp-body" style="display:${open?'block':'none'}">
+      <div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">
+        Campi obbligatori mancanti — clicca per aprire la scheda
+      </div>
+      ${rows}
+    </div>`;
+}
+
+function toggleCP() {
+  _cpOpen = !_cpOpen;
+  const body = document.getElementById('cp-body');
+  const arrow = document.getElementById('cp-arrow');
+  if (body)  body.style.display  = _cpOpen ? 'block' : 'none';
+  if (arrow) arrow.textContent   = _cpOpen ? '▲' : '▼';
 }
 
 // ─── CHECK COMPLETEZZA ───
