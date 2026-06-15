@@ -272,38 +272,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
 
 
 
-/* ── LOGIN SCREEN ── */
-#login-screen{position:fixed;inset:0;background:var(--navy);z-index:999;
-  display:flex;align-items:center;justify-content:center;}
-.login-card{background:#fff;border-radius:16px;padding:40px 36px;width:100%;max-width:400px;
-  box-shadow:0 24px 64px rgba(0,0,0,.4);display:flex;flex-direction:column;gap:16px;}
-.login-logo{font-size:26px;font-weight:800;letter-spacing:1px;color:var(--navy);text-align:center;}
-.login-logo span{color:var(--gold);}
-.login-title{font-size:15px;color:#666;text-align:center;margin-top:-8px;}
-.login-input{border:1.5px solid #ddd;border-radius:8px;padding:11px 14px;
-  font-size:14px;font-family:inherit;outline:none;transition:border .2s;}
-.login-input:focus{border-color:var(--navy);}
-.login-btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:12px;
-  font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .2s;}
-.login-btn:hover{background:#243d5c;}
-.login-btn:disabled{opacity:.5;cursor:default;}
-.login-err{color:var(--red);font-size:12px;text-align:center;min-height:16px;}
-.login-link{font-size:12px;color:#888;text-align:center;cursor:pointer;text-decoration:underline;}
-.login-link:hover{color:var(--navy);}
-/* ── USER INFO HEADER ── */
-.user-bar{display:flex;align-items:center;gap:10px;margin-left:auto;}
-.user-email{font-size:11px;color:rgba(255,255,255,.7);}
-.role-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
-.role-badge.admin{background:#c9a84c;color:#1a2e4a;}
-.role-badge.editor{background:#4caf50;color:#fff;}
-.role-badge.viewer{background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);}
-.logout-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
-  color:#fff;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;}
-.logout-btn:hover{background:rgba(255,255,255,.22);}
-/* ── VIEWER BANNER ── */
-#viewer-banner{display:none;background:#1a2e4a;color:rgba(255,255,255,.7);
-  font-size:11px;font-weight:700;text-align:center;padding:5px;letter-spacing:.5px;}
-
 /* ── CHECK PANEL ── */
 #check-panel{background:#fff;border-bottom:1px solid #e0d8cc;}
 .cp-header{display:flex;align-items:center;gap:10px;padding:8px 24px;cursor:pointer;user-select:none;}
@@ -338,31 +306,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
 <body>
 
 
-<!-- LOGIN SCREEN -->
-<div id="login-screen">
-  <div class="login-card">
-    <div class="login-logo">D|PARK <span>Carinaro</span></div>
-    <div class="login-title">Gestionale Vendite — Accedi</div>
-    <input class="login-input" id="l-email" type="email" placeholder="Email" onkeydown="if(event.key==='Enter')doLogin()">
-    <input class="login-input" id="l-pass" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="login-btn" id="l-btn" onclick="doLogin()">Accedi</button>
-    <div class="login-err" id="l-err"></div>
-    <div class="login-link" onclick="doResetPassword()">Password dimenticata?</div>
-  </div>
-</div>
-
-<!-- VIEWER BANNER -->
-<div id="viewer-banner">👁 MODALITÀ SOLA LETTURA — non puoi apportare modifiche</div>
 
 <div class="header">
   <div class="logo">D|PARK <span>Carinaro</span></div>
   <div style="font-size:12px;opacity:.5;margin-left:8px;">Gestionale Vendite</div>
   <div class="saved-lbl" id="saved"></div>
-  <div class="user-bar" id="user-info" style="display:none">
-    <span class="user-email" id="user-email-lbl"></span>
-    <span class="role-badge" id="user-role-badge"></span>
-    <button class="logout-btn" onclick="doLogout()">Esci</button>
-  </div>
 </div>
 
 <div class="tabs">
@@ -375,7 +323,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   <div class="tab" onclick="sw('sorriso')">Sorriso</div>
   <div class="tab" onclick="sw('audacia')">Audacia</div>
   <div class="tab" onclick="sw('incassi')">💶 Incassi</div>
-  <div class="tab" id="tab-utenti" onclick="sw('utenti')" style="display:none;">⚙️ Utenti</div>
   <div class="tab" onclick="sw('riepilogo')" style="margin-left:auto;">📊 Riepilogo</div>
 </div>
 
@@ -816,7 +763,6 @@ function load() {
 
 // ─── SUPABASE STORE ───
 function store() {
-  if (currentRole === 'viewer') return; // viewer non può salvare
   const out = {};
   Object.keys(D).forEach(p => {
     out[p] = {};
@@ -1203,18 +1149,16 @@ function renderBoxAutoPassione() {
 // ─── SWITCH PROJECT ───
 function sw(p) {
   proj = p;
-  const keys = ['lotti','a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','utenti','riepilogo'];
+  const keys = ['lotti','a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','riepilogo'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',keys[i]===p));
   const isDash  = p==='riepilogo';
   const isInc   = p==='incassi';
   const isLotti  = p==='lotti';
-  const isUtenti = p==='utenti';
-  document.getElementById('kpi').style.display   = (isDash||isInc||isLotti||isUtenti) ? 'none' : '';
-  document.querySelector('.legend').style.display = (isDash||isInc||isLotti||isUtenti) ? 'none' : '';
+  document.getElementById('kpi').style.display   = (isDash||isInc||isLotti) ? 'none' : '';
+  document.querySelector('.legend').style.display = (isDash||isInc||isLotti) ? 'none' : '';
   if (isDash)       { renderDashboard(); }
   else if (isInc)   { renderIncassi(); }
   else if (isLotti)  { renderLotti(); }
-  else if (isUtenti) { renderAdminPanel(); }
   else              { renderKPI(); renderPlan(); renderCheckPanel(p); }
 }
 
@@ -1753,15 +1697,7 @@ function openM(uid) {
   rb();
   renderHistory(u);
   switchMTab('scheda');
-  // viewer: sempre locked e senza pulsante modifica
-  if (currentRole === 'viewer') {
-    setFormLocked(true);
-    document.getElementById('btn-edit').style.display = 'none';
-    document.getElementById('btn-cancel').style.display = 'none';
-    document.getElementById('btn-save').style.display = 'none';
-  } else {
-    setFormLocked(curIsLocale);
-  }
+  setFormLocked(curIsLocale); // locale → bloccato, tutti gli altri → subito modificabile
   document.getElementById('ov').classList.add('open');
 }
 
@@ -2415,158 +2351,8 @@ function renderCheck() {
 }
 
 
-// ─── AUTH ───
-let currentUser = null, currentRole = null;
-
-async function initAuth() {
-  // Mostra subito la schermata di login senza aspettare la rete
-  showLoginScreen();
-
-  // In background controlla se c'è già una sessione attiva
-  try {
-    const { data:{ session } } = await sb.auth.getSession();
-    if (session) await onLogin(session);
-  } catch(e) { /* resta sulla schermata di login */ }
-
-  // Ascolta i cambiamenti di stato auth
-  sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN'  && session) await onLogin(session);
-    if (event === 'SIGNED_OUT')            showLoginScreen();
-  });
-}
-
-// ── RUOLI: aggiungi qui le email degli utenti ──
-const ADMIN_EMAILS  = ['n.communara@aedificabuild.com'];
-const EDITOR_EMAILS = []; // es: ['mario@esempio.it', 'giulia@esempio.it']
-// Tutti gli altri che accedono con credenziali valide → 'viewer'
-
-async function onLogin(session) {
-  currentUser = session.user;
-  document.getElementById('login-screen').style.display = 'none';
-  const email = currentUser.email || '';
-  currentRole = ADMIN_EMAILS.includes(email)  ? 'admin'
-              : EDITOR_EMAILS.includes(email)  ? 'editor'
-              : 'viewer';
-  // header
-  document.getElementById('user-email-lbl').textContent = currentUser.email;
-  const rb = document.getElementById('user-role-badge');
-  rb.textContent = currentRole==='admin'?'👑 Admin':currentRole==='editor'?'✏️ Editor':'👁 Solo lettura';
-  rb.className = 'role-badge ' + currentRole;
-  document.getElementById('user-info').style.display = 'flex';
-  // viewer banner
-  document.getElementById('viewer-banner').style.display = currentRole==='viewer' ? 'block' : 'none';
-  // admin tab
-  const ut = document.getElementById('tab-utenti');
-  if (ut) ut.style.display = currentRole==='admin' ? '' : 'none';
-  // load app
-  initAuth();
-}
-
-function showLoginScreen() {
-  document.getElementById('login-screen').style.display = 'flex';
-  const vb = document.getElementById('viewer-banner');
-  if (vb) vb.style.display = 'none';
-  const ui = document.getElementById('user-info');
-  if (ui) ui.style.display = 'none';
-  const cp = document.getElementById('check-panel');
-  if (cp) cp.innerHTML = '';
-  currentUser = null; currentRole = null;
-}
-
-async function doLogin() {
-  const email = document.getElementById('l-email').value.trim();
-  const pass  = document.getElementById('l-pass').value;
-  const err   = document.getElementById('l-err');
-  const btn   = document.getElementById('l-btn');
-  err.textContent = ''; btn.disabled = true; btn.textContent = 'Accesso in corso…';
-  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
-  if (error) {
-    err.textContent = 'Email o password non corretti.';
-    btn.disabled = false; btn.textContent = 'Accedi';
-  }
-}
-
-async function doLogout() {
-  await sb.auth.signOut();
-}
-
-async function doResetPassword() {
-  const email = document.getElementById('l-email').value.trim();
-  if (!email) { document.getElementById('l-err').textContent = 'Inserisci prima la tua email.'; return; }
-  await sb.auth.resetPasswordForEmail(email);
-  document.getElementById('l-err').style.color = 'var(--green)';
-  document.getElementById('l-err').textContent = 'Email inviata! Controlla la casella.';
-}
-
-// ─── ADMIN PANEL ───
-function renderAdminPanel() {
-  if (currentRole !== 'admin') {
-    document.getElementById('content').innerHTML = '<div style="padding:40px;text-align:center;color:#aaa;">Accesso negato.</div>';
-    return;
-  }
-
-  const allEmails = [...new Set([...ADMIN_EMAILS, ...EDITOR_EMAILS])];
-
-  const adminRows = ADMIN_EMAILS.map(e => `
-    <tr style="border-bottom:1px solid #f0e8dc;">
-      <td style="padding:10px 16px;font-size:13px;">${esc(e)}</td>
-      <td style="padding:10px 16px;"><span class="role-badge admin" style="font-size:11px;">👑 Admin</span></td>
-    </tr>`).join('');
-
-  const editorRows = EDITOR_EMAILS.map(e => `
-    <tr style="border-bottom:1px solid #f0e8dc;">
-      <td style="padding:10px 16px;font-size:13px;">${esc(e)}</td>
-      <td style="padding:10px 16px;"><span class="role-badge editor" style="font-size:11px;">✏️ Editor</span></td>
-    </tr>`).join('');
-
-  document.getElementById('content').innerHTML = `
-  <div style="padding:24px;max-width:760px;margin:0 auto;">
-    <h2 style="font-size:20px;font-weight:800;color:var(--navy);margin-bottom:6px;">⚙️ Gestione Utenti</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:20px;">
-      I ruoli sono definiti nel file <code>index.html</code>. Per aggiungere o modificare un utente, 
-      cerca <code>ADMIN_EMAILS</code> o <code>EDITOR_EMAILS</code> nel file e aggiungi l'email.
-    </p>
-
-    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px 18px;font-size:12px;color:#795548;margin-bottom:20px;">
-      <strong>Come aggiungere un collaboratore:</strong><br>
-      1. Vai su <strong>Supabase → Authentication → Users → Add user → Create new user</strong> — inserisci email e password<br>
-      2. Apri questo file HTML, cerca <code>EDITOR_EMAILS</code> e aggiungi la loro email alla lista<br>
-      3. La prossima volta che accedono vedranno l'app in sola lettura (viewer) o modifica (editor)
-    </div>
-
-    <div style="background:#fff;border-radius:12px;box-shadow:var(--shadow);overflow:hidden;">
-      <div style="background:var(--navy);color:#fff;padding:14px 20px;">
-        <span style="font-size:14px;font-weight:800;">Utenti con accesso</span>
-      </div>
-      <table style="width:100%;border-collapse:collapse;">
-        <thead><tr style="background:#f5f0e8;">
-          <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;">Email</th>
-          <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#888;">Ruolo</th>
-        </tr></thead>
-        <tbody>
-          ${adminRows}
-          ${editorRows}
-          ${!adminRows&&!editorRows?'<tr><td colspan="2" style="padding:20px;color:#aaa;text-align:center;">Nessun utente configurato.</td></tr>':''}
-          <tr style="background:#fafafa;border-top:2px solid #e0d8cc;">
-            <td colspan="2" style="padding:10px 16px;font-size:11px;color:#999;font-style:italic;">
-              Tutti gli altri utenti con credenziali valide accedono in <strong>sola lettura</strong>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div style="margin-top:16px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:14px 18px;font-size:12px;color:#2e7d32;">
-      💡 <strong>Ruoli:</strong>
-      👁 <strong>Viewer</strong> — vede tutto, non può modificare &nbsp;·&nbsp;
-      ✏️ <strong>Editor</strong> — modifica i dati &nbsp;·&nbsp;
-      👑 <strong>Admin</strong> — modifica + gestisce utenti
-    </div>
-  </div>`;
-}
-
 // ─── INIT ───
-initAuth();
+load(); sw('lotti');
 </script>
 </body>
 </html>
