@@ -30,6 +30,38 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
 .logo span{color:#fff;font-weight:300;}
 .saved-lbl{margin-left:auto;font-size:11px;opacity:.6;min-width:80px;text-align:right;}
 
+/* ── AUTH / PRESENZA ── */
+.presence{display:flex;align-items:center;gap:0;}
+.presence .plbl{font-size:11px;opacity:.75;margin-right:8px;white-space:nowrap;}
+.pdot{width:25px;height:25px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;border:2px solid var(--navy);margin-left:-6px;box-shadow:0 0 0 1px rgba(255,255,255,.35);}
+.pdot.admin{background:var(--gold);color:#1a2e4a;}
+.pdot.editor{background:#3a7bd5;}
+.pdot.viewer{background:#8a8a8a;}
+.pdot.guest{background:#5a5a5a;}
+.authbar{display:flex;align-items:center;gap:8px;}
+.authemail{font-size:12px;opacity:.85;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rolebadge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 8px;border-radius:10px;background:rgba(255,255,255,.15);white-space:nowrap;}
+.rolebadge.admin{background:var(--gold);color:#1a2e4a;}
+.rolebadge.editor{background:#3a7bd5;color:#fff;}
+.rolebadge.viewer,.rolebadge.guest{background:rgba(255,255,255,.18);color:#fff;}
+.authbtn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:.15s;}
+.authbtn:hover{background:rgba(255,255,255,.22);}
+.authbtn.primary{background:var(--gold);color:#1a2e4a;border-color:var(--gold);}
+.authbtn.primary:hover{background:#d8b95e;}
+
+/* ── LOGIN MODAL ── */
+.login-box{background:#fff;max-width:360px;width:90%;margin:auto;border-radius:12px;padding:32px 28px;box-shadow:0 10px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:12px;}
+.login-logo{font-size:24px;font-weight:800;color:var(--gold);text-align:center;letter-spacing:1px;}
+.login-logo span{color:var(--navy);font-weight:300;}
+.login-sub{text-align:center;color:#888;font-size:13px;margin-bottom:6px;}
+.login-box input{padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;}
+.login-box input:focus{outline:none;border-color:var(--gold);}
+.login-err{color:var(--red);font-size:12px;min-height:16px;text-align:center;}
+.login-btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;}
+.login-btn:hover{background:#24406b;}
+.login-guest{background:none;border:none;color:#999;font-size:12px;cursor:pointer;text-decoration:underline;padding:4px;}
+.readonly-banner{background:#fff7e0;border-bottom:1px solid var(--gold);color:#7a5b00;font-size:12px;text-align:center;padding:6px;font-weight:600;}
+
 /* ── TABS ── */
 .tabs{background:var(--navy);border-top:1px solid rgba(255,255,255,.1);display:flex;padding:0 16px;gap:4px;}
 .tab{padding:10px 20px;color:rgba(255,255,255,.55);cursor:pointer;font-size:13px;font-weight:600;border-bottom:3px solid transparent;transition:.2s;}
@@ -311,6 +343,22 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   <div class="logo">D|PARK <span>Carinaro</span></div>
   <div style="font-size:12px;opacity:.5;margin-left:8px;">Gestionale Vendite</div>
   <div class="saved-lbl" id="saved"></div>
+  <div class="presence" id="presence"></div>
+  <div class="authbar" id="authbar"></div>
+</div>
+<div class="readonly-banner" id="readonly-banner" style="display:none">👁 Modalità sola lettura — accedi per modificare i dati</div>
+
+<!-- LOGIN MODAL -->
+<div class="ov" id="login-ov" onclick="if(event.target===this)closeLogin()">
+  <div class="login-box">
+    <div class="login-logo">D|PARK <span>Carinaro</span></div>
+    <div class="login-sub">Accesso gestionale vendite</div>
+    <input id="login-email" type="email" placeholder="Email" autocomplete="username">
+    <input id="login-pass" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="login-err" class="login-err"></div>
+    <button class="login-btn" onclick="doLogin()">Entra</button>
+    <button class="login-guest" onclick="closeLogin()">Continua come ospite (sola lettura)</button>
+  </div>
 </div>
 
 <div class="tabs">
@@ -448,7 +496,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
 
     <div class="mfoot">
       <span id="msaved">✓ Salvato</span>
-      <button class="btn btn-danger" onclick="clearHistory()">🗑 Cancella storico</button>
+      <button class="btn btn-danger" id="btn-clearhist" onclick="clearHistory()">🗑 Cancella storico</button>
       <button class="btn" id="btn-edit" style="background:#e8f0fe;color:#1a2e4a;border:1.5px solid #b0c4e8;display:none" onclick="unlockForm()">✏️ Modifica</button>
       <button class="btn btn-g" id="btn-cancel" onclick="cm()" style="display:none">Annulla</button>
       <button class="btn btn-p" id="btn-save" onclick="save()" style="display:none">💾 Salva Scheda</button>
@@ -763,6 +811,7 @@ function load() {
 
 // ─── SUPABASE STORE ───
 function store() {
+  if (typeof CAN_EDIT !== 'undefined' && !CAN_EDIT) { return; } // sola lettura: nessuna scrittura
   const out = {};
   Object.keys(D).forEach(p => {
     out[p] = {};
@@ -1702,6 +1751,8 @@ function openM(uid) {
 }
 
 function setFormLocked(locked) {
+  // sola lettura (ospite/viewer): forza sempre il blocco
+  if (typeof CAN_EDIT !== 'undefined' && !CAN_EDIT) locked = true;
   // tutti i campi tranne fst (stato) che gestiamo separatamente
   const fields = ['fow','fcod','fph','fem','fpr','fda','fbx','fac','fno','fdr','fnt'];
   fields.forEach(id => {
@@ -1724,9 +1775,12 @@ function setFormLocked(locked) {
   const drBtn = document.getElementById('fdr-btn');
   if (drBtn) drBtn.style.pointerEvents = locked ? 'none' : '';
   // footer buttons
-  document.getElementById('btn-edit').style.display   = locked  ? 'inline-flex' : 'none';
+  const editable = (typeof CAN_EDIT === 'undefined') ? true : CAN_EDIT;
+  document.getElementById('btn-edit').style.display   = (locked && editable)  ? 'inline-flex' : 'none';
   document.getElementById('btn-cancel').style.display = !locked ? 'inline-flex' : 'none';
   document.getElementById('btn-save').style.display   = !locked ? 'inline-flex' : 'none';
+  const clrBtn = document.getElementById('btn-clearhist');
+  if (clrBtn) clrBtn.style.display = editable ? 'inline-flex' : 'none';
   // refresh SAL tab if visible
   const salTab = document.getElementById('tab-sal');
   if (salTab && salTab.style.display !== 'none') renderSalTab();
@@ -1737,6 +1791,7 @@ function setFormLocked(locked) {
 }
 
 function unlockForm() {
+  if (!CAN_EDIT) return;
   setFormLocked(false);
   // forza abilitazione stato per appartamenti non-locale
   if (!curIsLocale) {
@@ -1847,6 +1902,7 @@ function salField(i, key, val) {
 }
 
 function addSalRow() {
+  if (!CAN_EDIT) return;
   if (!curId) return;
   const u = D[proj].units[curId];
   if (!u.sal) u.sal = [];
@@ -1857,6 +1913,7 @@ function addSalRow() {
 }
 
 function delSalRow(i) {
+  if (!CAN_EDIT) return;
   if (!curId) return;
   const u = D[proj].units[curId];
   if (!u.sal) return;
@@ -1870,6 +1927,7 @@ function cm()   { setFormLocked(true); document.getElementById('ov').classList.r
 
 // ─── SAVE ───
 function save() {
+  if (!CAN_EDIT) return;
   if (!curId) return;
   const u = D[proj].units[curId];
 
@@ -1921,6 +1979,7 @@ function save() {
 
 // ─── CLEAR HISTORY ───
 function clearHistory() {
+  if (!CAN_EDIT) return;
   if (!curId) return;
   if (!confirm('Cancellare tutto lo storico di questo appartamento?')) return;
   const u = D[proj].units[curId];
@@ -2351,8 +2410,130 @@ function renderCheck() {
 }
 
 
+// ═══════════════════════════════════════════════════
+// AUTH + RUOLI + PRESENZA LIVE (gating lato app)
+// Ruoli: admin / editor (= utente, modifica) / viewer (sola lettura) / guest (no login)
+// Il ruolo si legge da user_metadata.role impostato su Supabase.
+// ═══════════════════════════════════════════════════
+let CURRENT_USER = null;
+let ROLE = 'guest';
+let NOME = '';
+let COLORE = '#5a5a5a';
+let CAN_EDIT = false;          // resta false finché l'auth non è risolta
+let presenceChannel = null;
+
+function roleLabel(r){
+  return {admin:'Admin', editor:'Utente', guest:'Ospite'}[r] || r;
+}
+
+// Carica nome/ruolo/colore dalla tabella profiles (stessa logica del Di Tower)
+async function loadProfile(user){
+  if(!user) return null;
+  try {
+    const { data } = await sb.from('profiles').select('nome,role,colore').eq('id', user.id).maybeSingle();
+    if(data) return data;
+  } catch(e){ console.warn('profiles non leggibile:', e); }
+  // fallback dai metadata se il profilo non è ancora pronto
+  const m = user.user_metadata || {};
+  return { nome: m.nome || (user.email||'').split('@')[0], role: m.role || 'editor', colore: m.colore || '#3b82f6' };
+}
+
+async function applyAuth(session){
+  CURRENT_USER = session ? session.user : null;
+  if(CURRENT_USER){
+    const p = await loadProfile(CURRENT_USER);
+    ROLE   = (p && p.role === 'admin') ? 'admin' : 'editor';
+    NOME   = (p && p.nome) ? p.nome : (CURRENT_USER.email||'').split('@')[0];
+    COLORE = (p && p.colore) ? p.colore : '#3b82f6';
+    CAN_EDIT = true;   // ogni utente autenticato (admin/editor) può modificare
+  } else {
+    ROLE = 'guest'; NOME = 'Ospite'; COLORE = '#5a5a5a'; CAN_EDIT = false;
+  }
+  renderAuthBar();
+  const banner = document.getElementById('readonly-banner');
+  if(banner) banner.style.display = CAN_EDIT ? 'none' : 'block';
+  // se è aperta una scheda in modalità non-edit, rimettila in lock
+  const ov = document.getElementById('ov');
+  if(ov && ov.classList.contains('open') && !CAN_EDIT) setFormLocked(true);
+  startPresence();
+}
+
+function renderAuthBar(){
+  const bar = document.getElementById('authbar');
+  if(!bar) return;
+  if(CURRENT_USER){
+    bar.innerHTML = '<span class="rolebadge '+ROLE+'">'+roleLabel(ROLE)+'</span>'
+      + '<span class="authemail" title="'+(CURRENT_USER.email||'')+'">'+(NOME||CURRENT_USER.email||'')+'</span>'
+      + '<button class="authbtn" onclick="doLogout()">Esci</button>';
+  } else {
+    bar.innerHTML = '<span class="rolebadge guest">Ospite · sola lettura</span>'
+      + '<button class="authbtn primary" onclick="openLogin()">🔐 Accedi</button>';
+  }
+}
+
+// ── Login modal ──
+function openLogin(){
+  document.getElementById('login-err').textContent = '';
+  document.getElementById('login-ov').classList.add('open');
+  setTimeout(()=>{ const e=document.getElementById('login-email'); if(e) e.focus(); }, 50);
+}
+function closeLogin(){ document.getElementById('login-ov').classList.remove('open'); }
+
+async function doLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const pwd   = document.getElementById('login-pass').value;
+  const err   = document.getElementById('login-err');
+  if(!email || !pwd){ err.textContent = 'Inserisci email e password.'; return; }
+  err.style.color = ''; err.textContent = 'Accesso in corso…';
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email, password: pwd });
+    if(error){ err.textContent = 'Credenziali non valide.'; return; }
+    document.getElementById('login-pass').value = '';
+    closeLogin();
+    // applyAuth verrà richiamato da onAuthStateChange
+  } catch(e){ err.textContent = 'Errore di connessione.'; }
+}
+async function doLogout(){ try{ await sb.auth.signOut(); }catch(e){ console.error(e); } }
+
+// ── Presenza live (chi è online) ──
+function startPresence(){
+  if(presenceChannel){ try{ sb.removeChannel(presenceChannel); }catch(e){} presenceChannel=null; }
+  const id = CURRENT_USER ? CURRENT_USER.id : ('guest-'+Math.random().toString(36).slice(2,9));
+  const meta = {
+    name: CURRENT_USER ? (NOME || CURRENT_USER.email || 'utente') : 'Ospite',
+    role: ROLE,
+    colore: COLORE,
+    online_at: new Date().toISOString()
+  };
+  presenceChannel = sb.channel('presence_dpark', { config:{ presence:{ key:id } } });
+  presenceChannel.on('presence', { event:'sync' }, ()=> renderPresence(presenceChannel.presenceState()));
+  presenceChannel.subscribe(async (status)=>{ if(status==='SUBSCRIBED'){ try{ await presenceChannel.track(meta); }catch(e){} } });
+}
+function renderPresence(state){
+  const el = document.getElementById('presence');
+  if(!el) return;
+  const users = [];
+  Object.values(state||{}).forEach(arr => { if(arr && arr[0]) users.push(arr[0]); });
+  if(!users.length){ el.innerHTML = ''; return; }
+  const order = {admin:0, editor:1, guest:2};
+  users.sort((a,b)=> (order[a.role]??9) - (order[b.role]??9));
+  const dots = users.map(u=>{
+    const initial = (u.name||'?').trim().charAt(0).toUpperCase();
+    const cls = ['admin','editor','guest'].includes(u.role) ? u.role : 'guest';
+    const col = u.colore ? ' style="background:'+u.colore+';color:#fff"' : '';
+    return '<span class="pdot '+cls+'"'+col+' title="'+(u.name||'')+' · '+roleLabel(u.role)+'">'+initial+'</span>';
+  }).join('');
+  el.innerHTML = '<span class="plbl">🟢 '+users.length+' online</span>'+dots;
+}
+
+function initAuth(){
+  renderAuthBar();
+  sb.auth.getSession().then(({data})=> applyAuth(data ? data.session : null));
+  sb.auth.onAuthStateChange((_event, session)=> applyAuth(session));
+}
+
 // ─── INIT ───
-load(); sw('lotti');
+load(); sw('lotti'); initAuth();
 </script>
 </body>
 </html>
