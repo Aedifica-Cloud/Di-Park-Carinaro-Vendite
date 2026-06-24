@@ -2245,6 +2245,8 @@ function buildScadByCodeSection(){
     }
   }
   const haveCli=!!xlsxClienti;
+  const _PERMUTA_FORCE=['SALVAREZZA','TURCO'];   // trattati come permute, non a incasso
+  const isPerm=name=>_PERMUTA_FORCE.some(k=>String(name||'').toUpperCase().includes(k));
   const codes=Object.keys(xlsxScadByCode).sort();
   if(!codes.length) return '';
   let cards='', gPrezzo=0, gF=0, gI=0, gDaFatt=0, gDaInc=0;
@@ -2253,8 +2255,15 @@ function buildScadByCodeSection(){
     const u=codeMap[code];
     const prezzo=u?u.price:0;
     gPrezzo+=prezzo;
-    let cF=0, cI=0;
+    let cF=0, cI=0, codePerm=true;
     const righe=persone.map(p=>{
+      if(isPerm(p.display)){
+        return `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px dashed #eee3d2;font-size:12px;flex-wrap:wrap;">
+          <div style="font-weight:700;color:#1a2e4a;min-width:160px;">${esc(p.display)} <span style="background:#ede9f8;color:#5e35b1;font-size:9px;font-weight:700;padding:1px 7px;border-radius:9px;">Permuta</span></div>
+          <div style="text-align:right;min-width:200px;color:#5e35b1;font-style:italic;">Permuta &mdash; non considerata negli incassi</div>
+        </div>`;
+      }
+      codePerm=false;
       const m=haveCli?_matchGenya(_normNome(p.display)):null;   // dare/avere dal file clienti
       const fatt=m?m.c.fatturato:null;
       const inc =m?m.c.incasso:null;
@@ -2269,25 +2278,29 @@ function buildScadByCodeSection(){
       </div>`;
     }).join('');
     gF+=cF; gI+=cI;
-    const daFatt=prezzo>0?prezzo-cF:null;     // Prezzo − Fatturato
-    const daInc =haveCli?cF-cI:null;          // Fatturato − Incassato
+    const daFatt=(!codePerm&&prezzo>0)?prezzo-cF:null;     // Prezzo − Fatturato
+    const daInc =(!codePerm&&prezzo>0)?prezzo-cI:null;     // Prezzo − Incassato
     if(daFatt!==null) gDaFatt+=daFatt;
     if(daInc!==null)  gDaInc+=daInc;
     const apt = u ? `${u.proj} &middot; ${u.sc?('Scala '+esc(u.sc)+' &middot; '):''}Int. ${esc(u.lbl)} &middot; ${esc(u.tipo)}` : '<span style="color:#b8860b;">codice non presente a sistema</span>';
     const multi = persone.length>1 ? ` <span style="background:#ede9f8;color:#5e35b1;font-size:9px;font-weight:700;padding:1px 7px;border-radius:9px;">${persone.length} intestatari</span>` : '';
-    cards+=`<div style="background:#fff;border:1px solid #e0d8cc;border-radius:10px;padding:14px 18px;margin-bottom:12px;">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
-        <div><span style="font-family:monospace;font-weight:800;color:#1a2e4a;font-size:14px;">${esc(code)}</span>${multi}
-          <span style="font-size:11px;color:#888;margin-left:8px;">${apt}</span></div>
-        <div style="font-size:12px;color:#1a2e4a;font-weight:700;">Prezzo di vendita: ${prezzo>0?fmtEurInc(prezzo):'&mdash;'}</div>
-      </div>
-      ${righe}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;border-top:2px solid #f0e8dc;margin-top:10px;padding-top:10px;">
+    const permPill = codePerm ? ` <span style="background:#ede9f8;color:#5e35b1;font-size:9px;font-weight:700;padding:1px 7px;border-radius:9px;">Permuta</span>` : '';
+    const footer = codePerm
+      ? `<div style="border-top:2px solid #f0e8dc;margin-top:10px;padding-top:10px;font-size:12px;color:#5e35b1;font-style:italic;font-weight:600;">Operazione in permuta &mdash; non considerata negli incassi.</div>`
+      : `<div style="display:flex;gap:8px;flex-wrap:wrap;border-top:2px solid #f0e8dc;margin-top:10px;padding-top:10px;">
         ${_codeStat('Fatturato', haveCli?fmtEurInc(cF):'&mdash;', '#1a2e4a')}
         ${_codeStat('Incassato', haveCli?fmtEurInc(cI):'&mdash;', '#2e7d32')}
         ${_codeStat('Da Fatturare', daFatt!==null?fmtEurInc(daFatt):'&mdash;', (daFatt!==null&&daFatt<=0)?'#2e7d32':'#c62828')}
         ${_codeStat('Da Incassare', daInc!==null?fmtEurInc(daInc):'&mdash;', (daInc!==null&&daInc<=0)?'#2e7d32':'#c62828')}
+      </div>`;
+    cards+=`<div style="background:#fff;border:1px solid #e0d8cc;border-radius:10px;padding:14px 18px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+        <div><span style="font-family:monospace;font-weight:800;color:#1a2e4a;font-size:14px;">${esc(code)}</span>${multi}${permPill}
+          <span style="font-size:11px;color:#888;margin-left:8px;">${apt}</span></div>
+        <div style="font-size:12px;color:#1a2e4a;font-weight:700;">Prezzo di vendita: ${prezzo>0?fmtEurInc(prezzo):'&mdash;'}</div>
       </div>
+      ${righe}
+      ${footer}
     </div>`;
   }
 
@@ -2314,7 +2327,7 @@ function buildScadByCodeSection(){
       const fatt=m?m.c.fatturato:null, inc=m?m.c.incasso:null;
       gPrezzo+=o.prezzo; if(fatt!==null) gF+=fatt; if(inc!==null) gI+=inc;
       const daFatt=o.prezzo>0?o.prezzo-(fatt||0):null;
-      const daInc =haveCli?((fatt||0)-(inc||0)):null;
+      const daInc =o.prezzo>0?o.prezzo-(inc||0):null;   // Prezzo − Incassato
       if(daFatt!==null) gDaFatt+=daFatt;
       if(daInc!==null)  gDaInc+=daInc;
       const permPill=o.permuta?` <span style="background:#ede9f8;color:#5e35b1;font-size:9px;font-weight:700;padding:1px 7px;border-radius:9px;">Permuta</span>`:'';
@@ -2351,7 +2364,7 @@ function buildScadByCodeSection(){
     </div>
     ${cards}
     ${cardsNoCode}
-    <div style="font-size:11px;color:#999;margin-top:4px;">Più intestatari sullo stesso codice sono elencati insieme. Da Fatturare = Prezzo &minus; Fatturato &middot; Da Incassare = Fatturato &minus; Incassato. Dare/Avere sono i totali del nominativo nel file clienti.</div>`;
+    <div style="font-size:11px;color:#999;margin-top:4px;">Più intestatari sullo stesso codice sono elencati insieme. Da Fatturare = Prezzo &minus; Fatturato &middot; Da Incassare = Prezzo &minus; Incassato. Dare/Avere sono i totali del nominativo nel file clienti.</div>`;
 }
 
 function fmtEurInc(n) {
