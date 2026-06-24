@@ -371,6 +371,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   <div class="tab" onclick="sw('sorriso')">Sorriso</div>
   <div class="tab" onclick="sw('audacia')">Audacia</div>
   <div class="tab" onclick="sw('incassi')">💶 Incassi</div>
+  <div class="tab" onclick="sw('cantiere')">📐 Contabilità Cantiere</div>
   <div class="tab" onclick="sw('riepilogo')" style="margin-left:auto;">📊 Riepilogo</div>
 </div>
 
@@ -501,8 +502,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
       <button class="btn btn-g" id="btn-cancel" onclick="cm()" style="display:none">Annulla</button>
       <button class="btn btn-p" id="btn-save" onclick="save()" style="display:none">💾 Salva Scheda</button>
     </div>
-    <hr class="hsep">
-    <div class="history-wrap">
+    <hr class="hsep" id="hist-sep">
+    <div class="history-wrap" id="hist-wrap">
       <div class="history-title">
         <span>📋 Storico Modifiche</span>
         <span id="hist-count" style="font-size:10px;color:#bbb;"></span>
@@ -1198,15 +1199,17 @@ function renderBoxAutoPassione() {
 // ─── SWITCH PROJECT ───
 function sw(p) {
   proj = p;
-  const keys = ['lotti','a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','riepilogo'];
+  const keys = ['lotti','a1','a2','passione','vittoria','equilibrio','sorriso','audacia','incassi','cantiere','riepilogo'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',keys[i]===p));
   const isDash  = p==='riepilogo';
   const isInc   = p==='incassi';
+  const isCant  = p==='cantiere';
   const isLotti  = p==='lotti';
-  document.getElementById('kpi').style.display   = (isDash||isInc||isLotti) ? 'none' : '';
-  document.querySelector('.legend').style.display = (isDash||isInc||isLotti) ? 'none' : '';
+  document.getElementById('kpi').style.display   = (isDash||isInc||isCant||isLotti) ? 'none' : '';
+  document.querySelector('.legend').style.display = (isDash||isInc||isCant||isLotti) ? 'none' : '';
   if (isDash)       { renderDashboard(); }
   else if (isInc)   { renderIncassi(); }
+  else if (isCant)  { renderCantiere(); }
   else if (isLotti)  { renderLotti(); }
   else              { renderKPI(); renderPlan(); renderCheckPanel(p); }
 }
@@ -1286,26 +1289,23 @@ function fmtEur(n) {
 }
 function fmtN(n) { return n.toLocaleString('it-IT'); }
 
-// ─── D|PARK VITTORIA: situazione contabile + avanzamento cantiere ───
-let contabileVittoria = null;   // {costi:[{label,val}], ricavi:[{label,val}], totC, totR}
-let contabileFileName = '';
+// ─── CONTABILITÀ CANTIERE per progetto (situazioni contabili) ───
+let contabileByProj = {};   // 'generale' | projKey -> {costi, ricavi, totC, totR, fileName, centro}
 
-function _vittoriaFasi(){
-  return [
-    {n:'Scavi e Fondazioni', ic:'⛏️', done:true},
-    {n:'Primo solaio', ic:'🏗️', done:true, current:true},
-    {n:'Struttura ai piani', ic:'🧱', done:false},
-    {n:'Copertura', ic:'🏠', done:false},
-    {n:'Tamponature', ic:'🧱', done:false},
-    {n:'Impianti', ic:'🔌', done:false},
-    {n:'Finiture', ic:'🎨', done:false},
-    {n:'Consegna', ic:'🔑', done:false},
-  ];
+const CANTIERE_PROJ = [
+  ['a1','Armonia 1'], ['a2','Armonia 2'], ['passione','Passione'],
+  ['vittoria','Vittoria'], ['equilibrio','Equilibrio ERS'],
+  ['sorriso','Sorriso'], ['audacia','Audacia']
+];
+const N_CANTIERI = CANTIERE_PROJ.length;
+
+function fmtEur2(n){
+  if(n===null||n===undefined) return '—';
+  return new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 }
 
-function handleContabileUpload(input){
+function handleContabileUpload(input, proj){
   const file=input.files[0]; if(!file) return;
-  contabileFileName=file.name;
   const reader=new FileReader();
   reader.onload=function(e){
     try{
@@ -1314,123 +1314,135 @@ function handleContabileUpload(input){
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
       const isnum=v=>typeof v==='number'&&!isNaN(v);
       const txt=v=>v==null?'':String(v).trim();
-      let hr=-1,costCol=-1,ricCol=-1;
+      let hr=-1,costCol=-1,ricCol=-1,centro='';
       for(let i=0;i<rows.length;i++){
-        const r=rows[i]||[]; let ci=-1,ri=-1;
+        const r=rows[i]||[];
+        if(/CENTRO DI COSTO/i.test(r.map(txt).join(' '))){ const m=r.map(txt).filter(Boolean); centro=m[m.length-1]||''; }
+        let ci=-1,ri=-1;
         for(let j=0;j<r.length;j++){ const t=txt(r[j]).toUpperCase(); if(t==='COSTI')ci=j; if(t==='RICAVI')ri=j; }
-        if(ci>-1&&ri>-1){ hr=i; costCol=ci; ricCol=ri; break; }
+        if(ci>-1&&ri>-1&&hr<0){ hr=i; costCol=ci; ricCol=ri; }
       }
       if(hr<0){ alert('Formato non riconosciuto: manca la riga COSTI / RICAVI nella situazione contabile.'); return; }
       const firstnum=(r,fr,to)=>{ for(let j=fr;j<Math.min(to,r.length);j++){ if(isnum(r[j])) return j; } return -1; };
       const cvc=firstnum(rows[hr],costCol+1,ricCol);
+      const cvc2=cvc>-1?firstnum(rows[hr],cvc+1,ricCol):-1;            // colonna 2025 costi
       const rvc=firstnum(rows[hr],ricCol+1,rows[hr].length);
+      const rvc2=rvc>-1?firstnum(rows[hr],rvc+1,rows[hr].length):-1;   // colonna 2025 ricavi
+      const cell=(r,c)=>(c>-1&&c<r.length&&isnum(r[c]))?r[c]:0;
       const labelbefore=(r,start,valc)=>{ let lab=''; for(let j=start+1;j<valc;j++){ if(j<r.length&&txt(r[j])&&!isnum(r[j])) lab=txt(r[j]); } return lab; };
       const skip=/TOTALE|UTILE|PERDITA|PAREGGIO/;
       const costi=[], ricavi=[];
       for(let i=hr+1;i<rows.length;i++){
         const r=rows[i]||[];
-        if(cvc>-1&&cvc<r.length&&isnum(r[cvc])){ const lab=labelbefore(r,costCol,cvc); if(lab&&!skip.test(lab.toUpperCase())) costi.push({label:lab,val:r[cvc]}); }
-        if(rvc>-1&&rvc<r.length&&isnum(r[rvc])){ const lab=labelbefore(r,ricCol,rvc); if(lab&&!skip.test(lab.toUpperCase())) ricavi.push({label:lab,val:r[rvc]}); }
+        if(cvc>-1&&(isnum(r[cvc])||isnum(r[cvc2]))){ const lab=labelbefore(r,costCol,cvc); if(lab&&!skip.test(lab.toUpperCase())) costi.push({label:lab,val:cell(r,cvc)+cell(r,cvc2)}); }
+        if(rvc>-1&&(isnum(r[rvc])||isnum(r[rvc2]))){ const lab=labelbefore(r,ricCol,rvc); if(lab&&!skip.test(lab.toUpperCase())) ricavi.push({label:lab,val:cell(r,rvc)+cell(r,rvc2)}); }
         if(/PAREGGIO/.test(r.map(txt).join(' ').toUpperCase())) break;
       }
       if(!costi.length&&!ricavi.length){ alert('Nessuna voce di costo/ricavo trovata nel file.'); return; }
-      const totC=costi.reduce((s,c)=>s+c.val,0), totR=ricavi.reduce((s,c)=>s+c.val,0);
-      contabileVittoria={costi,ricavi,totC,totR};
-      renderDashboard();
+      contabileByProj[proj]={costi,ricavi,totC:costi.reduce((s,c)=>s+c.val,0),totR:ricavi.reduce((s,c)=>s+c.val,0),fileName:file.name,centro};
+      renderCantiere();
     }catch(err){ alert('Errore lettura situazione contabile: '+err.message); }
   };
   reader.readAsArrayBuffer(file);
 }
 
-function buildVittoriaSection(){
-  const fasi=_vittoriaFasi(), n=fasi.length;
-  const curIdx=Math.max(0,fasi.findIndex(f=>f.current));
-  const leftStart=(0.5/n)*100, trackRight=((n-0.5)/n)*100, fillEnd=((curIdx+0.5)/n)*100;
-  let steps='';
-  fasi.forEach(f=>{
-    const cur=!!f.current, done=!!f.done;
-    const bg=cur?'var(--gold)':(done?'var(--green)':'#fff');
-    const bd=cur?'var(--gold)':(done?'var(--green)':'#cfc5b4');
-    const col=(cur||done)?'#fff':'#b0a48c';
-    const size=cur?46:34, ring=cur?'box-shadow:0 0 0 5px rgba(201,168,76,.28);':'';
-    steps+=`<div style="position:relative;z-index:1;flex:1;text-align:center;" title="${esc(f.n)}">
-      <div style="height:52px;display:flex;align-items:center;justify-content:center;">
-        <div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};border:2px solid ${bd};${ring}display:flex;align-items:center;justify-content:center;font-size:${cur?20:15}px;color:${col};">${(done&&!cur)?'✓':f.ic}</div>
-      </div>
-      <div style="font-size:10px;margin-top:2px;font-weight:${cur?800:600};color:${cur?'#1a2e4a':(done?'#2e7d32':'#9a8f78')};line-height:1.2;">${esc(f.n)}</div>
+function _kpiSmall(lbl,val,col){
+  return `<div style="flex:1;min-width:96px;background:#faf7f1;border-radius:7px;padding:6px 9px;border:1px solid #ece3d4;">
+      <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#999;margin-bottom:1px;">${lbl}</div>
+      <div style="font-size:13px;font-weight:800;color:${col};">${val}</div></div>`;
+}
+function _barRow(label,val,max,color,tot){
+  const pctTot=tot>0?Math.round(val/tot*100):0;
+  return `<div style="margin-bottom:5px;">
+    <div style="display:flex;justify-content:space-between;gap:8px;font-size:10px;margin-bottom:2px;"><span style="color:#555;">${esc(label)}</span><span style="font-weight:700;white-space:nowrap;">${fmtEur2(val)} <span style="color:#aaa;font-weight:400;font-size:8px;">${pctTot}%</span></span></div>
+    <div style="height:5px;background:#f0e8dc;border-radius:3px;overflow:hidden;"><div style="height:100%;width:${Math.round(val/max*100)}%;background:${color};border-radius:3px;"></div></div>
+  </div>`;
+}
+function _econColumns(costi,ricavi){
+  const maxC=Math.max(1,...costi.map(c=>c.val)), maxR=Math.max(1,...ricavi.map(c=>c.val));
+  const totC=costi.reduce((s,c)=>s+c.val,0), totR=ricavi.reduce((s,c)=>s+c.val,0);
+  return `<div style="display:flex;gap:14px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:150px;"><div style="font-weight:800;color:#c62828;font-size:11px;margin-bottom:6px;">📉 COSTI &mdash; ${fmtEur2(totC)}</div>${costi.length?costi.map(c=>_barRow(c.label,c.val,maxC,'#d8604f',totC)).join(''):'<div style="font-size:11px;color:#bbb;">—</div>'}</div>
+      <div style="flex:1;min-width:150px;"><div style="font-weight:800;color:#2e7d32;font-size:11px;margin-bottom:6px;">📈 RICAVI &mdash; ${fmtEur2(totR)}</div>${ricavi.length?ricavi.map(c=>_barRow(c.label,c.val,maxR,'#4caf7d',totR)).join(''):'<div style="font-size:11px;color:#bbb;">—</div>'}</div>
     </div>`;
-  });
-  const stepper=`<div style="position:relative;display:flex;justify-content:space-between;overflow-x:auto;padding-top:2px;">
-      <div style="position:absolute;top:26px;left:${leftStart}%;width:${trackRight-leftStart}%;height:4px;background:#e8dfcd;border-radius:2px;"></div>
-      <div style="position:absolute;top:26px;left:${leftStart}%;width:${fillEnd-leftStart}%;height:4px;background:var(--green);border-radius:2px;"></div>
-      ${steps}
-    </div>`;
+}
+function _uploadBtn(proj,has,fileName){
+  return `<label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block;">📂 ${has?'Aggiorna file':'Carica situazione contabile'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleContabileUpload(this,'${proj}')"></label>${has?`<span style="color:#2e7d32;font-size:11px;font-weight:700;margin-left:8px;">✓ ${esc(fileName||'')}</span>`:''}`;
+}
 
-  // ── conto economico ──
-  let economico;
-  if(contabileVittoria){
-    const {costi,ricavi,totC,totR}=contabileVittoria;
-    const ris=totR-totC; const perdita=ris<0;
-    const maxC=Math.max(1,...costi.map(c=>c.val)), maxR=Math.max(1,...ricavi.map(c=>c.val));
-    const bar=(label,val,max,color,tot)=>{
-      const pctTot=tot>0?Math.round(val/tot*100):0;
-      return `<div style="margin-bottom:11px;">
-        <div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-bottom:3px;">
-          <span style="color:#444;">${esc(label)}</span>
-          <span style="font-weight:700;white-space:nowrap;">${fmtEurInc(val)} <span style="color:#aaa;font-weight:400;font-size:10px;">${pctTot}%</span></span>
-        </div>
-        <div style="height:8px;background:#f0e8dc;border-radius:4px;overflow:hidden;"><div style="height:100%;width:${Math.round(val/max*100)}%;background:${color};border-radius:4px;"></div></div>
-      </div>`;
-    };
-    const kpi=(lbl,val,col)=>`<div style="flex:1;min-width:150px;background:#faf7f1;border-radius:10px;padding:14px 18px;border:1px solid #ece3d4;">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#999;margin-bottom:4px;">${lbl}</div>
-        <div style="font-size:20px;font-weight:800;color:${col};">${val}</div></div>`;
-    economico=`
-      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;">
-        ${kpi('Totale Costi',fmtEurInc(totC),'#c62828')}
-        ${kpi('Totale Ricavi',fmtEurInc(totR),'#2e7d32')}
-        ${kpi(perdita?'Perdita d’esercizio':'Utile d’esercizio',fmtEurInc(Math.abs(ris)),perdita?'#c62828':'#2e7d32')}
+function buildGeneralCantiere(){
+  const g=contabileByProj['generale'];
+  let body;
+  if(g){
+    const ris=g.totR-g.totC, perdita=ris<0;
+    body=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+        ${_kpiSmall('Totale Costi',fmtEur2(g.totC),'#c62828')}
+        ${_kpiSmall('Totale Ricavi',fmtEur2(g.totR),'#2e7d32')}
+        ${_kpiSmall(perdita?'Perdita':'Utile',fmtEur2(Math.abs(ris)),perdita?'#c62828':'#2e7d32')}
       </div>
-      <div style="display:flex;gap:28px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:280px;">
-          <div style="font-weight:800;color:#c62828;font-size:13px;margin-bottom:12px;">📉 COSTI &mdash; ${fmtEurInc(totC)}</div>
-          ${costi.map(c=>bar(c.label,c.val,maxC,'#d8604f',totC)).join('')}
-        </div>
-        <div style="flex:1;min-width:280px;">
-          <div style="font-weight:800;color:#2e7d32;font-size:13px;margin-bottom:12px;">📈 RICAVI &mdash; ${fmtEurInc(totR)}</div>
-          ${ricavi.map(c=>bar(c.label,c.val,maxR,'#4caf7d',totR)).join('')}
-        </div>
-      </div>
-      <div style="font-size:11px;color:#999;margin-top:14px;">File: ${esc(contabileFileName||'')} &middot; Centro di costo DPV &mdash; Di Park Vittoria &middot; i valori si riferiscono all'esercizio corrente del file caricato.</div>`;
+      ${_econColumns(g.costi,g.ricavi)}
+      <div style="font-size:11px;color:#7a5b00;background:#fff8e1;border:1px solid #f0d878;border-radius:8px;padding:8px 12px;margin-top:14px;">↘ Questi importi vengono divisi per ${N_CANTIERI} e attribuiti a ciascun cantiere (quota 1/${N_CANTIERI}).</div>`;
   } else {
-    economico=`<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:18px 22px;color:#795548;font-size:13px;">
-        ⚠️ Carica la <b>Situazione contabile</b> (centro di costo Di Park Vittoria) per vedere la ripartizione di costi e ricavi.
-      </div>`;
+    body=`<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px 18px;color:#795548;font-size:13px;">⚠️ Carica la <b>situazione contabile generale del Di Park</b>: i costi e i ricavi verranno ripartiti su tutti i ${N_CANTIERI} cantieri (1/${N_CANTIERI} ciascuno).</div>`;
   }
-
-  const upload=`<label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block;">📂 ${contabileVittoria?'Aggiorna file contabile':'Carica situazione contabile'}
-      <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleContabileUpload(this)"></label>
-      ${contabileVittoria?`<span style="color:#2e7d32;font-size:12px;font-weight:700;margin-left:10px;">✓ caricato</span>`:''}`;
-
-  return `
-  <div>
-    <div class="dash-section-title">D|Park Vittoria &mdash; Cantiere &amp; Conto Economico</div>
-    <div class="dash-grid">
-      <div class="dcard" style="grid-column:1/-1;">
-        <div class="dcard-head"><h3>🏗 Stato del cantiere</h3><p>Residence Vittoria &middot; Scale A, B, C</p></div>
-        <div class="dcard-body">
-          <div style="background:#fff8e1;border:1px solid #f0d878;border-radius:8px;padding:9px 14px;margin-bottom:16px;font-size:13px;color:#7a5b00;font-weight:800;display:inline-block;">✅ Gettato il primo solaio</div>
-          ${stepper}
-          <hr class="dsep" style="margin:20px 0;">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
-            <h3 style="font-size:15px;font-weight:800;color:#1a2e4a;">💶 Costi e Ricavi</h3>
-            <div>${upload}</div>
-          </div>
-          ${economico}
-        </div>
-      </div>
+  return `<div class="dcard" style="grid-column:1/-1;margin-bottom:22px;border:2px solid #c9a84c;">
+    <div class="dcard-head"><h3>🏢 Situazione Contabile Di Park (generale)</h3><p>${g&&g.centro?esc(g.centro):'Costi e ricavi generali &middot; ripartiti 1/'+N_CANTIERI+' su ogni cantiere'}</p></div>
+    <div class="dcard-body" style="padding:12px 14px;gap:8px;">
+      <div style="margin-bottom:10px;">${_uploadBtn('generale',!!g,g&&g.fileName)}</div>
+      ${body}
     </div>
   </div>`;
+}
+
+function buildProjCantiere(proj, name){
+  const data=contabileByProj[proj];
+  const gen=contabileByProj['generale'];
+  const ownC=data?data.totC:0, ownR=data?data.totR:0;
+  const genC=gen?gen.totC/N_CANTIERI:0, genR=gen?gen.totR/N_CANTIERI:0;
+  const totC=ownC+genC, totR=ownR+genR, ris=totR-totC, perdita=ris<0;
+  const hasAny = !!data || !!gen;
+
+  let body;
+  if(hasAny){
+    const kpis=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+        ${_kpiSmall('Totale Costi',fmtEur2(totC),'#c62828')}
+        ${_kpiSmall('Totale Ricavi',fmtEur2(totR),'#2e7d32')}
+        ${_kpiSmall(perdita?'Perdita':'Utile',fmtEur2(Math.abs(ris)),perdita?'#c62828':'#2e7d32')}
+      </div>`;
+    const own = data ? _econColumns(data.costi,data.ricavi) : '<div style="font-size:11px;color:#bbb;margin-bottom:6px;">Nessuna situazione contabile propria caricata.</div>';
+    let genBlock='';
+    if(gen){
+      const gc=gen.costi.map(c=>({label:c.label,val:c.val/N_CANTIERI}));
+      const gr=gen.ricavi.map(c=>({label:c.label,val:c.val/N_CANTIERI}));
+      genBlock=`<hr class="dsep" style="margin:14px 0;">
+        <div style="font-weight:800;color:#8a6d1f;font-size:12px;margin-bottom:8px;">🏢 Quota spese generali Di Park (1/${N_CANTIERI})</div>
+        ${_econColumns(gc,gr)}`;
+    }
+    body=kpis+own+genBlock;
+  } else {
+    body=`<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px 18px;color:#795548;font-size:13px;">⚠️ Carica la situazione contabile di <b>${esc(name)}</b> (e/o quella generale in alto).</div>`;
+  }
+
+  return `<div class="dcard">
+    <div class="dcard-head"><h3>🏗 ${esc(name)}</h3><p>${data&&data.centro?esc(data.centro):'Situazione contabile di cantiere'}</p></div>
+    <div class="dcard-body" style="padding:12px 14px;gap:8px;">
+      <div style="margin-bottom:10px;">${_uploadBtn(proj,!!data,data&&data.fileName)}</div>
+      ${body}
+    </div>
+  </div>`;
+}
+
+function renderCantiere(){
+  const sections=CANTIERE_PROJ.map(([k,nm])=>buildProjCantiere(k,nm)).join('');
+  document.getElementById('content').innerHTML=`
+    <div class="dash">
+      <div>
+        <div class="dash-section-title">Contabilità Cantiere</div>
+        <p style="font-size:12px;color:#777;margin:-4px 0 16px;">Carica le situazioni contabili: quella generale del Di Park (in alto, ripartita 1/${N_CANTIERI} su ogni cantiere) e quella di ogni singolo cantiere. Gli importi sommano esercizio 2026 + 2025.</p>
+        ${buildGeneralCantiere()}
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;align-items:start;">${sections}</div>
+      </div>
+    </div>`;
 }
 
 function renderDashboard() {
@@ -1801,7 +1813,6 @@ function renderDashboard() {
       <div class="dash-section-title">Riepilogo Generale</div>
       <div class="dash-grid">${globalCard}</div>
     </div>
-    ${buildVittoriaSection()}
     ${salSection}
     <div>
       <div class="dash-section-title">Prezzi Previsionali vs Concordati — Dettaglio per Unità</div>
@@ -1927,6 +1938,11 @@ function setFormLocked(locked) {
   // Note interne: visibili solo a chi ha le credenziali (nascoste in sola lettura/ospite)
   const noteBox = document.getElementById('fg-note');
   if (noteBox) noteBox.style.display = editable ? '' : 'none';
+  // Storico modifiche: visibile solo a chi ha le credenziali (nascosto agli ospiti)
+  const histWrap = document.getElementById('hist-wrap');
+  const histSep  = document.getElementById('hist-sep');
+  if (histWrap) histWrap.style.display = editable ? '' : 'none';
+  if (histSep)  histSep.style.display  = editable ? '' : 'none';
   document.getElementById('btn-edit').style.display   = (locked && editable)  ? 'inline-flex' : 'none';
   document.getElementById('btn-cancel').style.display = !locked ? 'inline-flex' : 'none';
   document.getElementById('btn-save').style.display   = !locked ? 'inline-flex' : 'none';
@@ -2147,6 +2163,11 @@ document.addEventListener('keydown', e => { if (e.key==='Escape') cm(); });
 
 // ─── INCASSI ───
 let xlsxTotali = null;
+let xlsxScadByCode = null;   // { CODICE: [ {display, fatt, inc, res} ] }
+
+function _titleCase(s){
+  return String(s||'').toLowerCase().replace(/\b([a-zà-ú'])/g, m=>m.toUpperCase()).replace(/\s+/g,' ').trim();
+}
 
 function handleXlsxUpload(input) {
   const file = input.files[0];
@@ -2157,32 +2178,174 @@ function handleXlsxUpload(input) {
       const wb = XLSX.read(e.target.result, {type:'array'});
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {header:1});
-      let hdrIdx=-1, colPartita=-1, colTotale=-1, colTipo=-1;
+      let hdrIdx=-1, colPartita=-1, colTotale=-1, colTipo=-1, colNome=-1, colInc=-1, colRes=-1;
       for (let i=0; i<rows.length; i++) {
         const pi = rows[i].indexOf('Partita');
         if (pi !== -1) {
           hdrIdx=i; colPartita=pi;
           colTipo   = rows[i].indexOf('Cliente / Fornitore');
           colTotale = rows[i].indexOf('Totale Partita');
+          colNome   = rows[i].indexOf('Nominativo');
+          colInc    = rows[i].indexOf('Partita: pagato/incassato');
+          colRes    = rows[i].indexOf('Partita: da pagare/incassare');
           break;
         }
       }
       if (hdrIdx === -1) { alert('Formato non riconosciuto. Usa l\'estrazione "Situazione Scadenze" dal gestionale.'); return; }
       const totali = {};
+      const byCode = {};   // code -> { nomeKey: {display,fatt,inc,res} }
       for (let i=hdrIdx+1; i<rows.length; i++) {
         const r = rows[i];
         if (!r || !r.length) continue;
         const tipo = r[colTipo], partita = r[colPartita], tot = parseFloat(r[colTotale])||0;
-        if (tipo==='Cliente' && partita && String(partita).startsWith('DP')) {
-          const cod = String(partita).trim();
+        if (tipo==='Cliente' && partita && String(partita).toUpperCase().startsWith('DP')) {
+          const cod = String(partita).trim().toUpperCase();
           totali[cod] = (totali[cod]||0) + tot;
+          const nome = String(r[colNome]||'').trim();
+          const inc  = colInc>-1 ? (parseFloat(r[colInc])||0) : 0;
+          const res  = colRes>-1 ? (parseFloat(r[colRes])||0) : 0;
+          const key  = nome.toUpperCase().replace(/\s+/g,' ');
+          if (!byCode[cod]) byCode[cod] = {};
+          if (!byCode[cod][key]) byCode[cod][key] = {display:_titleCase(nome)||'—', fatt:0, inc:0, res:0};
+          byCode[cod][key].fatt += tot;
+          byCode[cod][key].inc  += inc;
+          byCode[cod][key].res  += res;
         }
       }
+      // converti in array ordinati per persona
+      const out = {};
+      Object.keys(byCode).forEach(cod=>{
+        out[cod] = Object.values(byCode[cod]).sort((a,b)=>a.display.localeCompare(b.display,'it'));
+      });
       xlsxTotali = totali;
+      xlsxScadByCode = out;
       renderIncassi();
     } catch(err) { alert('Errore lettura file: '+err.message); }
   };
   reader.readAsArrayBuffer(file);
+}
+
+function buildScadByCodeSection(){
+  if(!xlsxScadByCode) return '';
+  const projKeys=['a1','a2','passione','vittoria','equilibrio','sorriso','audacia'];
+  const projNames={a1:'Armonia 1',a2:'Armonia 2',passione:'Passione',vittoria:'Vittoria',equilibrio:'Equilibrio ERS',sorriso:'Sorriso',audacia:'Audacia'};
+  const px=v=>parseFloat((v||'').replace(/\./g,'').replace(',','.'))||0;
+  const _codeStat=(l,v,c)=>`<div style="flex:1;min-width:108px;background:#faf7f1;border-radius:7px;padding:7px 10px;border:1px solid #efe7d8;"><div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#999;">${l}</div><div style="font-size:14px;font-weight:800;color:${c};">${v}</div></div>`;
+  const codeMap={};
+  for(const pk of projKeys){
+    const units=D[pk]&&D[pk].units?D[pk].units:{};
+    for(const u of Object.values(units)){
+      if(u.codice && u.codice.trim()) codeMap[u.codice.trim().toUpperCase()]={proj:projNames[pk], lbl:u.lbl, tipo:u.tipo, sc:u.sc, price:px(u.price), owner:u.owner};
+    }
+  }
+  const haveCli=!!xlsxClienti;
+  const codes=Object.keys(xlsxScadByCode).sort();
+  if(!codes.length) return '';
+  let cards='', gPrezzo=0, gF=0, gI=0, gDaFatt=0, gDaInc=0;
+  for(const code of codes){
+    const persone=xlsxScadByCode[code];       // nomi associati al codice (dallo scadenziario)
+    const u=codeMap[code];
+    const prezzo=u?u.price:0;
+    gPrezzo+=prezzo;
+    let cF=0, cI=0;
+    const righe=persone.map(p=>{
+      const m=haveCli?_matchGenya(_normNome(p.display)):null;   // dare/avere dal file clienti
+      const fatt=m?m.c.fatturato:null;
+      const inc =m?m.c.incasso:null;
+      if(fatt!==null) cF+=fatt;
+      if(inc!==null)  cI+=inc;
+      const fattCell=!haveCli?'<span style="color:#bbb;font-size:11px;">carica clienti</span>':(m?fmtEurInc(fatt):'<span style="color:#b8860b;font-size:11px;">non in clienti</span>');
+      const incCell =!haveCli?'<span style="color:#bbb;font-size:11px;">&mdash;</span>':(m?fmtEurInc(inc):'<span style="color:#b8860b;font-size:11px;">&mdash;</span>');
+      return `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px dashed #eee3d2;font-size:12px;flex-wrap:wrap;">
+        <div style="font-weight:700;color:#1a2e4a;min-width:160px;">${esc(p.display)}</div>
+        <div style="text-align:right;min-width:140px;">Fatturato (Dare) <b>${fattCell}</b></div>
+        <div style="text-align:right;min-width:140px;color:#2e7d32;">Incassato (Avere) <b>${incCell}</b></div>
+      </div>`;
+    }).join('');
+    gF+=cF; gI+=cI;
+    const daFatt=prezzo>0?prezzo-cF:null;     // Prezzo − Fatturato
+    const daInc =haveCli?cF-cI:null;          // Fatturato − Incassato
+    if(daFatt!==null) gDaFatt+=daFatt;
+    if(daInc!==null)  gDaInc+=daInc;
+    const apt = u ? `${u.proj} &middot; ${u.sc?('Scala '+esc(u.sc)+' &middot; '):''}Int. ${esc(u.lbl)} &middot; ${esc(u.tipo)}` : '<span style="color:#b8860b;">codice non presente a sistema</span>';
+    const multi = persone.length>1 ? ` <span style="background:#ede9f8;color:#5e35b1;font-size:9px;font-weight:700;padding:1px 7px;border-radius:9px;">${persone.length} intestatari</span>` : '';
+    cards+=`<div style="background:#fff;border:1px solid #e0d8cc;border-radius:10px;padding:14px 18px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+        <div><span style="font-family:monospace;font-weight:800;color:#1a2e4a;font-size:14px;">${esc(code)}</span>${multi}
+          <span style="font-size:11px;color:#888;margin-left:8px;">${apt}</span></div>
+        <div style="font-size:12px;color:#1a2e4a;font-weight:700;">Prezzo di vendita: ${prezzo>0?fmtEurInc(prezzo):'&mdash;'}</div>
+      </div>
+      ${righe}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;border-top:2px solid #f0e8dc;margin-top:10px;padding-top:10px;">
+        ${_codeStat('Fatturato', haveCli?fmtEurInc(cF):'&mdash;', '#1a2e4a')}
+        ${_codeStat('Incassato', haveCli?fmtEurInc(cI):'&mdash;', '#2e7d32')}
+        ${_codeStat('Da Fatturare', daFatt!==null?fmtEurInc(daFatt):'&mdash;', (daFatt!==null&&daFatt<=0)?'#2e7d32':'#c62828')}
+        ${_codeStat('Da Incassare', daInc!==null?fmtEurInc(daInc):'&mdash;', (daInc!==null&&daInc<=0)?'#2e7d32':'#c62828')}
+      </div>
+    </div>`;
+  }
+
+  // ── Presenti nel progetto ma SENZA codice nello scadenziario (es. permute) ──
+  const ownerMap={};
+  for(const pk of projKeys){
+    const units=D[pk]&&D[pk].units?D[pk].units:{};
+    for(const u of Object.values(units)){
+      const o=(u.owner||'').trim();
+      if(!o || u.st!=='venduto') continue;
+      if(!ownerMap[o]) ownerMap[o]={owner:o, prezzo:0, permuta:false, proj:projNames[pk], coded:false};
+      ownerMap[o].prezzo+=px(u.price);
+      if(u.accordo==='Permuta') ownerMap[o].permuta=true;
+      const cod=(u.codice||'').trim().toUpperCase();
+      if(cod && xlsxScadByCode[cod]) ownerMap[o].coded=true;
+    }
+  }
+  const senza=Object.values(ownerMap).filter(o=>!o.coded).sort((a,b)=>a.owner.localeCompare(b.owner,'it'));
+  let cardsNoCode='';
+  if(senza.length){
+    let rows2='';
+    for(const o of senza){
+      const m=haveCli?_matchGenya(_normNome(o.owner)):null;
+      const fatt=m?m.c.fatturato:null, inc=m?m.c.incasso:null;
+      gPrezzo+=o.prezzo; if(fatt!==null) gF+=fatt; if(inc!==null) gI+=inc;
+      const daFatt=o.prezzo>0?o.prezzo-(fatt||0):null;
+      const daInc =haveCli?((fatt||0)-(inc||0)):null;
+      if(daFatt!==null) gDaFatt+=daFatt;
+      if(daInc!==null)  gDaInc+=daInc;
+      const permPill=o.permuta?` <span style="background:#ede9f8;color:#5e35b1;font-size:9px;font-weight:700;padding:1px 7px;border-radius:9px;">Permuta</span>`:'';
+      const daFattPill=(fatt===null||fatt===0)?` <span style="background:#fff3e0;color:#e65100;font-size:9px;font-weight:700;padding:1px 7px;border-radius:9px;">Da fatturare</span>`:'';
+      rows2+=`<div style="background:#fff;border:1px solid #e0d8cc;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
+          <div><span style="font-weight:800;color:#1a2e4a;font-size:13px;">${esc(o.owner)}</span>${permPill}${daFattPill}
+            <span style="font-size:11px;color:#888;margin-left:8px;">${esc(o.proj)} &middot; senza codice</span></div>
+          <div style="font-size:12px;color:#1a2e4a;font-weight:700;">Prezzo di vendita: ${o.prezzo>0?fmtEurInc(o.prezzo):'&mdash;'}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${_codeStat('Fatturato', !haveCli?'&mdash;':(m?fmtEurInc(fatt):'&mdash;'), '#1a2e4a')}
+          ${_codeStat('Incassato', !haveCli?'&mdash;':(m?fmtEurInc(inc):'&mdash;'), '#2e7d32')}
+          ${_codeStat('Da Fatturare', daFatt!==null?fmtEurInc(daFatt):'&mdash;', (daFatt!==null&&daFatt<=0)?'#2e7d32':'#c62828')}
+          ${_codeStat('Da Incassare', daInc!==null?fmtEurInc(daInc):'&mdash;', (daInc!==null&&daInc<=0)?'#2e7d32':'#c62828')}
+        </div>
+      </div>`;
+    }
+    cardsNoCode=`<div style="font-size:14px;font-weight:800;color:#1a2e4a;margin:24px 0 10px;">📂 Presenti nel progetto senza codice (permute / non ancora fatturati)</div>${rows2}`;
+  }
+
+  const kpi=(lbl,val,col)=>`<div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:14px 18px;border:1px solid #e0d8cc;">
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#999;margin-bottom:4px;">${lbl}</div>
+      <div style="font-size:19px;font-weight:800;color:${col};">${val}</div></div>`;
+  return `
+    <div style="font-size:16px;font-weight:800;color:#1a2e4a;margin:30px 0 6px;">🔑 Incassi per Codice / Appartamento</div>
+    <p style="font-size:12px;color:#777;margin-bottom:16px;">Codice e intestatari dallo <b>scadenziario</b> &middot; prezzo dal sistema &middot; <b>Fatturato = Dare</b> e <b>Incassato = Avere</b> dal file clienti, per ogni nominativo.${!haveCli?' <span style="color:#b8860b;">Carica anche il file clienti per gli importi.</span>':''}</p>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+      ${kpi('Prezzo di vendita',fmtEurInc(gPrezzo),'#1a2e4a')}
+      ${kpi('Fatturato (Dare)',haveCli?fmtEurInc(gF):'&mdash;','#1a2e4a')}
+      ${kpi('Incassato (Avere)',haveCli?fmtEurInc(gI):'&mdash;','#2e7d32')}
+      ${kpi('Da Fatturare',haveCli?fmtEurInc(gDaFatt):'&mdash;','#c62828')}
+      ${kpi('Da Incassare',haveCli?fmtEurInc(gDaInc):'&mdash;','#c62828')}
+    </div>
+    ${cards}
+    ${cardsNoCode}
+    <div style="font-size:11px;color:#999;margin-top:4px;">Più intestatari sullo stesso codice sono elencati insieme. Da Fatturare = Prezzo &minus; Fatturato &middot; Da Incassare = Fatturato &minus; Incassato. Dare/Avere sono i totali del nominativo nel file clienti.</div>`;
 }
 
 function fmtEurInc(n) {
@@ -2308,132 +2471,36 @@ function _clientiSistema(){
 }
 
 function renderIncassi(){
-  const projKeys=['a1','a2','passione','vittoria','equilibrio','sorriso','audacia'];
-  const sys=_clientiSistema();
   const haveScad=!!xlsxTotali, haveCli=!!xlsxClienti;
-  const usate=new Set();
-  let rows='', tCompra=0,tFatt=0,tInc=0,tScad=0, anyFatt=false, anyInc=false, anyScad=false;
-
-  for(const s of sys){
-    const compra=s.compra;
-    const on=_normNome(s.owner);
-    const m=(haveCli&&on)?_matchGenya(on):null;
-    let fatt=null, inc=null, sure=true, gname='';
-    if(m){ fatt=m.c.fatturato; inc=m.c.incasso; sure=m.sure; gname=m.c.display; usate.add(m.c); }
-    // Incassato = somma Avere (Genya). Lo scadenziario è solo un confronto.
-    let scad=null;
-    if(haveScad){ scad=0; for(const cod of s.codes){ scad+=(xlsxTotali[cod]||0); } }
-    const daFatt=(fatt!==null&&compra>0)?compra-fatt:null;
-    const daInc =(inc!==null &&compra>0)?compra-inc:null;
-    tCompra+=compra;
-    if(fatt!==null){ tFatt+=fatt; anyFatt=true; }
-    if(inc!==null){ tInc+=inc; anyInc=true; }
-    if(scad!==null){ tScad+=scad; anyScad=true; }
-
-    const flag=(m&&!sure)?` <span title="Abbinamento automatico da verificare" style="color:#e65100;font-size:11px;">&#9888;</span>`:'';
-    const permTag=s.permuta?` <span style="background:#ede9f8;color:#5e35b1;font-size:9px;font-weight:700;padding:1px 6px;border-radius:9px;">permuta</span>`:'';
-    const fattCell= !haveCli?'<span style="color:#bbb;font-size:11px;">&mdash;</span>' : (m?fmtEurInc(fatt):'<span style="color:#b8860b;font-size:11px;">non in Genya</span>');
-    const incCell = !haveCli?'<span style="color:#bbb;font-size:11px;">&mdash;</span>' : (m?fmtEurInc(inc):'<span style="color:#b8860b;font-size:11px;">non in Genya</span>');
-    const scadCell= haveScad ? (s.codes.length?fmtEurInc(scad):'<span style="color:#bbb;font-size:11px;">no cod.</span>') : '';
-    const scadTd  = haveScad ? `<td style="padding:9px 14px;font-size:12px;text-align:right;color:#888;">${scadCell}</td>` : '';
-    const dFcol=daFatt!==null?(daFatt<=0?'#2e7d32':'#c62828'):'#999';
-    const dIcol=daInc!==null?(daInc<=0?'#2e7d32':'#c62828'):'#999';
-    rows+=`<tr style="border-bottom:1px solid #f0e8dc;">
-      <td style="padding:9px 14px;font-size:12px;">${esc(s.owner)}${permTag}${flag}${m?`<div style="font-size:10px;color:#aaa;">&rarr; ${esc(gname)}</div>`:''}</td>
-      <td style="padding:9px 14px;font-size:12px;text-align:right;">${compra?fmtEurInc(compra):'&mdash;'}</td>
-      <td style="padding:9px 14px;font-size:12px;text-align:right;">${fattCell}</td>
-      <td style="padding:9px 14px;font-size:12px;text-align:right;color:#2e7d32;font-weight:700;">${incCell}</td>
-      ${scadTd}
-      <td style="padding:9px 14px;font-size:12px;text-align:right;font-weight:700;color:${dFcol};">${daFatt!==null?fmtEurInc(daFatt):'&mdash;'}</td>
-      <td style="padding:9px 14px;font-size:12px;text-align:right;font-weight:700;color:${dIcol};">${daInc!==null?fmtEurInc(daInc):'&mdash;'}</td>
-    </tr>`;
-  }
-
-  const tDaFatt=tCompra-tFatt, tDaInc=tCompra-tInc;
-  const kpi=(lbl,val,col)=>`<div style="flex:1;min-width:140px;background:#fff;border-radius:10px;padding:14px 18px;border:1px solid #e0d8cc;">
-      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#999;margin-bottom:4px;">${lbl}</div>
-      <div style="font-size:19px;font-weight:800;color:${col};">${val}</div></div>`;
-  const kpiHtml=`<div style="display:flex;gap:14px;margin-bottom:24px;flex-wrap:wrap;">
-      ${kpi('Compravendita',fmtEurInc(tCompra),'#1a2e4a')}
-      ${kpi('Fatturato',anyFatt?fmtEurInc(tFatt):'&mdash;','#1a2e4a')}
-      ${kpi('Incassato',anyInc?fmtEurInc(tInc):'&mdash;','#2e7d32')}
-      ${kpi('Da Fatturare',anyFatt?fmtEurInc(tDaFatt):'&mdash;','#c62828')}
-      ${kpi('Da Incassare',anyInc?fmtEurInc(tDaInc):'&mdash;','#c62828')}
-    </div>`;
-
-  const liberi=haveCli?xlsxClienti.filter(c=>!usate.has(c)).sort((a,b)=>a.display.localeCompare(b.display,'it')):[];
-  const liberiHtml=liberi.length?`
-    <details style="margin-top:12px;background:#fffdf7;border:1px solid #efe4c8;border-radius:8px;padding:10px 14px;">
-      <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#7a5b00;">${liberi.length} clienti nel file Genya non abbinati a sistema (probabili Di Tower / altri)</summary>
-      <div style="font-size:11px;color:#777;margin-top:8px;line-height:1.8;">${liberi.map(c=>esc(c.display)+' <span style="color:#aaa">(Dare '+fmtEurInc(c.fatturato)+' &middot; Avere '+fmtEurInc(c.incasso)+')</span>').join('<br>')}</div>
-    </details>`:'';
-
-  const senzaCodice=projKeys.flatMap(pk=>Object.values(D[pk]&&D[pk].units?D[pk].units:{})).filter(u=>!u.codice&&u.st==='venduto'&&u.accordo==='Acquisto').length;
-  const avvisoCodice=senzaCodice>0?`
-    <div style="background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#e65100;">
-      &#8505; ${senzaCodice} unit&agrave; vendute non hanno il campo "Codice" compilato &mdash; il confronto con lo scadenziario non sar&agrave; disponibile per quelle unit&agrave;.
-    </div>`:'';
-
   const upScad=`<div style="flex:1;min-width:240px;background:#fff;border-radius:10px;padding:18px 20px;border:1px solid #e0d8cc;">
-      <div style="font-size:12px;font-weight:700;color:#1a2e4a;margin-bottom:2px;">1 &middot; Scadenziario (confronto)</div>
-      <div style="font-size:11px;color:#999;margin-bottom:12px;">Estrazione "Situazione Scadenze" &mdash; codici DP</div>
+      <div style="font-size:12px;font-weight:700;color:#1a2e4a;margin-bottom:2px;">1 &middot; Scadenziario (codici)</div>
+      <div style="font-size:11px;color:#999;margin-bottom:12px;">"Situazione Scadenze" &mdash; codici DP &middot; intestatari per appartamento</div>
       <label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block;">&#128194; Carica scadenziario
         <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleXlsxUpload(this)"></label>
       ${haveScad?`<div style="color:#2e7d32;font-size:11px;font-weight:700;margin-top:8px;">&#10003; ${Object.keys(xlsxTotali).length} codici</div>`:''}
     </div>`;
   const upCli=`<div style="flex:1;min-width:240px;background:#fff;border-radius:10px;padding:18px 20px;border:1px solid #e0d8cc;">
-      <div style="font-size:12px;font-weight:700;color:#1a2e4a;margin-bottom:2px;">2 &middot; Clienti Genya (fatturato)</div>
-      <div style="font-size:11px;color:#999;margin-bottom:12px;">Mastrino clienti &mdash; Dare/Avere per nome</div>
+      <div style="font-size:12px;font-weight:700;color:#1a2e4a;margin-bottom:2px;">2 &middot; Clienti (Scheda contabile)</div>
+      <div style="font-size:11px;color:#999;margin-bottom:12px;">Mastrino clienti &mdash; Dare (fatturato) / Avere (incassato)</div>
       <label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block;">&#128194; Carica clienti
         <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleClientiUpload(this)"></label>
       ${haveCli?`<div style="color:#2e7d32;font-size:11px;font-weight:700;margin-top:8px;">&#10003; ${esc(clientiFileName||'file')} &mdash; ${xlsxClienti.length} clienti</div>`:''}
     </div>`;
-
-  const tabella=rows?`
-    <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e0d8cc;">
-      <table style="width:100%;border-collapse:collapse;">
-        <thead><tr style="background:#f5f0e8;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#666;">
-          <th style="padding:10px 14px;text-align:left;">Cliente (sistema &rarr; Genya)</th>
-          <th style="padding:10px 14px;text-align:right;">Compravendita</th>
-          <th style="padding:10px 14px;text-align:right;">Fatturato</th>
-          <th style="padding:10px 14px;text-align:right;">Incassato</th>
-          ${haveScad?'<th style="padding:10px 14px;text-align:right;color:#888;">Scadenz. (confronto)</th>':''}
-          <th style="padding:10px 14px;text-align:right;">Da Fatturare</th>
-          <th style="padding:10px 14px;text-align:right;">Da Incassare</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr style="background:#1a2e4a;color:#fff;font-weight:800;">
-          <td style="padding:11px 14px;font-size:12px;">TOTALE</td>
-          <td style="padding:11px 14px;font-size:13px;text-align:right;">${fmtEurInc(tCompra)}</td>
-          <td style="padding:11px 14px;font-size:13px;text-align:right;">${anyFatt?fmtEurInc(tFatt):'&mdash;'}</td>
-          <td style="padding:11px 14px;font-size:13px;text-align:right;">${anyInc?fmtEurInc(tInc):'&mdash;'}</td>
-          ${haveScad?`<td style="padding:11px 14px;font-size:13px;text-align:right;color:#cfd6e0;">${anyScad?fmtEurInc(tScad):'&mdash;'}</td>`:''}
-          <td style="padding:11px 14px;font-size:13px;text-align:right;">${anyFatt?fmtEurInc(tDaFatt):'&mdash;'}</td>
-          <td style="padding:11px 14px;font-size:13px;text-align:right;">${anyInc?fmtEurInc(tDaInc):'&mdash;'}</td>
-        </tr></tfoot>
-      </table>
-    </div>${liberiHtml}
-    <div style="font-size:11px;color:#999;margin-top:8px;">&#9888; = abbinamento da verificare &middot; Fatturato = somma Dare (Genya) &middot; Incassato = somma Avere (Genya) &middot; Scadenz. = partite scadenziario per i codici DP (solo confronto) &middot; Da Fatturare = Compravendita &minus; Fatturato &middot; Da Incassare = Compravendita &minus; Incassato</div>`
-    :'<p style="color:#999;font-size:13px;">Nessun cliente con unit&agrave; vendute nel sistema.</p>';
-
   const avvisoFile=(!haveScad||!haveCli)?`
     <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px 18px;margin-bottom:20px;color:#795548;font-size:12px;">
-      &#9888; Carica ${(!haveScad&&!haveCli)?'lo scadenziario e il file clienti':(!haveScad?'lo scadenziario':'il file clienti')} per completare la tabella.
+      &#9888; Carica ${(!haveScad&&!haveCli)?'lo scadenziario e il file clienti':(!haveScad?'lo scadenziario':'il file clienti')} per completare la vista per codice.
     </div>`:'';
 
   document.getElementById('content').innerHTML=`
     <div style="padding:24px;max-width:1040px;margin:0 auto;">
       <h2 style="font-size:20px;font-weight:800;color:#1a2e4a;margin-bottom:6px;">&#128181; Situazione Incassi</h2>
-      <p style="font-size:13px;color:#666;margin-bottom:20px;">Il mastrino clienti Genya fornisce <b>Fatturato</b> (somma Dare) e <b>Incassato</b> (somma Avere). Lo scadenziario è un confronto opzionale. La tabella unisce tutto per cliente.</p>
+      <p style="font-size:13px;color:#666;margin-bottom:20px;">Vista <b>per codice / appartamento</b>: per ogni partita DP gli intestatari con prezzo di vendita, <b>Fatturato (Dare)</b> e <b>Incassato (Avere)</b>. Carica lo scadenziario (codici) e il mastrino clienti (Dare/Avere).</p>
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">${upScad}${upCli}</div>
-      ${avvisoFile}${kpiHtml}${avvisoCodice}${tabella}
+      ${avvisoFile}
+      ${buildScadByCodeSection()}
     </div>`;
 }
 
-
-
-
-// ─── LOTTI / SCHEMA INIZIALE ───
 function renderLotti() {
   const TIPO_COLOR = {
     'Permuta':                {bg:'#fff3e0', color:'#e65100'},
