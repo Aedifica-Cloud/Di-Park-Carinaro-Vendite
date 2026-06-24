@@ -2146,199 +2146,132 @@ function _clientiSistema(){
       const o=(u.owner||'').trim();
       if(!o || u.st!=='venduto') continue;
       const pr=parseFloat((u.price||'').replace(/\./g,'').replace(',','.'))||0;
-      if(!map[o]) map[o]={owner:o, compra:0, n:0, permuta:false};
+      if(!map[o]) map[o]={owner:o, compra:0, n:0, permuta:false, codes:[]};
       map[o].compra+=pr; map[o].n++;
-      if(u.accordo==='Permuta') map[o].permuta=true;
+      const isP=u.accordo==='Permuta';
+      if(isP) map[o].permuta=true;
+      if(!isP && u.codice && u.codice.trim()) map[o].codes.push(u.codice.trim());
     }
   }
   return Object.values(map).sort((a,b)=>a.owner.localeCompare(b.owner,'it'));
 }
 
-function buildClientiSectionHtml(){
-  const uploadCard = `
-    <div style="background:#fff;border-radius:10px;padding:20px 24px;border:1px solid #e0d8cc;margin:32px 0 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:200px;">
-        <div style="font-size:12px;font-weight:700;color:#1a2e4a;margin-bottom:4px;">📒 Analisi fatturazione per cliente (mastrino Genya)</div>
-        <div style="font-size:11px;color:#999;">Somma Dare = Fatturato · somma Avere = Incasso · esclude apertura/chiusura conti.</div>
-      </div>
-      <label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;white-space:nowrap;">
-        📂 Carica file clienti
-        <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleClientiUpload(this)">
-      </label>
-      ${xlsxClienti?`<span style="color:#2e7d32;font-size:12px;font-weight:700;">✅ ${esc(clientiFileName||'file')} — ${xlsxClienti.length} clienti</span>`:''}
-    </div>`;
-  if(!xlsxClienti) return uploadCard;
-
+function renderIncassi(){
+  const projKeys=['a1','a2','passione','vittoria','equilibrio','sorriso','audacia'];
   const sys=_clientiSistema();
+  const haveScad=!!xlsxTotali, haveCli=!!xlsxClienti;
   const usate=new Set();
-  let rows='', tCompra=0,tFatt=0,tInc=0;
+  let rows='', tCompra=0,tFatt=0,tInc=0, anyFatt=false, anyInc=false;
+
   for(const s of sys){
-    const on=_normNome(s.owner);
-    const m=on?_matchGenya(on):null;
-    let fatt=null, inc=null, sure=true, gname='';
-    if(m){ fatt=m.c.fatturato; inc=m.c.incasso; sure=m.sure; gname=m.c.display; usate.add(m.c); }
     const compra=s.compra;
-    const daFatt=(fatt!==null && compra>0)? compra-fatt : null;
-    tCompra+=compra; if(fatt!==null){ tFatt+=fatt; tInc+=inc; }
-    const flag = (m && !sure) ? ` <span title="Abbinamento automatico da verificare" style="color:#e65100;font-size:11px;">⚠︎</span>` : '';
-    const noG  = !m ? `<span style="color:#b8860b;font-size:11px;">non in Genya</span>` : '';
-    const daColor = daFatt!==null ? (daFatt<=0?'#2e7d32':'#c62828') : '#999';
-    rows += `<tr style="border-bottom:1px solid #f0e8dc;">
-      <td style="padding:9px 14px;font-size:12px;">${esc(s.owner)}${flag}${m?`<div style="font-size:10px;color:#aaa;">→ ${esc(gname)}</div>`:''}</td>
-      <td style="padding:9px 14px;font-size:12px;text-align:right;">${compra?fmtEurInc(compra):'—'}</td>
-      <td style="padding:9px 14px;font-size:12px;text-align:right;">${m?fmtEurInc(fatt):noG}</td>
-      <td style="padding:9px 14px;font-size:12px;text-align:right;color:#2e7d32;">${m?fmtEurInc(inc):'—'}</td>
-      <td style="padding:9px 14px;font-size:12px;text-align:right;font-weight:700;color:${daColor};">${daFatt!==null?fmtEurInc(daFatt):'—'}</td>
+    const on=_normNome(s.owner);
+    const m=(haveCli&&on)?_matchGenya(on):null;
+    let fatt=null, sure=true, gname='';
+    if(m){ fatt=m.c.fatturato; sure=m.sure; gname=m.c.display; usate.add(m.c); }
+    let inc=null;
+    if(haveScad){ inc=0; for(const cod of s.codes){ inc+=(xlsxTotali[cod]||0); } }
+    const daFatt=(fatt!==null&&compra>0)?compra-fatt:null;
+    const daInc =(inc!==null &&compra>0)?compra-inc:null;
+    tCompra+=compra;
+    if(fatt!==null){ tFatt+=fatt; anyFatt=true; }
+    if(inc!==null){ tInc+=inc; anyInc=true; }
+
+    const flag=(m&&!sure)?` <span title="Abbinamento automatico da verificare" style="color:#e65100;font-size:11px;">&#9888;</span>`:'';
+    const permTag=s.permuta?` <span style="background:#ede9f8;color:#5e35b1;font-size:9px;font-weight:700;padding:1px 6px;border-radius:9px;">permuta</span>`:'';
+    const fattCell= !haveCli?'<span style="color:#bbb;font-size:11px;">&mdash;</span>' : (m?fmtEurInc(fatt):'<span style="color:#b8860b;font-size:11px;">non in Genya</span>');
+    const incCell = !haveScad?'<span style="color:#bbb;font-size:11px;">&mdash;</span>' : (s.codes.length?fmtEurInc(inc):'<span style="color:#bbb;font-size:11px;">no cod.</span>');
+    const dFcol=daFatt!==null?(daFatt<=0?'#2e7d32':'#c62828'):'#999';
+    const dIcol=daInc!==null?(daInc<=0?'#2e7d32':'#c62828'):'#999';
+    rows+=`<tr style="border-bottom:1px solid #f0e8dc;">
+      <td style="padding:9px 14px;font-size:12px;">${esc(s.owner)}${permTag}${flag}${m?`<div style="font-size:10px;color:#aaa;">&rarr; ${esc(gname)}</div>`:''}</td>
+      <td style="padding:9px 14px;font-size:12px;text-align:right;">${compra?fmtEurInc(compra):'&mdash;'}</td>
+      <td style="padding:9px 14px;font-size:12px;text-align:right;">${fattCell}</td>
+      <td style="padding:9px 14px;font-size:12px;text-align:right;color:#2e7d32;">${incCell}</td>
+      <td style="padding:9px 14px;font-size:12px;text-align:right;font-weight:700;color:${dFcol};">${daFatt!==null?fmtEurInc(daFatt):'&mdash;'}</td>
+      <td style="padding:9px 14px;font-size:12px;text-align:right;font-weight:700;color:${dIcol};">${daInc!==null?fmtEurInc(daInc):'&mdash;'}</td>
     </tr>`;
   }
-  const tDa=tCompra-tFatt;
-  const liberi=xlsxClienti.filter(c=>!usate.has(c)).sort((a,b)=>a.display.localeCompare(b.display,'it'));
-  const liberiHtml = liberi.length? `
+
+  const tDaFatt=tCompra-tFatt, tDaInc=tCompra-tInc;
+  const kpi=(lbl,val,col)=>`<div style="flex:1;min-width:140px;background:#fff;border-radius:10px;padding:14px 18px;border:1px solid #e0d8cc;">
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#999;margin-bottom:4px;">${lbl}</div>
+      <div style="font-size:19px;font-weight:800;color:${col};">${val}</div></div>`;
+  const kpiHtml=`<div style="display:flex;gap:14px;margin-bottom:24px;flex-wrap:wrap;">
+      ${kpi('Compravendita',fmtEurInc(tCompra),'#1a2e4a')}
+      ${kpi('Fatturato',anyFatt?fmtEurInc(tFatt):'&mdash;','#1a2e4a')}
+      ${kpi('Incassato',anyInc?fmtEurInc(tInc):'&mdash;','#2e7d32')}
+      ${kpi('Da Fatturare',anyFatt?fmtEurInc(tDaFatt):'&mdash;','#c62828')}
+      ${kpi('Da Incassare',anyInc?fmtEurInc(tDaInc):'&mdash;','#c62828')}
+    </div>`;
+
+  const liberi=haveCli?xlsxClienti.filter(c=>!usate.has(c)).sort((a,b)=>a.display.localeCompare(b.display,'it')):[];
+  const liberiHtml=liberi.length?`
     <details style="margin-top:12px;background:#fffdf7;border:1px solid #efe4c8;border-radius:8px;padding:10px 14px;">
       <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#7a5b00;">${liberi.length} clienti nel file Genya non abbinati a sistema (probabili Di Tower / altri)</summary>
-      <div style="font-size:11px;color:#777;margin-top:8px;line-height:1.8;">${liberi.map(c=>esc(c.display)+' <span style="color:#aaa">(Dare '+fmtEurInc(c.fatturato)+' · Avere '+fmtEurInc(c.incasso)+')</span>').join('<br>')}</div>
+      <div style="font-size:11px;color:#777;margin-top:8px;line-height:1.8;">${liberi.map(c=>esc(c.display)+' <span style="color:#aaa">(Dare '+fmtEurInc(c.fatturato)+' &middot; Avere '+fmtEurInc(c.incasso)+')</span>').join('<br>')}</div>
     </details>`:'';
 
-  return uploadCard + `
+  const senzaCodice=projKeys.flatMap(pk=>Object.values(D[pk]&&D[pk].units?D[pk].units:{})).filter(u=>!u.codice&&u.st==='venduto'&&u.accordo==='Acquisto').length;
+  const avvisoCodice=senzaCodice>0?`
+    <div style="background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#e65100;">
+      &#8505; ${senzaCodice} unit&agrave; vendute non hanno il campo "Codice" compilato &mdash; l'incassato da scadenziario non potr&agrave; essere abbinato.
+    </div>`:'';
+
+  const upScad=`<div style="flex:1;min-width:240px;background:#fff;border-radius:10px;padding:18px 20px;border:1px solid #e0d8cc;">
+      <div style="font-size:12px;font-weight:700;color:#1a2e4a;margin-bottom:2px;">1 &middot; Scadenziario (incassato)</div>
+      <div style="font-size:11px;color:#999;margin-bottom:12px;">Estrazione "Situazione Scadenze" &mdash; codici DP</div>
+      <label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block;">&#128194; Carica scadenziario
+        <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleXlsxUpload(this)"></label>
+      ${haveScad?`<div style="color:#2e7d32;font-size:11px;font-weight:700;margin-top:8px;">&#10003; ${Object.keys(xlsxTotali).length} codici</div>`:''}
+    </div>`;
+  const upCli=`<div style="flex:1;min-width:240px;background:#fff;border-radius:10px;padding:18px 20px;border:1px solid #e0d8cc;">
+      <div style="font-size:12px;font-weight:700;color:#1a2e4a;margin-bottom:2px;">2 &middot; Clienti Genya (fatturato)</div>
+      <div style="font-size:11px;color:#999;margin-bottom:12px;">Mastrino clienti &mdash; Dare/Avere per nome</div>
+      <label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block;">&#128194; Carica clienti
+        <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleClientiUpload(this)"></label>
+      ${haveCli?`<div style="color:#2e7d32;font-size:11px;font-weight:700;margin-top:8px;">&#10003; ${esc(clientiFileName||'file')} &mdash; ${xlsxClienti.length} clienti</div>`:''}
+    </div>`;
+
+  const tabella=rows?`
     <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e0d8cc;">
       <table style="width:100%;border-collapse:collapse;">
-        <thead>
-          <tr style="background:#f5f0e8;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#666;">
-            <th style="padding:10px 14px;text-align:left;">Cliente (sistema → Genya)</th>
-            <th style="padding:10px 14px;text-align:right;">Compravendita</th>
-            <th style="padding:10px 14px;text-align:right;">Fatturato</th>
-            <th style="padding:10px 14px;text-align:right;">Incasso</th>
-            <th style="padding:10px 14px;text-align:right;">Da Fatturare</th>
-          </tr>
-        </thead>
+        <thead><tr style="background:#f5f0e8;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#666;">
+          <th style="padding:10px 14px;text-align:left;">Cliente (sistema &rarr; Genya)</th>
+          <th style="padding:10px 14px;text-align:right;">Compravendita</th>
+          <th style="padding:10px 14px;text-align:right;">Fatturato</th>
+          <th style="padding:10px 14px;text-align:right;">Incassato</th>
+          <th style="padding:10px 14px;text-align:right;">Da Fatturare</th>
+          <th style="padding:10px 14px;text-align:right;">Da Incassare</th>
+        </tr></thead>
         <tbody>${rows}</tbody>
-        <tfoot>
-          <tr style="background:#1a2e4a;color:#fff;font-weight:800;">
-            <td style="padding:11px 14px;font-size:12px;">TOTALE</td>
-            <td style="padding:11px 14px;font-size:13px;text-align:right;">${fmtEurInc(tCompra)}</td>
-            <td style="padding:11px 14px;font-size:13px;text-align:right;">${fmtEurInc(tFatt)}</td>
-            <td style="padding:11px 14px;font-size:13px;text-align:right;">${fmtEurInc(tInc)}</td>
-            <td style="padding:11px 14px;font-size:13px;text-align:right;">${fmtEurInc(tDa)}</td>
-          </tr>
-        </tfoot>
+        <tfoot><tr style="background:#1a2e4a;color:#fff;font-weight:800;">
+          <td style="padding:11px 14px;font-size:12px;">TOTALE</td>
+          <td style="padding:11px 14px;font-size:13px;text-align:right;">${fmtEurInc(tCompra)}</td>
+          <td style="padding:11px 14px;font-size:13px;text-align:right;">${anyFatt?fmtEurInc(tFatt):'&mdash;'}</td>
+          <td style="padding:11px 14px;font-size:13px;text-align:right;">${anyInc?fmtEurInc(tInc):'&mdash;'}</td>
+          <td style="padding:11px 14px;font-size:13px;text-align:right;">${anyFatt?fmtEurInc(tDaFatt):'&mdash;'}</td>
+          <td style="padding:11px 14px;font-size:13px;text-align:right;">${anyInc?fmtEurInc(tDaInc):'&mdash;'}</td>
+        </tr></tfoot>
       </table>
     </div>${liberiHtml}
-    <div style="font-size:11px;color:#999;margin-top:8px;">⚠︎ = abbinamento da verificare · Fatturato = somma Dare · Incasso = somma Avere · Da Fatturare = Compravendita − Fatturato</div>`;
-}
+    <div style="font-size:11px;color:#999;margin-top:8px;">&#9888; = abbinamento da verificare &middot; Fatturato = somma Dare (Genya) &middot; Incassato = somma partite scadenziario per i codici DP del cliente &middot; Da Fatturare = Compravendita &minus; Fatturato &middot; Da Incassare = Compravendita &minus; Incassato</div>`
+    :'<p style="color:#999;font-size:13px;">Nessun cliente con unit&agrave; vendute nel sistema.</p>';
 
-function renderIncassi() {
-  const projKeys  = ['a1','a2','passione','vittoria','equilibrio','sorriso','audacia'];
-  const projNames = {a1:'Armonia 1', a2:'Armonia 2', passione:'Passione', vittoria:'Vittoria', equilibrio:'Equilibrio ERS', sorriso:'Sorriso', audacia:'Audacia'};
-  let gTotale=0, gIncassato=0, tableRows='';
+  const avvisoFile=(!haveScad||!haveCli)?`
+    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px 18px;margin-bottom:20px;color:#795548;font-size:12px;">
+      &#9888; Carica ${(!haveScad&&!haveCli)?'lo scadenziario e il file clienti':(!haveScad?'lo scadenziario':'il file clienti')} per completare la tabella.
+    </div>`:'';
 
-  for (const pk of projKeys) {
-    const units = D[pk]&&D[pk].units ? D[pk].units : {};
-    const lista = Object.entries(units).filter(([,u])=>u.codice&&u.codice.trim());
-    if (!lista.length) continue;
-    tableRows += `<tr style="background:#1a2e4a;color:#fff;">
-      <td colspan="6" style="padding:10px 14px;font-weight:800;font-size:13px;letter-spacing:.5px;">${projNames[pk]}</td></tr>`;
-
-    let lottoTotale=0, lottoIncassato=0, lottoHasData=false;
-
-    for (const [uKey,u] of lista) {
-      const cod        = u.codice.trim();
-      const isPermuta  = u.accordo === 'Permuta';
-      const prezzo     = parseFloat((u.price||'').replace(/\./g,'').replace(',','.')) || 0;
-      const incassato  = isPermuta ? 0 : (xlsxTotali ? (xlsxTotali[cod]||0) : null);
-      const daInc      = (prezzo&&incassato!==null) ? prezzo-incassato : null;
-      gTotale    += prezzo;
-      lottoTotale += prezzo;
-      if (incassato!==null) { gIncassato += incassato; lottoIncassato += incassato; lottoHasData = true; }
-      const incStr  = isPermuta
-        ? '<span style="background:#ede9f8;color:#5e35b1;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;">Permuta</span>'
-        : (incassato!==null ? fmtEurInc(incassato) : '<span style="color:#999;font-size:11px;">carica Excel</span>');
-      const daStr   = isPermuta ? '<span style="color:#5e35b1;font-style:italic;font-size:11px;">n/a</span>' : (daInc!==null ? fmtEurInc(daInc) : '—');
-      const daColor = daInc!==null ? (daInc<=0?'#2e7d32':'#c62828') : '#333';
-      const noMatch = !isPermuta&&xlsxTotali&&!xlsxTotali[cod] ? ' title="Codice non trovato nel file Excel"':'';
-      const codColor= !isPermuta&&xlsxTotali&&!xlsxTotali[cod] ? 'color:#b8860b;font-weight:700;':'';
-      tableRows += `<tr style="border-bottom:1px solid #f0e8dc;${isPermuta?'opacity:.7;':''}">
-        <td style="padding:9px 14px;font-size:12px;">${u.lbl||uKey}</td>
-        <td style="padding:9px 14px;font-size:12px;">${u.owner||'—'}</td>
-        <td style="padding:9px 14px;font-size:11px;font-family:monospace;${codColor}"${noMatch}>${cod}</td>
-        <td style="padding:9px 14px;font-size:12px;text-align:right;">${prezzo?fmtEurInc(prezzo):'—'}</td>
-        <td style="padding:9px 14px;font-size:12px;text-align:right;color:#2e7d32;font-weight:700;">${incStr}</td>
-        <td style="padding:9px 14px;font-size:12px;text-align:right;color:${daColor};font-weight:700;">${daStr}</td>
-      </tr>`;
-    }
-
-    // Totale parziale del lotto
-    const lottoDaInc = lottoTotale - lottoIncassato;
-    tableRows += `<tr style="background:#f5f0e8;border-top:2px solid #c9a84c;">
-      <td colspan="3" style="padding:9px 14px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#666;">Totale ${projNames[pk]}</td>
-      <td style="padding:9px 14px;font-size:13px;font-weight:800;text-align:right;color:#1a2e4a;">${lottoTotale?fmtEurInc(lottoTotale):'—'}</td>
-      <td style="padding:9px 14px;font-size:13px;font-weight:800;text-align:right;color:#2e7d32;">${lottoHasData?fmtEurInc(lottoIncassato):'—'}</td>
-      <td style="padding:9px 14px;font-size:13px;font-weight:800;text-align:right;color:${lottoDaInc>0?'#c62828':'#2e7d32'};">${lottoHasData?fmtEurInc(lottoDaInc):'—'}</td>
-    </tr>`;
-  }
-
-  const gDaInc = gTotale - gIncassato;
-  const kpiHtml = xlsxTotali ? `
-    <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:16px 20px;border:1px solid #e0d8cc;">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:4px;">Totale Contratti</div>
-        <div style="font-size:20px;font-weight:800;color:#1a2e4a;">${fmtEurInc(gTotale)}</div>
-      </div>
-      <div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:16px 20px;border:1px solid #e0d8cc;">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:4px;">Incassato</div>
-        <div style="font-size:20px;font-weight:800;color:#2e7d32;">${fmtEurInc(gIncassato)}</div>
-      </div>
-      <div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:16px 20px;border:1px solid #e0d8cc;">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:4px;">Da Incassare</div>
-        <div style="font-size:20px;font-weight:800;color:#c62828;">${fmtEurInc(gDaInc)}</div>
-      </div>
-    </div>` : '';
-
-  const avvisoExcel = !xlsxTotali ? `
-    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:20px 24px;margin-bottom:24px;color:#795548;font-size:13px;">
-      ⚠️ Carica il file Excel per vedere gli importi incassati.
-    </div>` : '';
-
-  const senzaCodice = projKeys.flatMap(pk=>Object.values(D[pk]&&D[pk].units?D[pk].units:{})).filter(u=>!u.codice&&u.st==='venduto'&&u.accordo==='Acquisto').length;
-  const avvisoCodice = senzaCodice>0 ? `
-    <div style="background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:#e65100;">
-      ℹ️ ${senzaCodice} appartamento/i venduto/i non hanno ancora il campo "Codice" compilato nella scheda — aprili e aggiungilo per vederli qui.
-    </div>` : '';
-
-  document.getElementById('content').innerHTML = `
-    <div style="padding:24px;max-width:960px;margin:0 auto;">
-      <h2 style="font-size:20px;font-weight:800;color:#1a2e4a;margin-bottom:6px;">💶 Situazione Incassi</h2>
-      <p style="font-size:13px;color:#666;margin-bottom:20px;">Carica l'estrazione dal gestionale per aggiornare gli importi incassati per ogni appartamento.</p>
-      <div style="background:#fff;border-radius:10px;padding:20px 24px;border:1px solid #e0d8cc;margin-bottom:24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-        <div>
-          <div style="font-size:12px;font-weight:700;color:#1a2e4a;margin-bottom:4px;">Carica file Excel dal gestionale</div>
-          <div style="font-size:11px;color:#999;">Estrazione "Situazione Scadenze" — filtra automaticamente clienti con codice DP</div>
-        </div>
-        <label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;white-space:nowrap;">
-          📂 Scegli file Excel
-          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleXlsxUpload(this)">
-        </label>
-        ${xlsxTotali?`<span style="color:#2e7d32;font-size:12px;font-weight:700;">✅ File caricato — ${Object.keys(xlsxTotali).length} codici trovati</span>`:''}
-      </div>
-      ${kpiHtml}${avvisoExcel}${avvisoCodice}
-      ${tableRows ? `
-      <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e0d8cc;">
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="background:#f5f0e8;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#666;">
-              <th style="padding:10px 14px;text-align:left;">Unità</th>
-              <th style="padding:10px 14px;text-align:left;">Proprietario</th>
-              <th style="padding:10px 14px;text-align:left;">Codice Partita</th>
-              <th style="padding:10px 14px;text-align:right;">Totale</th>
-              <th style="padding:10px 14px;text-align:right;">Incassato</th>
-              <th style="padding:10px 14px;text-align:right;">Da Incassare</th>
-            </tr>
-          </thead>
-          <tbody>${tableRows}</tbody>
-        </table>
-      </div>` : '<p style="color:#999;font-size:13px;">Nessun appartamento ha ancora il campo "Codice" compilato.</p>'}
-      ${buildClientiSectionHtml()}
+  document.getElementById('content').innerHTML=`
+    <div style="padding:24px;max-width:1040px;margin:0 auto;">
+      <h2 style="font-size:20px;font-weight:800;color:#1a2e4a;margin-bottom:6px;">&#128181; Situazione Incassi</h2>
+      <p style="font-size:13px;color:#666;margin-bottom:20px;">Carica i due file dal gestionale: lo scadenziario per l'incassato e il mastrino clienti per il fatturato. La tabella unisce tutto per cliente.</p>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">${upScad}${upCli}</div>
+      ${avvisoFile}${kpiHtml}${avvisoCodice}${tabella}
     </div>`;
 }
+
 
 
 
