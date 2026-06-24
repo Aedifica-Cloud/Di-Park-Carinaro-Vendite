@@ -1314,28 +1314,34 @@ function handleContabileUpload(input, proj){
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
       const isnum=v=>typeof v==='number'&&!isNaN(v);
       const txt=v=>v==null?'':String(v).trim();
-      let hr=-1,costCol=-1,ricCol=-1,centro='';
+      // Supporta due formati: COSTI/RICAVI affiancati con 2 colonne (2026+2025),
+      // oppure COSTI con colonna unica "Saldo" e RICAVI separati/assenti (Di Park generale).
+      let costRow=-1,costCol=-1,ricCol=-1,centro='';
       for(let i=0;i<rows.length;i++){
         const r=rows[i]||[];
         if(/CENTRO DI COSTO/i.test(r.map(txt).join(' '))){ const m=r.map(txt).filter(Boolean); centro=m[m.length-1]||''; }
-        let ci=-1,ri=-1;
-        for(let j=0;j<r.length;j++){ const t=txt(r[j]).toUpperCase(); if(t==='COSTI')ci=j; if(t==='RICAVI')ri=j; }
-        if(ci>-1&&ri>-1&&hr<0){ hr=i; costCol=ci; ricCol=ri; }
+        if(costRow<0){
+          for(let j=0;j<r.length;j++){ if(txt(r[j]).toUpperCase()==='COSTI'){ costRow=i; costCol=j; break; } }
+          if(costRow===i){ for(let j=costCol+1;j<r.length;j++){ if(txt(r[j]).toUpperCase()==='RICAVI'){ ricCol=j; break; } } }
+        }
       }
-      if(hr<0){ alert('Formato non riconosciuto: manca la riga COSTI / RICAVI nella situazione contabile.'); return; }
-      const firstnum=(r,fr,to)=>{ for(let j=fr;j<Math.min(to,r.length);j++){ if(isnum(r[j])) return j; } return -1; };
-      const cvc=firstnum(rows[hr],costCol+1,ricCol);
-      const cvc2=cvc>-1?firstnum(rows[hr],cvc+1,ricCol):-1;            // colonna 2025 costi
-      const rvc=firstnum(rows[hr],ricCol+1,rows[hr].length);
-      const rvc2=rvc>-1?firstnum(rows[hr],rvc+1,rows[hr].length):-1;   // colonna 2025 ricavi
+      if(costRow<0){ alert('Formato non riconosciuto: manca la sezione COSTI nella situazione contabile.'); return; }
       const cell=(r,c)=>(c>-1&&c<r.length&&isnum(r[c]))?r[c]:0;
+      const numCols=(row,fr,to)=>{ const out=[]; for(let j=fr;j<Math.min(to,row.length);j++){ if(isnum(row[j])) out.push(j); } return out; };
+      const hrow=rows[costRow];
+      const costCols=numCols(hrow,costCol+1, ricCol>costCol?ricCol:hrow.length);
+      const ricCols =ricCol>-1?numCols(hrow,ricCol+1,hrow.length):[];
+      const firstCostVal=costCols.length?costCols[0]:costCol+1;
+      const firstRicVal =ricCols.length?ricCols[0]:ricCol+1;
       const labelbefore=(r,start,valc)=>{ let lab=''; for(let j=start+1;j<valc;j++){ if(j<r.length&&txt(r[j])&&!isnum(r[j])) lab=txt(r[j]); } return lab; };
+      const sumCols=(r,cols)=>cols.reduce((s,c)=>s+cell(r,c),0);
+      const hasNum=(r,cols)=>cols.some(c=>isnum(r[c]));
       const skip=/TOTALE|UTILE|PERDITA|PAREGGIO/;
       const costi=[], ricavi=[];
-      for(let i=hr+1;i<rows.length;i++){
+      for(let i=costRow+1;i<rows.length;i++){
         const r=rows[i]||[];
-        if(cvc>-1&&(isnum(r[cvc])||isnum(r[cvc2]))){ const lab=labelbefore(r,costCol,cvc); if(lab&&!skip.test(lab.toUpperCase())) costi.push({label:lab,val:cell(r,cvc)+cell(r,cvc2)}); }
-        if(rvc>-1&&(isnum(r[rvc])||isnum(r[rvc2]))){ const lab=labelbefore(r,ricCol,rvc); if(lab&&!skip.test(lab.toUpperCase())) ricavi.push({label:lab,val:cell(r,rvc)+cell(r,rvc2)}); }
+        if(costCols.length&&hasNum(r,costCols)){ const lab=labelbefore(r,costCol,firstCostVal); if(lab&&!skip.test(lab.toUpperCase())) costi.push({label:lab,val:sumCols(r,costCols)}); }
+        if(ricCols.length&&hasNum(r,ricCols)){ const lab=labelbefore(r,ricCol,firstRicVal); if(lab&&!skip.test(lab.toUpperCase())) ricavi.push({label:lab,val:sumCols(r,ricCols)}); }
         if(/PAREGGIO/.test(r.map(txt).join(' ').toUpperCase())) break;
       }
       if(!costi.length&&!ricavi.length){ alert('Nessuna voce di costo/ricavo trovata nel file.'); return; }
