@@ -835,6 +835,52 @@ function store() {
     });
 }
 
+// ─── SUPABASE: FILE EXCEL CONDIVISI (scadenziario, clienti, situazioni contabili) ───
+const FILES_ID = "dpark4_files";
+
+function serializeFiles(){
+  return {
+    scadTotali: (typeof xlsxTotali!=='undefined') ? xlsxTotali : null,
+    scadByCode: (typeof xlsxScadByCode!=='undefined') ? xlsxScadByCode : null,
+    clienti: (typeof xlsxClienti!=='undefined' && xlsxClienti)
+      ? xlsxClienti.map(c=>({display:c.display, joined:c.joined, toks:[...(c.set||[])], fatturato:c.fatturato, incasso:c.incasso}))
+      : null,
+    clientiFileName: (typeof clientiFileName!=='undefined') ? clientiFileName : '',
+    contabile: (typeof contabileByProj!=='undefined') ? contabileByProj : {}
+  };
+}
+
+function storeFiles(){
+  if (typeof CAN_EDIT !== 'undefined' && !CAN_EDIT) return;   // solo gli editor caricano/condividono
+  sb.from('app_state').upsert({ id: FILES_ID, data: serializeFiles(), updated_at: new Date().toISOString() })
+    .then(({error})=>{ if(error) console.error('storeFiles', error); }, err=>console.error(err));
+}
+
+function applyFiles(d){
+  if(!d) return;
+  if(d.scadTotali) xlsxTotali = d.scadTotali;
+  if(d.scadByCode) xlsxScadByCode = d.scadByCode;
+  if(Array.isArray(d.clienti)) xlsxClienti = d.clienti.map(c=>({display:c.display, joined:c.joined, set:new Set(c.toks||[]), fatturato:c.fatturato, incasso:c.incasso}));
+  if(d.clientiFileName) clientiFileName = d.clientiFileName;
+  if(d.contabile) contabileByProj = d.contabile;
+  if(typeof proj!=='undefined'){
+    if(proj==='incassi' && typeof renderIncassi==='function') renderIncassi();
+    else if(proj==='cantiere' && typeof renderCantiere==='function') renderCantiere();
+  }
+}
+
+function fetchFiles(){
+  sb.from('app_state').select('data').eq('id', FILES_ID).maybeSingle()
+    .then(({data})=>{ if(data) applyFiles(data.data); }, err=>console.error(err));
+}
+
+function loadFiles(){
+  fetchFiles();
+  sb.channel('app_state_' + FILES_ID)
+    .on('postgres_changes', { event:'*', schema:'public', table:'app_state', filter:'id=eq.'+FILES_ID }, ()=>fetchFiles())
+    .subscribe();
+}
+
 // ─── KPI ───
 function renderKPI() {
   const allUnits = Object.values(D[proj].units);
@@ -1350,6 +1396,7 @@ function handleContabileUpload(input, proj){
       if(!costi.length&&!ricavi.length){ alert('Nessuna voce di costo/ricavo trovata nel file.'); return; }
       contabileByProj[proj]={costi,ricavi,totC:costi.reduce((s,c)=>s+c.val,0),totR:ricavi.reduce((s,c)=>s+c.val,0),fileName:file.name,centro};
       renderCantiere();
+      storeFiles();
     }catch(err){ alert('Errore lettura situazione contabile: '+err.message); }
   };
   reader.readAsArrayBuffer(file);
@@ -1376,6 +1423,8 @@ function _econColumns(costi,ricavi){
     </div>`;
 }
 function _uploadBtn(proj,has,fileName){
+  const canEdit=(typeof CAN_EDIT==='undefined')?true:CAN_EDIT;
+  if(!canEdit) return has?`<span style="color:#2e7d32;font-size:11px;font-weight:700;">✓ ${esc(fileName||'file caricato')}</span>`:`<span style="font-size:11px;color:#999;">Nessun file caricato</span>`;
   return `<label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block;">📂 ${has?'Aggiorna file':'Carica situazione contabile'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleContabileUpload(this,'${proj}')"></label>${has?`<span style="color:#2e7d32;font-size:11px;font-weight:700;margin-left:8px;">✓ ${esc(fileName||'')}</span>`:''}`;
 }
 
@@ -2255,6 +2304,7 @@ function handleXlsxUpload(input) {
       xlsxTotali = totali;
       xlsxScadByCode = out;
       renderIncassi();
+      storeFiles();
     } catch(err) { alert('Errore lettura file: '+err.message); }
   };
   reader.readAsArrayBuffer(file);
@@ -2513,6 +2563,7 @@ function handleClientiUpload(input){
       }
       xlsxClienti=Object.values(agg);
       renderIncassi();
+      storeFiles();
     }catch(err){ alert('Errore lettura file clienti: '+err.message); }
   };
   reader.readAsArrayBuffer(file);
@@ -2539,18 +2590,19 @@ function _clientiSistema(){
 
 function renderIncassi(){
   const haveScad=!!xlsxTotali, haveCli=!!xlsxClienti;
+  const canEdit=(typeof CAN_EDIT==='undefined')?true:CAN_EDIT;
   const upScad=`<div style="flex:1;min-width:240px;background:#fff;border-radius:10px;padding:18px 20px;border:1px solid #e0d8cc;">
       <div style="font-size:12px;font-weight:700;color:#1a2e4a;margin-bottom:2px;">1 &middot; Scadenziario (codici)</div>
       <div style="font-size:11px;color:#999;margin-bottom:12px;">"Situazione Scadenze" &mdash; codici DP &middot; intestatari per appartamento</div>
-      <label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block;">&#128194; Carica scadenziario
-        <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleXlsxUpload(this)"></label>
-      ${haveScad?`<div style="color:#2e7d32;font-size:11px;font-weight:700;margin-top:8px;">&#10003; ${Object.keys(xlsxTotali).length} codici</div>`:''}
+      ${canEdit?`<label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block;">&#128194; Carica scadenziario
+        <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleXlsxUpload(this)"></label>`:'<span style="font-size:11px;color:#999;">Caricamento riservato agli editor</span>'}
+      ${haveScad?`<div style="color:#2e7d32;font-size:11px;font-weight:700;margin-top:8px;">&#10003; ${Object.keys(xlsxTotali).length} codici caricati</div>`:''}
     </div>`;
   const upCli=`<div style="flex:1;min-width:240px;background:#fff;border-radius:10px;padding:18px 20px;border:1px solid #e0d8cc;">
       <div style="font-size:12px;font-weight:700;color:#1a2e4a;margin-bottom:2px;">2 &middot; Clienti (Scheda contabile)</div>
       <div style="font-size:11px;color:#999;margin-bottom:12px;">Mastrino clienti &mdash; Dare (fatturato) / Avere (incassato)</div>
-      <label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block;">&#128194; Carica clienti
-        <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleClientiUpload(this)"></label>
+      ${canEdit?`<label style="cursor:pointer;background:#1a2e4a;color:#fff;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block;">&#128194; Carica clienti
+        <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleClientiUpload(this)"></label>`:'<span style="font-size:11px;color:#999;">Caricamento riservato agli editor</span>'}
       ${haveCli?`<div style="color:#2e7d32;font-size:11px;font-weight:700;margin-top:8px;">&#10003; ${esc(clientiFileName||'file')} &mdash; ${xlsxClienti.length} clienti</div>`:''}
     </div>`;
   const avvisoFile=(!haveScad||!haveCli)?`
@@ -2950,7 +3002,7 @@ function initAuth(){
 }
 
 // ─── INIT ───
-load(); sw('lotti'); initAuth();
+load(); sw('lotti'); initAuth(); loadFiles();
 </script>
 </body>
 </html>
