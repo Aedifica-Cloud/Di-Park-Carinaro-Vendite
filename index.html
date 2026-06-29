@@ -468,8 +468,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
           </div>
         </div>
         <div class="fg full" id="fg-note">
-          <label>Note interne</label>
-          <textarea id="fnt" placeholder="Condizioni, scadenze, annotazioni…"></textarea>
+          <label>Note interne — scrivi una nota e premi Salva, finirà nell'archivio sotto</label>
+          <textarea id="fnt" placeholder="Scrivi una nuova nota…"></textarea>
+          <div id="note-archive" style="margin-top:10px;"></div>
         </div>
       </div>
     </div>
@@ -497,18 +498,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
 
     <div class="mfoot">
       <span id="msaved">✓ Salvato</span>
-      <button class="btn btn-danger" id="btn-clearhist" onclick="clearHistory()">🗑 Cancella storico</button>
       <button class="btn" id="btn-edit" style="background:#e8f0fe;color:#1a2e4a;border:1.5px solid #b0c4e8;display:none" onclick="unlockForm()">✏️ Modifica</button>
       <button class="btn btn-g" id="btn-cancel" onclick="cm()" style="display:none">Annulla</button>
       <button class="btn btn-p" id="btn-save" onclick="save()" style="display:none">💾 Salva Scheda</button>
-    </div>
-    <hr class="hsep" id="hist-sep">
-    <div class="history-wrap" id="hist-wrap">
-      <div class="history-title">
-        <span>📋 Storico Modifiche</span>
-        <span id="hist-count" style="font-size:10px;color:#bbb;"></span>
-      </div>
-      <div id="hist-list"></div>
     </div>
   </div>
 </div>
@@ -774,6 +766,7 @@ function applySnapshot(j) {
         flds.forEach(f => { if (src[f] !== undefined) D[p].units[uid][f] = src[f]; });
         if (Array.isArray(src.history)) D[p].units[uid].history = src.history;
         if (Array.isArray(src.sal)) D[p].units[uid].sal = src.sal;
+        if (Array.isArray(src.noteLog)) D[p].units[uid].noteLog = src.noteLog;
       });
     });
   }
@@ -824,7 +817,8 @@ function store() {
         box:u.box||'', notaio:u.notaio||'', notes:u.notes||'',
         accordo:u.accordo||'', drive:u.drive||'',
         history: u.history || [],
-        sal: u.sal || []
+        sal: u.sal || [],
+        noteLog: u.noteLog || []
       };
     });
   });
@@ -851,7 +845,8 @@ function renderKPI() {
         d = units.filter(u=>u.st==='disponibile').length;
   const loc = allUnits.filter(u=>u.st==='locale').length;
   const eurF = u => parseFloat((u.price||'').replace(/\./g,'').replace(',','.')) || 0;
-  const eur = vUnits.reduce((s,u)=>s+eurF(u),0);
+  // Ricavi del venduto = solo unità vendute con accordo "Acquisto"
+  const eur = vUnits.filter(u=>u.accordo==='Acquisto').reduce((s,u)=>s+eurF(u),0);
   // ricavi preventivati = €2500 × mq di tutte le unità
   const prevTot = Math.round(allUnits.reduce((s,u)=>s+parseSL(u.sl),0) * PRICE_PER_MQ) + calcBoxRevenue(proj);
   // mq venduti (con prezzo inserito)
@@ -859,6 +854,13 @@ function renderKPI() {
   const mqVenduti = vConPrezzo.reduce((s,u)=>s+parseSL(u.sl),0);
   const prezzoMqEff = mqVenduti>0 ? Math.round(eur/mqVenduti) : 0;
   const pv=tot?(v/tot*100).toFixed(0):0, pr=tot?(r/tot*100).toFixed(0):0, pd=tot?(d/tot*100).toFixed(0):0;
+  // ── KPI ricavi semplificati ──
+  const prevOper = Math.round(allUnits.reduce((s,u)=>s+parseSL(u.sl),0)*PRICE_PER_MQ);                                  // somma prezzi previsionali
+  const permVal  = vUnits.filter(u=>u.accordo==='Permuta').reduce((s,u)=>s+eurF(u),0); // valore permute = prezzo concordato (venduto + accordo Permuta)
+  const dispVal  = Math.round(allUnits.filter(u=>u.st==='disponibile').reduce((s,u)=>s+parseSL(u.sl),0)*PRICE_PER_MQ);  // ricavi da effettuare
+  const vAcqP    = vUnits.filter(u=>u.accordo==='Acquisto' && eurF(u)>0);                 // vendute acquisto con prezzo
+  const mqAcq    = vAcqP.reduce((s,u)=>s+parseSL(u.sl),0);
+  const prezzoMqAcq = mqAcq>0 ? Math.round(eur/mqAcq) : 0;                                 // €/mq del venduto (acquisto)
   document.getElementById('kpi').innerHTML = `
     <div class="kpi t">
       <div class="kl">Totale Unità</div><div class="kv">${totAll}</div>
@@ -869,29 +871,29 @@ function renderKPI() {
     <div class="kpi r"><div class="kl">Riservate</div><div class="kv">${r}</div><div class="ks">${pr}% delle res.</div></div>
     <div class="kpi d"><div class="kl">Disponibili</div><div class="kv">${d}</div><div class="ks">${pd}% delle res.</div></div>
     <div class="kpi" style="background:#f0f4ff;border-color:#c8d8f8">
-      <div class="kl">Ricavi Totali Previsti</div>
-      <div class="kv" style="color:#3a5fa0;font-size:15px">€ ${prevTot.toLocaleString('it-IT')}</div>
-      <div class="ks">appart. €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq + box €${BOX_PRICE_PER_MQ.toLocaleString('it-IT')}/mq${(proj==='a1'||proj==='a2')?' (50%)':''}</div>
+      <div class="kl">Ricavi Previsti Operazione</div>
+      <div class="kv" style="color:#3a5fa0;font-size:15px">€ ${prevOper.toLocaleString('it-IT')}</div>
+      <div class="ks">somma prezzi previsionali (€${PRICE_PER_MQ.toLocaleString('it-IT')}/mq)</div>
     </div>
     <div class="kpi" style="background:#fffbe6;border-color:#f0d060">
-      <div class="kl">Ricavi Contrattualizzati</div>
+      <div class="kl">Ricavi del Venduto</div>
       <div class="kv" style="color:#b8860b;font-size:15px">${eur>0?'€ '+eur.toLocaleString('it-IT'):'—'}</div>
-      <div class="ks">somma vendite con prezzo</div>
+      <div class="ks">prezzo concordato · vendute con accordo Acquisto</div>
     </div>
-    <div class="kpi" style="background:#fff0f0;border-color:#f8c8c8">
-      <div class="kl">Ricavi da Contrattualizzare</div>
-      <div class="kv" style="color:#c62828;font-size:15px">€ ${(prevTot-eur).toLocaleString('it-IT')}</div>
-      <div class="ks">preventivati − effettivi</div>
+    <div class="kpi" style="background:#f4eefb;border-color:#d7c4ee">
+      <div class="kl">Importo Permuta</div>
+      <div class="kv" style="color:#5e35b1;font-size:15px">${permVal>0?'€ '+permVal.toLocaleString('it-IT'):'—'}</div>
+      <div class="ks">vendute con accordo Permuta (prezzo concordato)</div>
     </div>
-    <div class="kpi" style="background:#f0f4ff;border-color:#c8d8f8">
-      <div class="kl">Prezzo Medio Previsto €/mq</div>
-      <div class="kv" style="color:#3a5fa0;font-size:15px">€ ${PRICE_PER_MQ.toLocaleString('it-IT')}</div>
-      <div class="ks">base di calcolo</div>
+    <div class="kpi" style="background:#eef7ee;border-color:#bfe0c0">
+      <div class="kl">Ricavi da Effettuare</div>
+      <div class="kv" style="color:#2e7d32;font-size:15px">${dispVal>0?'€ '+dispVal.toLocaleString('it-IT'):'—'}</div>
+      <div class="ks">unità disponibili (previsionale)</div>
     </div>
     <div class="kpi" style="background:#fffbe6;border-color:#f0d060">
-      <div class="kl">Prezzo Medio Venduto €/mq</div>
-      <div class="kv" style="color:#b8860b;font-size:15px">${prezzoMqEff>0?'€ '+prezzoMqEff.toLocaleString('it-IT'):'—'}</div>
-      <div class="ks">${vConPrezzo.length>0?'su '+vConPrezzo.length+' vendite con prezzo':'nessun prezzo inserito'}</div>
+      <div class="kl">Prezzo al mq Venduto (Acquisto)</div>
+      <div class="kv" style="color:#b8860b;font-size:15px">${prezzoMqAcq>0?'€ '+prezzoMqAcq.toLocaleString('it-IT'):'—'}</div>
+      <div class="ks">${vAcqP.length>0?'su '+vAcqP.length+' vendite con prezzo':'nessun prezzo inserito'}</div>
     </div>
   `;
 }
@@ -1834,10 +1836,29 @@ function tsNow() {
          n.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 }
 
+function _noteItem(ts, text, legacy){
+  return `<div style="border-left:3px solid #c9a84c;background:#faf7f1;border-radius:0 8px 8px 0;padding:8px 12px;margin-bottom:8px;">
+    <div style="font-size:10px;color:#aaa;margin-bottom:2px;">${ts?('🕒 '+esc(ts)):(legacy?'nota precedente':'')}</div>
+    <div style="font-size:12px;color:#1a2e4a;white-space:pre-wrap;">${esc(text)}</div>
+  </div>`;
+}
+function renderNoteArchive(u){
+  const el = document.getElementById('note-archive');
+  if(!el) return;
+  const log = Array.isArray(u.noteLog) ? u.noteLog : [];
+  const legacy = (u.notes||'').trim();
+  if(!log.length && !legacy){ el.innerHTML=''; return; }
+  let items = [...log].reverse().map(n=>_noteItem(n.ts, n.text)).join('');
+  if(legacy) items += _noteItem('', legacy, true);
+  el.innerHTML = `<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#999;margin:4px 0 6px;">📒 Archivio note</div>${items}`;
+}
+
 function renderHistory(u) {
   const hist = u.history || [];
   const el = document.getElementById('hist-list');
-  document.getElementById('hist-count').textContent = hist.length ? `${hist.length} modifica${hist.length>1?'e':''}` : '';
+  if (!el) return;   // storico modifiche rimosso dall'interfaccia
+  const cnt = document.getElementById('hist-count');
+  if (cnt) cnt.textContent = hist.length ? `${hist.length} modifica${hist.length>1?'e':''}` : '';
   if (!hist.length) {
     el.innerHTML = '<div class="history-empty">Nessuna modifica registrata.</div>';
     return;
@@ -1884,7 +1905,7 @@ function openM(uid) {
   document.getElementById('fac').value   = u.accordo || '';
   document.getElementById('fno').value   = u.notaio  || '';
   document.getElementById('fdr').value   = u.drive   || '';
-  document.getElementById('fnt').value   = u.notes   || '';
+  document.getElementById('fnt').value   = '';   // la casella è per una NUOVA nota; le vecchie stanno nell'archivio
   const drBtn = document.getElementById('fdr-btn');
   if (u.drive) { drBtn.href = u.drive; drBtn.style.display = 'inline-block'; }
   else drBtn.style.display = 'none';
@@ -1910,6 +1931,7 @@ function openM(uid) {
   document.getElementById('msaved').style.display = 'none';
   rb();
   renderHistory(u);
+  renderNoteArchive(u);
   switchMTab('scheda');
   setFormLocked(curIsLocale); // locale → bloccato, tutti gli altri → subito modificabile
   document.getElementById('ov').classList.add('open');
@@ -2113,7 +2135,7 @@ function save() {
     st: u.st==='locale' ? 'locale' : u.st,
     owner: u.owner||'', price: u.price||'', phone: u.phone||'',
     email: u.email||'', date: u.date||'', box: u.box||'',
-    accordo: u.accordo||'', notaio: u.notaio||'', drive: u.drive||'', notes: u.notes||''
+    accordo: u.accordo||'', notaio: u.notaio||'', drive: u.drive||''
   };
 
   // apply new values
@@ -2128,13 +2150,19 @@ function save() {
   u.accordo = document.getElementById('fac').value;
   u.notaio  = document.getElementById('fno').value.trim();
   u.drive   = document.getElementById('fdr').value.trim();
-  u.notes   = document.getElementById('fnt').value.trim();
+  // Nota: se ho scritto una nuova nota, la archivio (append) e svuoto la casella
+  const newNote = document.getElementById('fnt').value.trim();
+  if (newNote) {
+    if (!Array.isArray(u.noteLog)) u.noteLog = [];
+    u.noteLog.push({ts: tsNow(), text: newNote});
+    document.getElementById('fnt').value = '';
+  }
 
   // build diff
   const after = {
     st: u.st, owner: u.owner, price: u.price, phone: u.phone,
     email: u.email, date: u.date, box: u.box,
-    accordo: u.accordo, notaio: u.notaio, drive: u.drive, notes: u.notes
+    accordo: u.accordo, notaio: u.notaio, drive: u.drive
   };
   const changes = [];
   Object.keys(after).forEach(f => {
@@ -2148,7 +2176,7 @@ function save() {
     u.history.push({ts: tsNow(), changes});
   }
 
-  store(); renderKPI(); renderPlan(); renderHistory(u); renderCheckPanel(proj);
+  store(); renderKPI(); renderPlan(); renderHistory(u); renderNoteArchive(u); renderCheckPanel(proj);
   setFormLocked(true);
   document.getElementById('msaved').style.display = 'inline';
   setTimeout(()=>{ document.getElementById('msaved').style.display='none'; }, 2000);
@@ -2241,7 +2269,7 @@ function buildScadByCodeSection(){
   for(const pk of projKeys){
     const units=D[pk]&&D[pk].units?D[pk].units:{};
     for(const u of Object.values(units)){
-      if(u.codice && u.codice.trim()) codeMap[u.codice.trim().toUpperCase()]={proj:projNames[pk], lbl:u.lbl, tipo:u.tipo, sc:u.sc, price:px(u.price), owner:u.owner};
+      if(u.codice && u.codice.trim()) codeMap[u.codice.trim().toUpperCase()]={proj:projNames[pk], lbl:u.lbl, tipo:u.tipo, sc:u.sc, price:px(u.price), owner:u.owner, accordo:u.accordo};
     }
   }
   const haveCli=!!xlsxClienti;
@@ -2255,15 +2283,16 @@ function buildScadByCodeSection(){
     const u=codeMap[code];
     const prezzo=u?u.price:0;
     gPrezzo+=prezzo;
-    let cF=0, cI=0, codePerm=true;
+    let cF=0, cI=0;
+    // Permuta se l'accordo a sistema è "Permuta" (o nomi forzati Salvarezza/Turco)
+    const codePerm = (u && u.accordo==='Permuta') || persone.every(p=>isPerm(p.display));
     const righe=persone.map(p=>{
-      if(isPerm(p.display)){
+      if(codePerm || isPerm(p.display)){
         return `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px dashed #eee3d2;font-size:12px;flex-wrap:wrap;">
           <div style="font-weight:700;color:#1a2e4a;min-width:160px;">${esc(p.display)} <span style="background:#ede9f8;color:#5e35b1;font-size:9px;font-weight:700;padding:1px 7px;border-radius:9px;">Permuta</span></div>
           <div style="text-align:right;min-width:200px;color:#5e35b1;font-style:italic;">Permuta &mdash; non considerata negli incassi</div>
         </div>`;
       }
-      codePerm=false;
       const m=haveCli?_matchGenya(_normNome(p.display)):null;   // dare/avere dal file clienti
       const fatt=m?m.c.fatturato:null;
       const inc =m?m.c.incasso:null;
@@ -2323,32 +2352,49 @@ function buildScadByCodeSection(){
   if(senza.length){
     let rows2='';
     for(const o of senza){
-      const m=haveCli?_matchGenya(_normNome(o.owner)):null;
+      const perm=o.permuta;
+      const m=(!perm&&haveCli)?_matchGenya(_normNome(o.owner)):null;
       const fatt=m?m.c.fatturato:null, inc=m?m.c.incasso:null;
-      gPrezzo+=o.prezzo; if(fatt!==null) gF+=fatt; if(inc!==null) gI+=inc;
-      const daFatt=o.prezzo>0?o.prezzo-(fatt||0):null;
-      const daInc =o.prezzo>0?o.prezzo-(inc||0):null;   // Prezzo − Incassato
-      if(daFatt!==null) gDaFatt+=daFatt;
-      if(daInc!==null)  gDaInc+=daInc;
-      const permPill=o.permuta?` <span style="background:#ede9f8;color:#5e35b1;font-size:9px;font-weight:700;padding:1px 7px;border-radius:9px;">Permuta</span>`:'';
-      const daFattPill=(fatt===null||fatt===0)?` <span style="background:#fff3e0;color:#e65100;font-size:9px;font-weight:700;padding:1px 7px;border-radius:9px;">Da fatturare</span>`:'';
+      gPrezzo+=o.prezzo;
+      let daFatt=null, daInc=null;
+      if(!perm){
+        if(fatt!==null) gF+=fatt;
+        if(inc!==null)  gI+=inc;
+        daFatt=o.prezzo>0?o.prezzo-(fatt||0):null;
+        daInc =o.prezzo>0?o.prezzo-(inc||0):null;   // Prezzo − Incassato
+        if(daFatt!==null) gDaFatt+=daFatt;
+        if(daInc!==null)  gDaInc+=daInc;
+      }
+      const permPill=perm?` <span style="background:#ede9f8;color:#5e35b1;font-size:9px;font-weight:700;padding:1px 7px;border-radius:9px;">Permuta</span>`:'';
+      const daFattPill=(!perm&&(fatt===null||fatt===0))?` <span style="background:#fff3e0;color:#e65100;font-size:9px;font-weight:700;padding:1px 7px;border-radius:9px;">Da fatturare</span>`:'';
+      const body=perm
+        ? `<div style="font-size:12px;color:#5e35b1;font-style:italic;font-weight:600;">Permuta &mdash; non considerata negli incassi.</div>`
+        : `<div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${_codeStat('Fatturato', !haveCli?'&mdash;':(m?fmtEurInc(fatt):'&mdash;'), '#1a2e4a')}
+          ${_codeStat('Incassato', !haveCli?'&mdash;':(m?fmtEurInc(inc):'&mdash;'), '#2e7d32')}
+          ${_codeStat('Da Fatturare', daFatt!==null?fmtEurInc(daFatt):'&mdash;', (daFatt!==null&&daFatt<=0)?'#2e7d32':'#c62828')}
+          ${_codeStat('Da Incassare', daInc!==null?fmtEurInc(daInc):'&mdash;', (daInc!==null&&daInc<=0)?'#2e7d32':'#c62828')}
+        </div>`;
       rows2+=`<div style="background:#fff;border:1px solid #e0d8cc;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
           <div><span style="font-weight:800;color:#1a2e4a;font-size:13px;">${esc(o.owner)}</span>${permPill}${daFattPill}
             <span style="font-size:11px;color:#888;margin-left:8px;">${esc(o.proj)} &middot; senza codice</span></div>
           <div style="font-size:12px;color:#1a2e4a;font-weight:700;">Prezzo di vendita: ${o.prezzo>0?fmtEurInc(o.prezzo):'&mdash;'}</div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          ${_codeStat('Fatturato', !haveCli?'&mdash;':(m?fmtEurInc(fatt):'&mdash;'), '#1a2e4a')}
-          ${_codeStat('Incassato', !haveCli?'&mdash;':(m?fmtEurInc(inc):'&mdash;'), '#2e7d32')}
-          ${_codeStat('Da Fatturare', daFatt!==null?fmtEurInc(daFatt):'&mdash;', (daFatt!==null&&daFatt<=0)?'#2e7d32':'#c62828')}
-          ${_codeStat('Da Incassare', daInc!==null?fmtEurInc(daInc):'&mdash;', (daInc!==null&&daInc<=0)?'#2e7d32':'#c62828')}
-        </div>
+        ${body}
       </div>`;
     }
     cardsNoCode=`<div style="font-size:14px;font-weight:800;color:#1a2e4a;margin:24px 0 10px;">📂 Presenti nel progetto senza codice (permute / non ancora fatturati)</div>${rows2}`;
   }
 
+  // ── Totali su tutti i lotti (stessa logica dei KPI di lotto) ──
+  let totVenduto=0, totPermuta=0;
+  for(const pk of projKeys){
+    const us=D[pk]&&D[pk].units?Object.values(D[pk].units):[];
+    const vv=us.filter(u=>u.st==='venduto');
+    totVenduto += vv.filter(u=>u.accordo==='Acquisto').reduce((s,u)=>s+px(u.price),0);
+    totPermuta += vv.filter(u=>u.accordo==='Permuta').reduce((s,u)=>s+px(u.price),0);
+  }
   const kpi=(lbl,val,col)=>`<div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:14px 18px;border:1px solid #e0d8cc;">
       <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#999;margin-bottom:4px;">${lbl}</div>
       <div style="font-size:19px;font-weight:800;color:${col};">${val}</div></div>`;
@@ -2356,11 +2402,12 @@ function buildScadByCodeSection(){
     <div style="font-size:16px;font-weight:800;color:#1a2e4a;margin:30px 0 6px;">🔑 Incassi per Codice / Appartamento</div>
     <p style="font-size:12px;color:#777;margin-bottom:16px;">Codice e intestatari dallo <b>scadenziario</b> &middot; prezzo dal sistema &middot; <b>Fatturato = Dare</b> e <b>Incassato = Avere</b> dal file clienti, per ogni nominativo.${!haveCli?' <span style="color:#b8860b;">Carica anche il file clienti per gli importi.</span>':''}</p>
     <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
-      ${kpi('Prezzo di vendita',fmtEurInc(gPrezzo),'#1a2e4a')}
+      ${kpi('Ricavi del Venduto (tutti i lotti)',fmtEurInc(totVenduto),'#b8860b')}
+      ${kpi('Importo Permuta (tutti i lotti)',fmtEurInc(totPermuta),'#5e35b1')}
       ${kpi('Fatturato (Dare)',haveCli?fmtEurInc(gF):'&mdash;','#1a2e4a')}
       ${kpi('Incassato (Avere)',haveCli?fmtEurInc(gI):'&mdash;','#2e7d32')}
-      ${kpi('Da Fatturare',haveCli?fmtEurInc(gDaFatt):'&mdash;','#c62828')}
-      ${kpi('Da Incassare',haveCli?fmtEurInc(gDaInc):'&mdash;','#c62828')}
+      ${kpi('Da Fatturare',haveCli?fmtEurInc(totVenduto-gF):'&mdash;','#c62828')}
+      ${kpi('Da Incassare',haveCli?fmtEurInc(totVenduto-gI):'&mdash;','#c62828')}
     </div>
     ${cards}
     ${cardsNoCode}
