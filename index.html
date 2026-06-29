@@ -856,7 +856,8 @@ function renderKPI() {
   const pv=tot?(v/tot*100).toFixed(0):0, pr=tot?(r/tot*100).toFixed(0):0, pd=tot?(d/tot*100).toFixed(0):0;
   // ── KPI ricavi semplificati ──
   const prevOper = Math.round(allUnits.reduce((s,u)=>s+parseSL(u.sl),0)*PRICE_PER_MQ);                                  // somma prezzi previsionali
-  const permVal  = vUnits.filter(u=>u.accordo==='Permuta').reduce((s,u)=>s+eurF(u),0); // valore permute = prezzo concordato (venduto + accordo Permuta)
+  // Importo permuta = prezzo concordato se presente, altrimenti previsionale (S.L. × €/mq) — su unità vendute con accordo Permuta
+  const permVal  = vUnits.filter(u=>u.accordo==='Permuta').reduce((s,u)=>{ const c=eurF(u); return s + (c>0 ? c : Math.round(parseSL(u.sl)*PRICE_PER_MQ)); }, 0);
   const dispVal  = Math.round(allUnits.filter(u=>u.st==='disponibile').reduce((s,u)=>s+parseSL(u.sl),0)*PRICE_PER_MQ);  // ricavi da effettuare
   const vAcqP    = vUnits.filter(u=>u.accordo==='Acquisto' && eurF(u)>0);                 // vendute acquisto con prezzo
   const mqAcq    = vAcqP.reduce((s,u)=>s+parseSL(u.sl),0);
@@ -883,7 +884,7 @@ function renderKPI() {
     <div class="kpi" style="background:#f4eefb;border-color:#d7c4ee">
       <div class="kl">Importo Permuta</div>
       <div class="kv" style="color:#5e35b1;font-size:15px">${permVal>0?'€ '+permVal.toLocaleString('it-IT'):'—'}</div>
-      <div class="ks">vendute con accordo Permuta (prezzo concordato)</div>
+      <div class="ks">accordo Permuta · concordato o, se assente, previsionale</div>
     </div>
     <div class="kpi" style="background:#eef7ee;border-color:#bfe0c0">
       <div class="kl">Ricavi da Effettuare</div>
@@ -2393,7 +2394,7 @@ function buildScadByCodeSection(){
     const us=D[pk]&&D[pk].units?Object.values(D[pk].units):[];
     const vv=us.filter(u=>u.st==='venduto');
     totVenduto += vv.filter(u=>u.accordo==='Acquisto').reduce((s,u)=>s+px(u.price),0);
-    totPermuta += vv.filter(u=>u.accordo==='Permuta').reduce((s,u)=>s+px(u.price),0);
+    totPermuta += vv.filter(u=>u.accordo==='Permuta').reduce((s,u)=>{ const c=px(u.price); return s + (c>0 ? c : Math.round(parseSL(u.sl)*PRICE_PER_MQ)); }, 0);
   }
   const kpi=(lbl,val,col)=>`<div style="flex:1;min-width:150px;background:#fff;border-radius:10px;padding:14px 18px;border:1px solid #e0d8cc;">
       <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#999;margin-bottom:4px;">${lbl}</div>
