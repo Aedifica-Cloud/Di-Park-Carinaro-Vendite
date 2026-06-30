@@ -901,7 +901,7 @@ function renderKPI() {
   const prezzoMqEff = mqVenduti>0 ? Math.round(eur/mqVenduti) : 0;
   const pv=tot?(v/tot*100).toFixed(0):0, pr=tot?(r/tot*100).toFixed(0):0, pd=tot?(d/tot*100).toFixed(0):0;
   // ── KPI ricavi semplificati ──
-  const prevOper = Math.round(allUnits.reduce((s,u)=>s+parseSL(u.sl),0)*PRICE_PER_MQ);                                  // somma prezzi previsionali
+  const prevOper = Math.round(allUnits.reduce((s,u)=>s+parseSL(u.sl),0)*2100) + boxRevenueOper(proj);                  // S.L. × €2.100/mq + box auto
   // Importo permuta = prezzo concordato se presente, altrimenti previsionale (S.L. × €/mq) — su unità vendute con accordo Permuta
   const permVal  = vUnits.filter(u=>u.accordo==='Permuta').reduce((s,u)=>{ const c=eurF(u); return s + (c>0 ? c : Math.round(parseSL(u.sl)*PRICE_PER_MQ)); }, 0);
   const dispVal  = Math.round(allUnits.filter(u=>u.st==='disponibile').reduce((s,u)=>s+parseSL(u.sl),0)*PRICE_PER_MQ);  // ricavi da effettuare
@@ -920,7 +920,7 @@ function renderKPI() {
     <div class="kpi" style="background:#f0f4ff;border-color:#c8d8f8">
       <div class="kl">Ricavi Previsti Operazione</div>
       <div class="kv" style="color:#3a5fa0;font-size:15px">€ ${prevOper.toLocaleString('it-IT')}</div>
-      <div class="ks">somma prezzi previsionali (€${PRICE_PER_MQ.toLocaleString('it-IT')}/mq)</div>
+      <div class="ks">S.L. × €2.100/mq + box auto</div>
     </div>
     <div class="kpi" style="background:#fffbe6;border-color:#f0d060">
       <div class="kl">Ricavi del Venduto</div>
@@ -1277,6 +1277,40 @@ function calcBoxRevenue(proj) {
   if (proj === 'sorriso')    return Math.round(BOXES_SORRISO.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
   if (proj === 'audacia')    return Math.round(BOXES_AUDACIA.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0));
   return 0;
+}
+
+// Ricavo previsionale box per "Ricavi Previsti Operazione":
+// Armonia 1, Armonia 2 ed Equilibrio condividono lo stesso parco box (totale 877.030 → /3 ciascuno);
+// gli altri lotti usano il ricavo box sotto i rispettivi box.
+const BOX_CONDIVISI_TOT = 877030;
+function boxRevenueOper(proj){
+  if (proj==='a1' || proj==='a2' || proj==='equilibrio') return Math.round(BOX_CONDIVISI_TOT/3);
+  return calcBoxRevenue(proj);
+}
+
+// Grafico a torta (donut) SVG da segmenti [{label,val,color}]
+function _donut(segs){
+  const tot = segs.reduce((s,x)=>s+x.val,0);
+  if(tot<=0) return '<p style="color:#999;font-size:12px;">Nessun dato.</p>';
+  const r=52, C=2*Math.PI*r; let off=0;
+  const arcs = segs.filter(s=>s.val>0).map(s=>{
+    const len=C*s.val/tot;
+    const a=`<circle cx="70" cy="70" r="${r}" fill="none" stroke="${s.color}" stroke-width="24" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"></circle>`;
+    off+=len; return a;
+  }).join('');
+  const legend = segs.filter(s=>s.val>0).map(s=>`<div style="display:flex;align-items:center;gap:7px;font-size:11px;margin-bottom:5px;">
+      <span style="width:11px;height:11px;border-radius:2px;background:${s.color};display:inline-block;flex:none;"></span>
+      <span style="flex:1;color:#444;">${s.label}</span>
+      <span style="font-weight:700;white-space:nowrap;">€ ${Math.round(s.val).toLocaleString('it-IT')}</span>
+      <span style="color:#999;font-size:10px;width:36px;text-align:right;">${Math.round(s.val/tot*100)}%</span>
+    </div>`).join('');
+  return `<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+    <svg width="140" height="140" viewBox="0 0 140 140" style="flex:none;">${arcs}
+      <text x="70" y="66" text-anchor="middle" font-size="10" fill="#999">Totale</text>
+      <text x="70" y="84" text-anchor="middle" font-size="14" font-weight="800" fill="#1a2e4a">€ ${Math.round(tot).toLocaleString('it-IT')}</text>
+    </svg>
+    <div style="flex:1;min-width:190px;">${legend}</div>
+  </div>`;
 }
 
 function parseSL(sl) {
@@ -1771,6 +1805,16 @@ function renderDashboard() {
   });
   prossimi.sort((a,b) => a.data - b.data);
 
+  // torta composizione SAL
+  let scadutoTot=0, futuroTot=0;
+  prossimi.forEach(r => { if(r.scaduto) scadutoTot+=r.importo; else futuroTot+=r.importo; });
+  const tortaSAL = _donut([
+    {label:'Già incassato',        val:totIncassato, color:'#2e7d32'},
+    {label:'Scaduto da incassare', val:scadutoTot,   color:'#c62828'},
+    {label:'Futuro da incassare',  val:futuroTot,    color:'#e65100'},
+    {label:'Senza data',           val:totSenzaData, color:'#9e9e9e'},
+  ]);
+
   // previsione mensile futura
   const prevMap = {};
   prossimi.forEach(r => {
@@ -1839,8 +1883,8 @@ function renderDashboard() {
           ${prossimi.length>20?`<div style="font-size:11px;color:#999;padding-top:8px;">... e altri ${prossimi.length-20} pagamenti</div>`:''}
         </div>
         <div>
-          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:10px;">Previsione Mensile <span style="color:#c62828;">■</span> scaduto <span style="color:#2e7d32;">■</span> futuro</div>
-          ${prevBars||'<p style="color:#999;font-size:12px;">Nessuna data prevista inserita.</p>'}
+          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#999;margin-bottom:10px;">Composizione SAL</div>
+          ${tortaSAL}
         </div>
       </div>` : '<p style="color:#999;font-size:13px;padding:8px 0">Nessuna rata futura programmata. Aggiungi date previste nelle schede SAL.</p>'}
     </div>
@@ -2457,8 +2501,8 @@ function buildScadByCodeSection(){
       ${kpi('Importo Permuta (tutti i lotti)',fmtEurInc(totPermuta),'#5e35b1')}
       ${kpi('Fatturato (Dare)',haveCli?fmtEurInc(gF):'&mdash;','#1a2e4a')}
       ${kpi('Incassato (Avere)',haveCli?fmtEurInc(gI):'&mdash;','#2e7d32')}
-      ${kpi('Da Fatturare',haveCli?fmtEurInc(totVenduto-gF):'&mdash;','#c62828')}
-      ${kpi('Da Incassare',haveCli?fmtEurInc(totVenduto-gI):'&mdash;','#c62828')}
+      ${kpi('Da Fatturare',haveCli?fmtEurInc(gDaFatt):'&mdash;','#c62828')}
+      ${kpi('Da Incassare',haveCli?fmtEurInc(gDaInc):'&mdash;','#c62828')}
     </div>
     ${cards}
     ${cardsNoCode}
