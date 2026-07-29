@@ -3011,6 +3011,7 @@ async function applyAuth(session){
   const ov = document.getElementById('ov');
   if(ov && ov.classList.contains('open') && !CAN_EDIT) setFormLocked(true);
   startPresence();
+  window.dispatchEvent(new CustomEvent('dpark-auth-ready',{detail:{authenticated:!!CURRENT_USER}}));
 }
 
 function renderAuthBar(){
@@ -3125,6 +3126,7 @@ const CTRL_AREAS=[
   ['ctrl_documenti','▤ Documenti'],['ctrl_acquisti','◇ Acquisti'],['ctrl_economico','€ Controllo economico'],['ctrl_report','▦ Report cantiere']
 ];
 const CTRL_STATE_ID='dpark_control_v1',CTRL_LS='dpark_control_v1';
+let CTRL_REMOTE_READY=false,CTRL_SYNCING=false,CTRL_REALTIME_CHANNEL=null;
 let CTRL_BUILDING='a1',CTRL_ANAG_TAB='appalto',CTRL_DOC_SUBJECT='appaltatrice',CTRL_ECON_LOTTO='a1',CTRL_RIEP_LOTTO='all',CTRL_RIEP_DA='',CTRL_RIEP_A='',CTRL_RIEP_NOME='',CTRL_DATA={attivita:[],crono:[],giornale:[],documenti:[],acquisti:[],anagrafica:{},contabilita:[],economico:{}};
 const CTRL_COSTI_CATEGORIE=['Terreno e acquisizioni','Progettazione e tecnici','Oneri, permessi e autorizzazioni','Opere strutturali','Murature e involucro','Impianti','Serramenti','Finiture interne','Sistemazioni esterne','Sicurezza','Spese generali','Commercializzazione','Imprevisti','Altri costi'];
 const CTRL_FASI_MODELLO=[
@@ -3186,15 +3188,98 @@ function ctrlRows(type){return CTRL_DATA[type].filter(x=>CTRL_BUILDING==='all'||
 function ctrlOptions(all=true){return `${all?'<option value="all">Tutti i fabbricati</option>':''}`+CTRL_BUILDINGS.map(x=>`<option value="${x[0]}" ${CTRL_BUILDING===x[0]?'selected':''}>${x[1]}</option>`).join('')}
 function ctrlEntityOptions(){return CTRL_BUILDINGS.map(x=>`<option value="${x[0]}" ${CTRL_BUILDING===x[0]?'selected':''}>${x[1]}</option>`).join('')}
 function ctrlShell(title,sub,body){return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>${title}</h2><p>${sub}</p></div><div class="ctrl-chip ok">${ctrlName(CTRL_BUILDING)}</div></div>${body}</div>`}
-function ctrlSave(){
+function ctrlSyncStatus(msg,kind=''){
+  const el=document.getElementById('ctrl-sync-status');
+  if(!el)return;
+  el.textContent=msg;
+  el.style.color=kind==='error'?'#fecaca':kind==='ok'?'#86efac':'#9eb0c6';
+}
+function ctrlExportBackup(){
+  const raw=localStorage.getItem(CTRL_LS)||JSON.stringify(CTRL_DATA);
+  const blob=new Blob([raw],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='dpark_control_backup_'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  ctrlNotify('✓ Backup completo scaricato');
+}
+async function ctrlPublishLocalToCloud(){
+  if(!CAN_EDIT){openLogin();return}
+  if(!confirm('Pubblicare su Supabase i dati presenti su questo dispositivo? Fallo solo dal dispositivo con i dati più aggiornati.'))return;
+  CTRL_SYNCING=true;ctrlSyncStatus('Sincronizzazione in corso…');
+  try{
+    const raw=localStorage.getItem(CTRL_LS);
+    const local=raw?JSON.parse(raw):CTRL_DATA;
+    const {error}=await sb.from('app_state').upsert({id:CTRL_STATE_ID,data:local,updated_at:new Date().toISOString()});
+    if(error)throw error;
+    CTRL_DATA=local;CTRL_REMOTE_READY=true;
+    ctrlStartRealtime();
+    ctrlSyncStatus('✓ Dati condivisi e sincronizzati','ok');
+    ctrlNotify('✓ Dati pubblicati su Supabase');
+  }catch(e){
+    console.error(e);ctrlSyncStatus('Errore: dati non sincronizzati','error');
+    alert('Supabase non ha accettato il salvataggio. I dati locali non sono stati cancellati.');
+  }finally{CTRL_SYNCING=false}
+}
+async function ctrlSave(){
   localStorage.setItem(CTRL_LS,JSON.stringify(CTRL_DATA));
-  if(typeof sb!=='undefined'&&typeof CAN_EDIT!=='undefined'&&CAN_EDIT)sb.from('app_state').upsert({id:CTRL_STATE_ID,data:CTRL_DATA,updated_at:new Date().toISOString()});
+  if(typeof sb==='undefined'||typeof CAN_EDIT==='undefined'||!CAN_EDIT){
+    ctrlSyncStatus('Salvato solo su questo dispositivo');
+    return false;
+  }
+  CTRL_SYNCING=true;ctrlSyncStatus('Salvataggio su Supabase…');
+  try{
+    const {error}=await sb.from('app_state').upsert({id:CTRL_STATE_ID,data:CTRL_DATA,updated_at:new Date().toISOString()});
+    if(error)throw error;
+    CTRL_REMOTE_READY=true;ctrlSyncStatus('✓ Salvato e sincronizzato','ok');
+    return true;
+  }catch(e){
+    console.error(e);ctrlSyncStatus('Errore: salvato solo sul dispositivo','error');
+    ctrlNotify('⚠ Errore di sincronizzazione Supabase');
+    return false;
+  }finally{CTRL_SYNCING=false}
+}
+function ctrlApplyRemote(data){
+  if(!data||typeof data!=='object')return;
+  CTRL_DATA=Object.assign({attivita:[],crono:[],giornale:[],documenti:[],acquisti:[],anagrafica:{},contabilita:[],economico:{}},data);
+  localStorage.setItem(CTRL_LS,JSON.stringify(CTRL_DATA));
+  CTRL_REMOTE_READY=true;
+  ctrlSyncStatus('✓ Aggiornato da Supabase','ok');
+  if(typeof proj!=='undefined'&&String(proj).startsWith('ctrl_'))ctrlRender(proj);
+}
+function ctrlStartRealtime(){
+  if(CTRL_REALTIME_CHANNEL||typeof sb==='undefined')return;
+  CTRL_REALTIME_CHANNEL=sb.channel('app_state_'+CTRL_STATE_ID)
+    .on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:'id=eq.'+CTRL_STATE_ID},payload=>{
+      if(CTRL_SYNCING)return;
+      const data=payload&&payload.new&&payload.new.data;
+      if(data)ctrlApplyRemote(data);
+      else ctrlFetchRemote();
+    }).subscribe(status=>{
+      if(status==='CHANNEL_ERROR')ctrlSyncStatus('Aggiornamento live non disponibile','error');
+    });
+}
+async function ctrlFetchRemote(){
+  if(typeof sb==='undefined'||!CAN_EDIT)return false;
+  ctrlSyncStatus('Caricamento da Supabase…');
+  try{
+    const {data,error}=await sb.from('app_state').select('data').eq('id',CTRL_STATE_ID).maybeSingle();
+    if(error)throw error;
+    if(data&&data.data){
+      ctrlApplyRemote(data.data);ctrlStartRealtime();return true;
+    }
+    ctrlSyncStatus('Dati solo su questo dispositivo: pubblicali su Supabase');
+    return false;
+  }catch(e){
+    console.error(e);ctrlSyncStatus('Supabase non raggiungibile','error');return false;
+  }
 }
 function ctrlNotify(msg){let n=document.getElementById('ctrl-notify');if(!n){n=document.createElement('div');n.id='ctrl-notify';n.style.cssText='position:fixed;right:22px;bottom:22px;z-index:9999;background:#0d9488;color:white;padding:11px 16px;border-radius:9px;font-size:12px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.2)';document.body.appendChild(n)}n.textContent=msg;n.style.display='block';clearTimeout(ctrlNotify._t);ctrlNotify._t=setTimeout(()=>n.style.display='none',2200)}
 async function ctrlLoad(){
   let datiLocali=null;
   try{datiLocali=JSON.parse(localStorage.getItem(CTRL_LS)||'null');if(datiLocali)CTRL_DATA=Object.assign(CTRL_DATA,datiLocali)}catch(e){}
-  try{if(typeof sb!=='undefined'){const r=await sb.from('app_state').select('data').eq('id',CTRL_STATE_ID).maybeSingle();if(r.data&&r.data.data){const economicoLocale=datiLocali&&datiLocali.economico;CTRL_DATA=Object.assign(CTRL_DATA,r.data.data);if(economicoLocale)CTRL_DATA.economico=economicoLocale;localStorage.setItem(CTRL_LS,JSON.stringify(CTRL_DATA))}}}catch(e){console.warn('Controllo fabbricati offline',e)}
+  if(typeof CAN_EDIT!=='undefined'&&CAN_EDIT)await ctrlFetchRemote();
   if(!CTRL_DATA.anagrafica)CTRL_DATA.anagrafica={};
   if(!Array.isArray(CTRL_DATA.contabilita))CTRL_DATA.contabilita=[];
   if(!CTRL_DATA.economico||typeof CTRL_DATA.economico!=='object')CTRL_DATA.economico={};
@@ -3559,6 +3644,11 @@ document.addEventListener('DOMContentLoaded',async()=>{
       <button class="entity-cat" data-entity-cat="riepilogo">◦ Riepilogo</button>
       <button class="entity-cat" data-entity-cat="sicurezza_aedifica">◦ Documentazione sicurezza Aedifica</button>
     </div>
+    <div style="margin:18px 6px 0;padding-top:15px;border-top:1px solid rgba(255,255,255,.12)">
+      <div id="ctrl-sync-status" style="font-size:10px;line-height:1.35;color:#9eb0c6;margin-bottom:9px">Verifica sincronizzazione…</div>
+      <button type="button" class="entity-cat" style="background:rgba(255,255,255,.08);padding:9px 10px" onclick="ctrlExportBackup()">↓ Esporta backup</button>
+      <button type="button" class="entity-cat" style="background:rgba(201,168,76,.18);padding:9px 10px" onclick="ctrlPublishLocalToCloud()">☁ Pubblica questo dispositivo</button>
+    </div>
     <div class="entity-context"><b id="entity-title">Armonia 1</b><span>Entità autonoma del progetto D|Park</span></div>`;
   tabs.insertAdjacentElement('afterend',nav);
   let entityCategory='vendite';
@@ -3566,6 +3656,10 @@ document.addEventListener('DOMContentLoaded',async()=>{
   document.getElementById('entity-building').onchange=openEntity;document.querySelectorAll('.entity-cat').forEach(b=>b.onclick=()=>{entityCategory=b.dataset.entityCat;openEntity()});
   await ctrlLoad();
   openEntity();
+});
+window.addEventListener('dpark-auth-ready',async e=>{
+  if(e.detail&&e.detail.authenticated)await ctrlFetchRemote();
+  else ctrlSyncStatus('Accedi per sincronizzare tra dispositivi');
 });
 </script>
 </body>
