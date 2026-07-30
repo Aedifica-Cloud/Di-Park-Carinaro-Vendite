@@ -3190,35 +3190,50 @@ function ctrlName(k){return (CTRL_BUILDINGS.find(x=>x[0]===k)||['',k])[1]}
 function ctrlSubNormalize(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'')}
 function ctrlMigrateSubappaltatoriGenerali(){
   if(!CTRL_DATA.anagrafica||typeof CTRL_DATA.anagrafica!=='object')return false;
+  if(CTRL_DATA.subappaltatoriMigrazioneV2)return false;
   if(!Array.isArray(CTRL_DATA.subappaltatoriGenerali))CTRL_DATA.subappaltatoriGenerali=[];
   let changed=false,seq=0;const removeDocs=new Set();
-  CTRL_BUILDINGS.forEach(([lotto])=>{
-    const legacy=CTRL_DATA.anagrafica[lotto]&&Array.isArray(CTRL_DATA.anagrafica[lotto].subappaltatori)?CTRL_DATA.anagrafica[lotto].subappaltatori:[];
-    legacy.forEach((s,i)=>{
-      const nome=String(s.ragioneSociale||s.denominazione||'').trim();if(!nome)return;
-      const piva=ctrlSubNormalize(s.piva),chiave=ctrlSubNormalize(nome);
-      let g=CTRL_DATA.subappaltatoriGenerali.find(x=>(piva&&ctrlSubNormalize(x.piva)===piva)||ctrlSubNormalize(x.ragioneSociale)===chiave);
-      if(!g){
-        g={id:'global-sub-recuperato-'+Date.now()+'-'+(++seq),ragioneSociale:nome,piva:s.piva||'',lavorazione:s.lavorazione||'',referente:s.referente||'',email:s.email||'',telefono:s.telefono||'',note:s.note||'',lotti:[lotto]};
-        CTRL_DATA.subappaltatoriGenerali.push(g);changed=true;
+  const assorbi=(s,lotto,legacySubjectId)=>{
+    const nome=String(s.ragioneSociale||s.denominazione||'').trim();
+    if(!nome||/nome da inserire/i.test(nome))return;
+    const piva=ctrlSubNormalize(s.piva),chiave=ctrlSubNormalize(nome);
+    let g=CTRL_DATA.subappaltatoriGenerali.find(x=>(piva&&ctrlSubNormalize(x.piva)===piva)||ctrlSubNormalize(x.ragioneSociale)===chiave);
+    const campi={
+      piva:s.piva||'',
+      lavorazione:s.lavorazione||s.oggettoLavori||'',
+      referente:s.referente||'',
+      email:s.email||s.pec||'',
+      telefono:s.telefono||'',
+      note:s.note||''
+    };
+    if(!g){
+      g={id:'global-sub-recuperato-'+Date.now()+'-'+(++seq),ragioneSociale:nome,...campi,lotti:[lotto]};
+      CTRL_DATA.subappaltatoriGenerali.push(g);changed=true;
+    }else{
+      if(!Array.isArray(g.lotti))g.lotti=[];
+      if(!g.lotti.includes(lotto)){g.lotti.push(lotto);changed=true}
+      Object.keys(campi).forEach(k=>{if(!g[k]&&campi[k]){g[k]=campi[k];changed=true}});
+    }
+    const legacyDocs=CTRL_DATA.documenti.filter(d=>d.fabbricato===lotto&&String(d.soggettoId)===String(legacySubjectId));
+    legacyDocs.forEach(d=>{
+      const esistente=CTRL_DATA.documenti.find(x=>x!==d&&x.fabbricato==='generale'&&String(x.soggettoId)===String(g.id)&&x.documento===d.documento);
+      if(esistente){
+        ['emissione','scadenza','file','link','note'].forEach(k=>{if(!esistente[k]&&d[k])esistente[k]=d[k]});
+        removeDocs.add(String(d.id));
       }else{
-        if(!Array.isArray(g.lotti))g.lotti=[];
-        if(!g.lotti.includes(lotto)){g.lotti.push(lotto);changed=true}
-        ['piva','lavorazione','referente','email','telefono','note'].forEach(k=>{if(!g[k]&&s[k]){g[k]=s[k];changed=true}});
+        d.fabbricato='generale';d.soggettoId=g.id;d.soggetto=g.ragioneSociale;changed=true;
       }
-      const legacyDocs=CTRL_DATA.documenti.filter(d=>d.fabbricato===lotto&&String(d.soggettoId)===('sub-'+i));
-      legacyDocs.forEach(d=>{
-        const esistente=CTRL_DATA.documenti.find(x=>x!==d&&x.fabbricato==='generale'&&String(x.soggettoId)===String(g.id)&&x.documento===d.documento);
-        if(esistente){
-          ['emissione','scadenza','file','link','note'].forEach(k=>{if(!esistente[k]&&d[k])esistente[k]=d[k]});
-          removeDocs.add(String(d.id));
-        }else{
-          d.fabbricato='generale';d.soggettoId=g.id;d.soggetto=g.ragioneSociale;changed=true;
-        }
-      });
     });
+  };
+  CTRL_BUILDINGS.forEach(([lotto])=>{
+    const root=CTRL_DATA.anagrafica[lotto]||{};
+    const sub=Array.isArray(root.subappaltatori)?root.subappaltatori:[];
+    const app=Array.isArray(root.appaltatrici)?root.appaltatrici:[];
+    sub.forEach((s,i)=>assorbi(s,lotto,'sub-'+i));
+    app.forEach((a,i)=>assorbi(a,lotto,a.id||('app-'+i)));
   });
   if(removeDocs.size){CTRL_DATA.documenti=CTRL_DATA.documenti.filter(d=>!removeDocs.has(String(d.id)));changed=true}
+  CTRL_DATA.subappaltatoriMigrazioneV2=true;changed=true;
   return changed;
 }
 function ctrlRows(type){return CTRL_DATA[type].filter(x=>CTRL_BUILDING==='all'||x.fabbricato===CTRL_BUILDING)}
