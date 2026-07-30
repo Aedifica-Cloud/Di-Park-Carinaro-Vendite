@@ -3187,6 +3187,40 @@ const CTRL_DOC_SICUREZZA=[
 function ctrlEsc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function ctrlEuro(v){return new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(v)||0)}
 function ctrlName(k){return (CTRL_BUILDINGS.find(x=>x[0]===k)||['',k])[1]}
+function ctrlSubNormalize(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'')}
+function ctrlMigrateSubappaltatoriGenerali(){
+  if(!CTRL_DATA.anagrafica||typeof CTRL_DATA.anagrafica!=='object')return false;
+  if(!Array.isArray(CTRL_DATA.subappaltatoriGenerali))CTRL_DATA.subappaltatoriGenerali=[];
+  let changed=false,seq=0;const removeDocs=new Set();
+  CTRL_BUILDINGS.forEach(([lotto])=>{
+    const legacy=CTRL_DATA.anagrafica[lotto]&&Array.isArray(CTRL_DATA.anagrafica[lotto].subappaltatori)?CTRL_DATA.anagrafica[lotto].subappaltatori:[];
+    legacy.forEach((s,i)=>{
+      const nome=String(s.ragioneSociale||s.denominazione||'').trim();if(!nome)return;
+      const piva=ctrlSubNormalize(s.piva),chiave=ctrlSubNormalize(nome);
+      let g=CTRL_DATA.subappaltatoriGenerali.find(x=>(piva&&ctrlSubNormalize(x.piva)===piva)||ctrlSubNormalize(x.ragioneSociale)===chiave);
+      if(!g){
+        g={id:'global-sub-recuperato-'+Date.now()+'-'+(++seq),ragioneSociale:nome,piva:s.piva||'',lavorazione:s.lavorazione||'',referente:s.referente||'',email:s.email||'',telefono:s.telefono||'',note:s.note||'',lotti:[lotto]};
+        CTRL_DATA.subappaltatoriGenerali.push(g);changed=true;
+      }else{
+        if(!Array.isArray(g.lotti))g.lotti=[];
+        if(!g.lotti.includes(lotto)){g.lotti.push(lotto);changed=true}
+        ['piva','lavorazione','referente','email','telefono','note'].forEach(k=>{if(!g[k]&&s[k]){g[k]=s[k];changed=true}});
+      }
+      const legacyDocs=CTRL_DATA.documenti.filter(d=>d.fabbricato===lotto&&String(d.soggettoId)===('sub-'+i));
+      legacyDocs.forEach(d=>{
+        const esistente=CTRL_DATA.documenti.find(x=>x!==d&&x.fabbricato==='generale'&&String(x.soggettoId)===String(g.id)&&x.documento===d.documento);
+        if(esistente){
+          ['emissione','scadenza','file','link','note'].forEach(k=>{if(!esistente[k]&&d[k])esistente[k]=d[k]});
+          removeDocs.add(String(d.id));
+        }else{
+          d.fabbricato='generale';d.soggettoId=g.id;d.soggetto=g.ragioneSociale;changed=true;
+        }
+      });
+    });
+  });
+  if(removeDocs.size){CTRL_DATA.documenti=CTRL_DATA.documenti.filter(d=>!removeDocs.has(String(d.id)));changed=true}
+  return changed;
+}
 function ctrlRows(type){return CTRL_DATA[type].filter(x=>CTRL_BUILDING==='all'||x.fabbricato===CTRL_BUILDING)}
 function ctrlOptions(all=true){return `${all?'<option value="all">Tutti i fabbricati</option>':''}`+CTRL_BUILDINGS.map(x=>`<option value="${x[0]}" ${CTRL_BUILDING===x[0]?'selected':''}>${x[1]}</option>`).join('')}
 function ctrlEntityOptions(){return CTRL_BUILDINGS.map(x=>`<option value="${x[0]}" ${CTRL_BUILDING===x[0]?'selected':''}>${x[1]}</option>`).join('')}
@@ -3247,10 +3281,12 @@ async function ctrlSave(){
 function ctrlApplyRemote(data){
   if(!data||typeof data!=='object')return;
   CTRL_DATA=Object.assign({attivita:[],crono:[],giornale:[],documenti:[],acquisti:[],anagrafica:{},subappaltatoriGenerali:[],contabilita:[],economico:{}},data);
+  const migrati=ctrlMigrateSubappaltatoriGenerali();
   localStorage.setItem(CTRL_LS,JSON.stringify(CTRL_DATA));
   CTRL_REMOTE_READY=true;
   ctrlSyncStatus('✓ Aggiornato da Supabase','ok');
   if(typeof proj!=='undefined'&&String(proj).startsWith('ctrl_'))ctrlRender(proj);
+  if(migrati&&CAN_EDIT)ctrlSave();
 }
 function ctrlStartRealtime(){
   if(CTRL_REALTIME_CHANNEL||typeof sb==='undefined')return;
@@ -3289,6 +3325,7 @@ async function ctrlLoad(){
   if(!Array.isArray(CTRL_DATA.contabilita))CTRL_DATA.contabilita=[];
   if(!CTRL_DATA.economico||typeof CTRL_DATA.economico!=='object')CTRL_DATA.economico={};
   if(!Array.isArray(CTRL_DATA.crono))CTRL_DATA.crono=[];
+  if(ctrlMigrateSubappaltatoriGenerali())ctrlSave();
   let cronoCreato=false;
   CTRL_BUILDINGS.forEach(([fabbricato])=>{
     const esistenti=CTRL_DATA.crono.filter(x=>x.fabbricato===fabbricato);
