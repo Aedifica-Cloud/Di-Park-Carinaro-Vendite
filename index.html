@@ -3129,6 +3129,8 @@ const CTRL_STATE_ID='dpark_control_v1',CTRL_LS='dpark_control_v1';
 let CTRL_REMOTE_READY=false,CTRL_SYNCING=false,CTRL_REALTIME_CHANNEL=null;
 let CTRL_BUILDING='a1',CTRL_ANAG_TAB='appalto',CTRL_DOC_SUBJECT='appaltatrice',CTRL_ECON_LOTTO='a1',CTRL_RIEP_LOTTO='all',CTRL_RIEP_DA='',CTRL_RIEP_A='',CTRL_RIEP_NOME='',CTRL_DATA={attivita:[],crono:[],giornale:[],documenti:[],acquisti:[],anagrafica:{},contabilita:[],economico:{}};
 const CTRL_APPALTATRICE_DRAFTS={};
+const CTRL_FORM_DRAFTS={};
+let CTRL_DISCARD_DRAFT_ON_RENDER=false;
 const CTRL_COSTI_CATEGORIE=['Terreno e acquisizioni','Progettazione e tecnici','Oneri, permessi e autorizzazioni','Opere strutturali','Murature e involucro','Impianti','Serramenti','Finiture interne','Sistemazioni esterne','Sicurezza','Spese generali','Commercializzazione','Imprevisti','Altri costi'];
 const CTRL_FASI_MODELLO=[
  ['OPERE STRUTTURALI / PREPARAZIONE','Montaggio della gru a torre',6,'2026-07-08','2026-07-10'],
@@ -3224,6 +3226,7 @@ async function ctrlPublishLocalToCloud(){
   }finally{CTRL_SYNCING=false}
 }
 async function ctrlSave(){
+  CTRL_DISCARD_DRAFT_ON_RENDER=!!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#content'));
   localStorage.setItem(CTRL_LS,JSON.stringify(CTRL_DATA));
   if(typeof sb==='undefined'||typeof CAN_EDIT==='undefined'||!CAN_EDIT){
     ctrlSyncStatus('Salvato solo su questo dispositivo');
@@ -3620,7 +3623,37 @@ function ctrlRenderReport(){
   const cards=CTRL_BUILDINGS.map(([k,n])=>{const a=CTRL_DATA.attivita.filter(x=>x.fabbricato===k&&x.stato!=='Completata').length,c=CTRL_DATA.crono.filter(x=>x.fabbricato===k),av=c.length?Math.round(c.reduce((s,x)=>s+(Number(x.avanzamento)||0),0)/c.length):0,d=CTRL_DATA.documenti.filter(x=>x.fabbricato===k&&(x.stato==='Mancante'||x.stato==='Scaduto')).length,q=CTRL_DATA.acquisti.filter(x=>x.fabbricato===k).reduce((s,x)=>s+(Number(x.importo)||0),0);return `<div class="ctrl-card"><h3>${n}</h3><div class="ctrl-kpis" style="grid-template-columns:1fr 1fr"><div class="ctrl-kpi"><strong>${av}%</strong><span>Avanzamento medio</span></div><div class="ctrl-kpi"><strong>${a}</strong><span>Attività aperte</span></div><div class="ctrl-kpi"><strong>${d}</strong><span>Documenti critici</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(q)}</strong><span>Acquisti</span></div></div></div>`}).join('');
   return ctrlShell('Report cantiere','Confronto direzionale delle sette entità autonome.',`<div class="ctrl-grid">${cards}</div>`);
 }
+function ctrlDraftViewKey(p){
+  return [p||proj||'',CTRL_BUILDING||'',CTRL_ANAG_TAB||'',CTRL_DOC_SUBJECT||'',CTRL_ECON_LOTTO||''].join('::');
+}
+function ctrlFormControlSignature(el){
+  return [el.tagName,el.type||'',el.id||'',String(el.className||'')].join('|');
+}
+function ctrlCaptureFormDraft(){
+  const root=document.getElementById('content'),key=root&&root.dataset.ctrlDraftKey;if(!root||!key)return;
+  const controls=[...root.querySelectorAll('input,select,textarea')].filter(el=>!['file','button','submit','hidden'].includes(el.type));
+  if(!controls.length)return;
+  CTRL_FORM_DRAFTS[key]=controls.map(el=>({
+    signature:ctrlFormControlSignature(el),
+    value:el.value,
+    checked:el.type==='checkbox'||el.type==='radio'?el.checked:undefined
+  }));
+}
+function ctrlRestoreFormDraft(key){
+  const root=document.getElementById('content'),draft=CTRL_FORM_DRAFTS[key];if(!root||!draft)return;
+  const controls=[...root.querySelectorAll('input,select,textarea')].filter(el=>!['file','button','submit','hidden'].includes(el.type));
+  controls.forEach((el,i)=>{
+    const saved=draft[i];if(!saved||saved.signature!==ctrlFormControlSignature(el)||el.disabled)return;
+    if(saved.checked!==undefined)el.checked=saved.checked;
+    else el.value=saved.value;
+  });
+}
 function ctrlRender(p){
+  const content=document.getElementById('content'),oldKey=content&&content.dataset.ctrlDraftKey;
+  if(CTRL_DISCARD_DRAFT_ON_RENDER){
+    if(oldKey)delete CTRL_FORM_DRAFTS[oldKey];
+    CTRL_DISCARD_DRAFT_ON_RENDER=false;
+  }else ctrlCaptureFormDraft();
   let html='';
   if(p==='ctrl_anagrafica')html=ctrlRenderAnagrafica();
   else if(p==='ctrl_quadro')html=ctrlRenderQuadroEconomico();
@@ -3635,7 +3668,12 @@ function ctrlRender(p){
   else if(p==='ctrl_acquisti')html=ctrlRenderAcquisti();
   else if(p==='ctrl_economico')html=ctrlRenderEconomico();
   else if(p==='ctrl_report')html=ctrlRenderReport();
-  if(html)document.getElementById('content').innerHTML=html;
+  if(html){
+    const key=ctrlDraftViewKey(p);
+    content.innerHTML=html;
+    content.dataset.ctrlDraftKey=key;
+    ctrlRestoreFormDraft(key);
+  }
 }
 const dparkOriginalSw=sw;
 sw=function(p){
