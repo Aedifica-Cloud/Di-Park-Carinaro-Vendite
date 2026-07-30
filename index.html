@@ -3764,7 +3764,7 @@ function ctrlRenderAttoriProfessionisti(){
       <h4 style="margin:0 0 8px;color:#1a2e4a">Attori / Imprese</h4><div style="overflow-x:auto;margin-bottom:18px"><table class="ctrl-table"><thead><tr><th>Denominazione</th><th>Tipologia</th><th>Lavorazione / Incarico</th><th>Referente</th></tr></thead><tbody>${righeAttori||'<tr><td colspan="4" class="ctrl-empty">Nessun attore associato.</td></tr>'}</tbody></table></div>
       <h4 style="margin:0 0 8px;color:#1a2e4a">Persone e professionisti</h4><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Nome</th><th>Ruolo</th><th>Studio / Società</th><th>Telefono</th><th>Email</th></tr></thead><tbody>${righePersone||'<tr><td colspan="5" class="ctrl-empty">Nessun professionista associato.</td></tr>'}</tbody></table></div></article>`;
   }).join('');
-  return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Attori e professionisti</h2><p>Quadro generale, suddiviso per lotto, di tutte le imprese e delle persone coinvolte nel progetto.</p></div><span class="ctrl-chip ok">Aggiornamento automatico</span></div><div class="ctrl-grid">${cards}</div></div>`;
+  return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Organigramma di commessa</h2><p>Quadro generale, suddiviso per lotto, di tutte le imprese, dei tecnici e dei referenti coinvolti nel progetto.</p></div><span class="ctrl-chip ok">Aggiornamento automatico</span></div><div class="ctrl-grid">${cards}</div></div>`;
 }
 function ctrlDraftViewKey(p){
   return [p||proj||'',CTRL_BUILDING||'',CTRL_ANAG_TAB||'',CTRL_DOC_SUBJECT||'',CTRL_ECON_LOTTO||''].join('::');
@@ -3851,13 +3851,12 @@ document.addEventListener('DOMContentLoaded',async()=>{
     <div class="entity-categories"><label>Categorie</label>
       <button class="entity-cat active" data-entity-cat="vendite">1. Gestione vendite</button>
       <button class="entity-cat" data-entity-cat="crono">2. Cronoprogramma</button>
-      <button class="entity-cat" data-entity-cat="anagrafica">3. Anagrafica e ruoli</button>
-      <button class="entity-cat" data-entity-cat="giornale">4. Giornale cantiere</button>
+      <button class="entity-cat" data-entity-cat="giornale">3. Giornale cantiere</button>
     </div>
     <div class="entity-categories" style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.12)"><label>D|PARK GENERALE</label>
       <button class="entity-cat" data-entity-cat="subappaltatori">1. Appaltatori</button>
       <button class="entity-cat" data-entity-cat="professionisti">2. Professionisti</button>
-      <button class="entity-cat" data-entity-cat="attori_professionisti">3. Attori e professionisti</button>
+      <button class="entity-cat" data-entity-cat="attori_professionisti">3. Organigramma di commessa</button>
       <button class="entity-cat" data-entity-cat="quadro">▦ Quadro economico</button>
       <button class="entity-cat" data-entity-cat="finanziario">◦ Quadro finanziario</button>
       <button class="entity-cat" data-entity-cat="riepilogo">◦ Riepilogo</button>
