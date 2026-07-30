@@ -3127,7 +3127,7 @@ const CTRL_AREAS=[
 ];
 const CTRL_STATE_ID='dpark_control_v1',CTRL_LS='dpark_control_v1';
 let CTRL_REMOTE_READY=false,CTRL_SYNCING=false,CTRL_REALTIME_CHANNEL=null;
-let CTRL_BUILDING='a1',CTRL_ANAG_TAB='appalto',CTRL_DOC_SUBJECT='appaltatrice',CTRL_ECON_LOTTO='a1',CTRL_RIEP_LOTTO='all',CTRL_RIEP_DA='',CTRL_RIEP_A='',CTRL_RIEP_NOME='',CTRL_DATA={attivita:[],crono:[],giornale:[],documenti:[],acquisti:[],anagrafica:{},contabilita:[],economico:{}};
+let CTRL_BUILDING='a1',CTRL_ANAG_TAB='appalto',CTRL_DOC_SUBJECT='appaltatrice',CTRL_ECON_LOTTO='a1',CTRL_RIEP_LOTTO='all',CTRL_RIEP_DA='',CTRL_RIEP_A='',CTRL_RIEP_NOME='',CTRL_DATA={attivita:[],crono:[],giornale:[],documenti:[],acquisti:[],anagrafica:{},subappaltatoriGenerali:[],contabilita:[],economico:{}};
 const CTRL_APPALTATRICE_DRAFTS={};
 const CTRL_FORM_DRAFTS={};
 let CTRL_DISCARD_DRAFT_ON_RENDER=false;
@@ -3246,7 +3246,7 @@ async function ctrlSave(){
 }
 function ctrlApplyRemote(data){
   if(!data||typeof data!=='object')return;
-  CTRL_DATA=Object.assign({attivita:[],crono:[],giornale:[],documenti:[],acquisti:[],anagrafica:{},contabilita:[],economico:{}},data);
+  CTRL_DATA=Object.assign({attivita:[],crono:[],giornale:[],documenti:[],acquisti:[],anagrafica:{},subappaltatoriGenerali:[],contabilita:[],economico:{}},data);
   localStorage.setItem(CTRL_LS,JSON.stringify(CTRL_DATA));
   CTRL_REMOTE_READY=true;
   ctrlSyncStatus('✓ Aggiornato da Supabase','ok');
@@ -3285,6 +3285,7 @@ async function ctrlLoad(){
   try{datiLocali=JSON.parse(localStorage.getItem(CTRL_LS)||'null');if(datiLocali)CTRL_DATA=Object.assign(CTRL_DATA,datiLocali)}catch(e){}
   if(typeof CAN_EDIT!=='undefined'&&CAN_EDIT)await ctrlFetchRemote();
   if(!CTRL_DATA.anagrafica)CTRL_DATA.anagrafica={};
+  if(!Array.isArray(CTRL_DATA.subappaltatoriGenerali))CTRL_DATA.subappaltatoriGenerali=[];
   if(!Array.isArray(CTRL_DATA.contabilita))CTRL_DATA.contabilita=[];
   if(!CTRL_DATA.economico||typeof CTRL_DATA.economico!=='object')CTRL_DATA.economico={};
   if(!Array.isArray(CTRL_DATA.crono))CTRL_DATA.crono=[];
@@ -3450,13 +3451,13 @@ function ctrlAddSub(){if(!CAN_EDIT){openLogin();return}const root=ctrlAnagRecord
 function ctrlDeleteSub(i){if(CAN_EDIT&&confirm('Eliminare questo subappaltatore?')){ctrlAnagRecord().subappaltatori.splice(i,1);ctrlSave();ctrlRender('ctrl_anagrafica')}}
 function ctrlAddRoleFull(){if(!CAN_EDIT){openLogin();return}const root=ctrlAnagRecord();if(!cr_ruolo.value.trim()||!cr_nome.value.trim()){alert('Inserisci ruolo e nominativo.');return}root.ruoli.push({ruolo:cr_ruolo.value,nome:cr_nome.value,telefono:cr_telefono.value,email:cr_email.value,note:cr_note.value});ctrlSave();ctrlRender('ctrl_anagrafica')}
 function ctrlRenderDocumenti(){
-  const root=ctrlAnagRecord(),appaltatrici=(root.appaltatrici||[]),subjects=(appaltatrici.length?appaltatrici.map((a,i)=>({id:a.id||('app-'+i),nome:a.denominazione||a.ragioneSociale||('Società appaltatrice '+(i+1)),tipo:'Società appaltatrice'})):[{id:'appaltatrice',nome:'Impresa appaltatrice (nome da inserire)',tipo:'Società appaltatrice'}]).concat((root.subappaltatori||[]).map((s,i)=>({id:'sub-'+i,nome:s.ragioneSociale||s.lavorazione||('Subappaltatore '+(i+1)),tipo:'Subappaltatore'})));
+  const root=ctrlAnagRecord(),appaltatrici=(root.appaltatrici||[]),globali=(CTRL_DATA.subappaltatoriGenerali||[]).filter(s=>(s.lotti||[]).includes(CTRL_BUILDING)).map(s=>({id:s.id,nome:s.ragioneSociale||s.lavorazione||'Subappaltatore',tipo:'Subappaltatore D|Park',generale:true})),subjects=(appaltatrici.length?appaltatrici.map((a,i)=>({id:a.id||('app-'+i),nome:a.denominazione||a.ragioneSociale||('Società appaltatrice '+(i+1)),tipo:'Società appaltatrice'})):[{id:'appaltatrice',nome:'Impresa appaltatrice (nome da inserire)',tipo:'Società appaltatrice'}]).concat((root.subappaltatori||[]).map((s,i)=>({id:'sub-'+i,nome:s.ragioneSociale||s.lavorazione||('Subappaltatore '+(i+1)),tipo:'Subappaltatore del lotto'})),globali);
   if(!subjects.some(s=>s.id===CTRL_DOC_SUBJECT))CTRL_DOC_SUBJECT='appaltatrice';
-  const subject=subjects.find(s=>s.id===CTRL_DOC_SUBJECT),docs=CTRL_DATA.documenti.filter(x=>x.fabbricato===CTRL_BUILDING&&x.soggettoId===CTRL_DOC_SUBJECT);
+  const subject=subjects.find(s=>s.id===CTRL_DOC_SUBJECT),docs=CTRL_DATA.documenti.filter(x=>(subject&&subject.generale?x.fabbricato==='generale':x.fabbricato===CTRL_BUILDING)&&x.soggettoId===CTRL_DOC_SUBJECT);
   const stati=docs.map(ctrlDocStatus),validi=stati.filter(x=>x.key==='valido').length,scadenza=stati.filter(x=>x.key==='in_scadenza').length,critici=stati.filter(x=>x.key==='mancante'||x.key==='scaduto').length;
   const rows=docs.map(x=>{const st=ctrlDocStatus(x);return `<tr data-safety-doc="${x.id}"><td><b>${ctrlEsc(x.documento)}</b></td><td><input class="sd-emissione" type="date" value="${ctrlEsc(x.emissione||'')}"></td><td><input class="sd-scadenza" type="date" value="${ctrlEsc(x.scadenza||'')}"></td><td><span class="ctrl-chip ${st.cls}">${st.label}</span></td><td>${x.file?`<a class="ctrl-btn light" href="${x.file.dati}" download="${ctrlEsc(x.file.nome)}">Apri file</a>`:x.link?`<a class="ctrl-btn light" href="${ctrlEsc(x.link)}" target="_blank">Apri Drive</a>`:'<span style="color:#aaa">Non allegato</span>'}</td><td><input class="sd-link" value="${ctrlEsc(x.link||'')}" placeholder="Link Drive"><input class="sd-file" type="file" accept=".pdf,.jpg,.jpeg,.png" style="margin-top:5px"></td><td><input class="sd-note" value="${ctrlEsc(x.note||'')}" placeholder="Note"></td><td style="white-space:nowrap"><button class="ctrl-btn" onclick="ctrlSaveSafetyDoc('${x.id}')">Salva</button> <button class="ctrl-btn red" onclick="ctrlDelSafetyDoc('${x.id}')">×</button></td></tr>`}).join('');
   return ctrlShell('Documentazione a supporto · Sicurezza','Fascicolo D.Lgs. 81/2008 separato per impresa e per fabbricato.',`
-    <div class="ctrl-head" style="margin-bottom:14px"><div><h2 style="font-size:15px">${ctrlEsc(subject.nome)}</h2><p>Ogni società appaltatrice e ogni subappaltatore dispone di un fascicolo sicurezza separato.</p></div><div><label style="display:block;font-size:9px;font-weight:800;color:#7b8ba0;margin-bottom:5px">AZIENDA PER IL FASCICOLO SICUREZZA</label><select class="ctrl-select" onchange="CTRL_DOC_SUBJECT=this.value;ctrlRender('ctrl_documenti')">${subjects.map(s=>`<option value="${s.id}" ${s.id===CTRL_DOC_SUBJECT?'selected':''}>${ctrlEsc(s.nome)} · ${s.tipo}</option>`).join('')}</select></div></div>
+    <div class="ctrl-head" style="margin-bottom:14px"><div><h2 style="font-size:15px">${ctrlEsc(subject.nome)}</h2><p>${subject&&subject.generale?'Fascicolo unico condiviso: vale automaticamente in tutti i lotti assegnati.':'Fascicolo sicurezza specifico del lotto.'}</p></div><div><label style="display:block;font-size:9px;font-weight:800;color:#7b8ba0;margin-bottom:5px">AZIENDA PER IL FASCICOLO SICUREZZA</label><select class="ctrl-select" onchange="CTRL_DOC_SUBJECT=this.value;ctrlRender('ctrl_documenti')">${subjects.map(s=>`<option value="${s.id}" ${s.id===CTRL_DOC_SUBJECT?'selected':''}>${ctrlEsc(s.nome)} · ${s.tipo}</option>`).join('')}</select></div></div>
     <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${docs.length}</strong><span>Documenti richiesti</span></div><div class="ctrl-kpi"><strong style="color:#0d9488">${validi}</strong><span>Validi</span></div><div class="ctrl-kpi"><strong style="color:#d97706">${scadenza}</strong><span>In scadenza</span></div><div class="ctrl-kpi"><strong style="color:#dc2626">${critici}</strong><span>Mancanti o scaduti</span></div></div>
     <div class="ctrl-card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px"><div><h3 style="margin:0">Checklist sicurezza</h3><small>Puoi allegare PDF o immagini fino a 1,5 MB oppure usare un collegamento Drive.</small></div><button class="ctrl-btn" onclick="ctrlSeedSafetyDocs()">Genera / completa checklist</button></div><div style="overflow-x:auto"><table class="ctrl-table" style="min-width:1150px"><thead><tr><th>Documento</th><th>Emissione</th><th>Scadenza</th><th>Stato</th><th>Allegato</th><th>Carica / Drive</th><th>Note</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="ctrl-empty">Premi “Genera checklist” per predisporre i documenti di sicurezza.</td></tr>'}</tbody></table></div></div>`);
 }
@@ -3466,7 +3467,7 @@ function ctrlRenderSicurezzaAedifica(){
   return`<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Documentazione sicurezza Aedifica</h2><p>Fascicolo generale della società, separato dalla documentazione delle imprese e dei singoli lotti.</p></div><span class="ctrl-chip ok">D|Park generale</span></div><div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${docs.length}</strong><span>Documenti richiesti</span></div><div class="ctrl-kpi"><strong style="color:#0d9488">${validi}</strong><span>Validi</span></div><div class="ctrl-kpi"><strong style="color:#d97706">${scadenza}</strong><span>In scadenza</span></div><div class="ctrl-kpi"><strong style="color:#dc2626">${critici}</strong><span>Mancanti o scaduti</span></div></div><div class="ctrl-card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px"><div><h3 style="margin:0">Checklist sicurezza Aedifica</h3><small>Puoi allegare PDF o immagini fino a 1,5 MB oppure inserire un collegamento Drive.</small></div><button class="ctrl-btn" onclick="ctrlSeedAedificaDocs()">Genera / completa checklist</button></div><div style="overflow-x:auto"><table class="ctrl-table" style="min-width:1150px"><thead><tr><th>Documento</th><th>Emissione</th><th>Scadenza</th><th>Stato</th><th>Allegato</th><th>Carica / Drive</th><th>Note</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="ctrl-empty">Premi “Genera checklist” per predisporre i documenti di sicurezza Aedifica.</td></tr>'}</tbody></table></div></div></div>`;
 }
 function ctrlDocStatus(x){if(!x.file&&!x.link)return{key:'mancante',label:'Mancante',cls:'bad'};if(!x.scadenza)return{key:'valido',label:'Presente',cls:'ok'};const gg=Math.ceil((new Date(x.scadenza+'T12:00:00')-new Date())/86400000);if(gg<0)return{key:'scaduto',label:'Scaduto',cls:'bad'};if(gg<=30)return{key:'in_scadenza',label:'In scadenza',cls:'warn'};return{key:'valido',label:'Valido',cls:'ok'}}
-function ctrlSeedSafetyDocs(){if(!CAN_EDIT){openLogin();return}const root=ctrlAnagRecord(),app=(root.appaltatrici||[]).find(x=>String(x.id)===String(CTRL_DOC_SUBJECT)),subject=app?app.denominazione:(((root.subappaltatori||[])[Number(CTRL_DOC_SUBJECT.replace('sub-',''))]||{}).ragioneSociale||CTRL_DOC_SUBJECT);CTRL_DOC_SICUREZZA.forEach((documento,i)=>{if(!CTRL_DATA.documenti.some(x=>x.fabbricato===CTRL_BUILDING&&x.soggettoId===CTRL_DOC_SUBJECT&&x.documento===documento))CTRL_DATA.documenti.push({id:Date.now()+i+Math.random(),fabbricato:CTRL_BUILDING,soggettoId:CTRL_DOC_SUBJECT,soggetto:subject,documento,emissione:'',scadenza:'',file:null,link:'',note:''})});ctrlSave();ctrlRender('ctrl_documenti')}
+function ctrlSeedSafetyDocs(){if(!CAN_EDIT){openLogin();return}const root=ctrlAnagRecord(),app=(root.appaltatrici||[]).find(x=>String(x.id)===String(CTRL_DOC_SUBJECT)),globale=(CTRL_DATA.subappaltatoriGenerali||[]).find(x=>String(x.id)===String(CTRL_DOC_SUBJECT)),subject=globale?globale.ragioneSociale:app?app.denominazione:(((root.subappaltatori||[])[Number(CTRL_DOC_SUBJECT.replace('sub-',''))]||{}).ragioneSociale||CTRL_DOC_SUBJECT),ambito=globale?'generale':CTRL_BUILDING;CTRL_DOC_SICUREZZA.forEach((documento,i)=>{if(!CTRL_DATA.documenti.some(x=>x.fabbricato===ambito&&x.soggettoId===CTRL_DOC_SUBJECT&&x.documento===documento))CTRL_DATA.documenti.push({id:Date.now()+i+Math.random(),fabbricato:ambito,soggettoId:CTRL_DOC_SUBJECT,soggetto:subject,documento,emissione:'',scadenza:'',file:null,link:'',note:''})});ctrlSave();ctrlRender('ctrl_documenti')}
 function ctrlSeedAedificaDocs(){if(!CAN_EDIT){openLogin();return}CTRL_DOC_SICUREZZA.forEach((documento,i)=>{if(!CTRL_DATA.documenti.some(x=>x.fabbricato==='aedifica'&&x.soggettoId==='aedifica'&&x.documento===documento))CTRL_DATA.documenti.push({id:Date.now()+i+Math.random(),fabbricato:'aedifica',soggettoId:'aedifica',soggetto:'Aedifica',documento,emissione:'',scadenza:'',file:null,link:'',note:''})});ctrlSave();ctrlRender('ctrl_sicurezza_aedifica')}
 function ctrlAddAppaltatrice(){if(!CAN_EDIT){openLogin();return}const nome=document.getElementById('dac_nome').value.trim();if(!nome){alert('Inserisci il nome della società appaltatrice.');return}const root=ctrlAnagRecord(),id='app-'+Date.now();root.appaltatrici.push({id,denominazione:nome,piva:document.getElementById('dac_piva').value.trim(),referente:document.getElementById('dac_referente').value.trim(),email:document.getElementById('dac_email').value.trim()});CTRL_DOC_SUBJECT=id;ctrlSave();ctrlRender('ctrl_documenti')}
 function ctrlDeleteAppaltatrice(id){
@@ -3623,6 +3624,43 @@ function ctrlRenderReport(){
   const cards=CTRL_BUILDINGS.map(([k,n])=>{const a=CTRL_DATA.attivita.filter(x=>x.fabbricato===k&&x.stato!=='Completata').length,c=CTRL_DATA.crono.filter(x=>x.fabbricato===k),av=c.length?Math.round(c.reduce((s,x)=>s+(Number(x.avanzamento)||0),0)/c.length):0,d=CTRL_DATA.documenti.filter(x=>x.fabbricato===k&&(x.stato==='Mancante'||x.stato==='Scaduto')).length,q=CTRL_DATA.acquisti.filter(x=>x.fabbricato===k).reduce((s,x)=>s+(Number(x.importo)||0),0);return `<div class="ctrl-card"><h3>${n}</h3><div class="ctrl-kpis" style="grid-template-columns:1fr 1fr"><div class="ctrl-kpi"><strong>${av}%</strong><span>Avanzamento medio</span></div><div class="ctrl-kpi"><strong>${a}</strong><span>Attività aperte</span></div><div class="ctrl-kpi"><strong>${d}</strong><span>Documenti critici</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(q)}</strong><span>Acquisti</span></div></div></div>`}).join('');
   return ctrlShell('Report cantiere','Confronto direzionale delle sette entità autonome.',`<div class="ctrl-grid">${cards}</div>`);
 }
+function ctrlRenderSubappaltatoriGenerali(){
+  const items=CTRL_DATA.subappaltatoriGenerali||[];
+  const cards=items.map(s=>{
+    const lotti=Array.isArray(s.lotti)?s.lotti:[],docs=CTRL_DATA.documenti.filter(d=>d.fabbricato==='generale'&&String(d.soggettoId)===String(s.id)).length;
+    return `<article class="ctrl-card" data-global-sub="${s.id}"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px"><div><h3 style="margin:0">${ctrlEsc(s.ragioneSociale||'Subappaltatore')}</h3><small>${ctrlEsc(s.lavorazione||'Lavorazione da indicare')}</small></div><span class="ctrl-chip ${docs?'ok':'warn'}">${docs} documenti</span></div><div class="ctrl-form">
+      <div class="wide"><label>Ragione sociale *</label><input class="gs-ragione" value="${ctrlEsc(s.ragioneSociale||'')}"></div><div><label>P. IVA / Codice fiscale</label><input class="gs-piva" value="${ctrlEsc(s.piva||'')}"></div><div><label>Referente</label><input class="gs-referente" value="${ctrlEsc(s.referente||'')}"></div>
+      <div class="wide"><label>Lavorazione affidata</label><input class="gs-lavorazione" value="${ctrlEsc(s.lavorazione||'')}"></div><div><label>Email / PEC</label><input class="gs-email" value="${ctrlEsc(s.email||'')}"></div><div><label>Telefono</label><input class="gs-telefono" value="${ctrlEsc(s.telefono||'')}"></div>
+      <div class="wide"><label>Lotti nei quali opera</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${CTRL_BUILDINGS.map(([k,n])=>`<label style="display:flex;align-items:center;gap:5px;border:1px solid #ddd1bd;border-radius:8px;padding:7px 9px;background:#fff"><input type="checkbox" class="gs-lotto" value="${k}" ${lotti.includes(k)?'checked':''}> ${ctrlEsc(n)}</label>`).join('')}</div></div>
+      <div class="wide"><label>Note</label><textarea class="gs-note">${ctrlEsc(s.note||'')}</textarea></div>
+      <div class="wide" style="display:flex;gap:7px;flex-wrap:wrap"><button type="button" class="ctrl-btn" onclick="ctrlSaveGlobalSub('${s.id}')">Salva assegnazioni</button><button type="button" class="ctrl-btn light" onclick="ctrlOpenGlobalSubDocs('${s.id}')">Apri fascicolo documenti</button><button type="button" class="ctrl-btn red" onclick="ctrlDeleteGlobalSub('${s.id}')">Elimina</button></div>
+    </div></article>`;
+  }).join('');
+  return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Subappaltatori D|Park</h2><p>Anagrafica unica, assegnazione a più lotti e fascicolo documentale condiviso.</p></div><span class="ctrl-chip ok">D|Park generale</span></div>
+    <div class="ctrl-card" style="margin-bottom:14px"><h3>Nuovo subappaltatore</h3><div class="ctrl-form"><input id="gsub_ragione" class="wide" placeholder="Ragione sociale *"><input id="gsub_piva" placeholder="P. IVA / Codice fiscale"><input id="gsub_lavorazione" class="wide" placeholder="Lavorazione affidata"><input id="gsub_referente" placeholder="Referente"><button type="button" class="ctrl-btn" onclick="ctrlAddGlobalSub()">Crea anagrafica</button></div></div>
+    <div class="ctrl-grid">${cards||'<div class="ctrl-card ctrl-empty">Nessun subappaltatore generale inserito.</div>'}</div></div>`;
+}
+function ctrlAddGlobalSub(){
+  if(!CAN_EDIT){openLogin();return}const nome=(document.getElementById('gsub_ragione').value||'').trim();if(!nome){alert('Inserisci la ragione sociale.');return}
+  CTRL_DATA.subappaltatoriGenerali.push({id:'global-sub-'+Date.now(),ragioneSociale:nome,piva:document.getElementById('gsub_piva').value.trim(),lavorazione:document.getElementById('gsub_lavorazione').value.trim(),referente:document.getElementById('gsub_referente').value.trim(),email:'',telefono:'',note:'',lotti:[]});
+  ctrlSave();ctrlRender('ctrl_subappaltatori');ctrlNotify('✓ Subappaltatore creato: seleziona i lotti nei quali opera');
+}
+function ctrlSaveGlobalSub(id){
+  if(!CAN_EDIT){openLogin();return}const s=CTRL_DATA.subappaltatoriGenerali.find(x=>String(x.id)===String(id)),card=document.querySelector(`[data-global-sub="${id}"]`);if(!s||!card)return;
+  const nome=card.querySelector('.gs-ragione').value.trim();if(!nome){alert('Inserisci la ragione sociale.');return}
+  Object.assign(s,{ragioneSociale:nome,piva:card.querySelector('.gs-piva').value.trim(),referente:card.querySelector('.gs-referente').value.trim(),lavorazione:card.querySelector('.gs-lavorazione').value.trim(),email:card.querySelector('.gs-email').value.trim(),telefono:card.querySelector('.gs-telefono').value.trim(),note:card.querySelector('.gs-note').value.trim(),lotti:[...card.querySelectorAll('.gs-lotto:checked')].map(x=>x.value)});
+  CTRL_DATA.documenti.filter(d=>d.fabbricato==='generale'&&String(d.soggettoId)===String(id)).forEach(d=>d.soggetto=nome);
+  ctrlSave();ctrlRender('ctrl_subappaltatori');ctrlNotify('✓ Anagrafica e lotti sincronizzati');
+}
+function ctrlDeleteGlobalSub(id){
+  if(!CAN_EDIT){openLogin();return}const s=CTRL_DATA.subappaltatoriGenerali.find(x=>String(x.id)===String(id));if(!s)return;const docs=CTRL_DATA.documenti.filter(d=>d.fabbricato==='generale'&&String(d.soggettoId)===String(id));
+  if(!confirm(`Eliminare "${s.ragioneSociale}"${docs.length?' e i suoi '+docs.length+' documenti collegati':''}?`))return;
+  CTRL_DATA.subappaltatoriGenerali=CTRL_DATA.subappaltatoriGenerali.filter(x=>String(x.id)!==String(id));CTRL_DATA.documenti=CTRL_DATA.documenti.filter(d=>!(d.fabbricato==='generale'&&String(d.soggettoId)===String(id)));ctrlSave();ctrlRender('ctrl_subappaltatori');ctrlNotify('✓ Subappaltatore eliminato');
+}
+function ctrlOpenGlobalSubDocs(id){
+  const s=CTRL_DATA.subappaltatoriGenerali.find(x=>String(x.id)===String(id));if(!s||!(s.lotti||[]).length){alert('Seleziona e salva almeno un lotto prima di aprire il fascicolo.');return}
+  CTRL_BUILDING=s.lotti[0];CTRL_DOC_SUBJECT=id;const select=document.getElementById('entity-building');if(select)select.value=CTRL_BUILDING;const btn=document.querySelector('[data-entity-cat="documenti"]');if(btn)btn.click();
+}
 function ctrlDraftViewKey(p){
   return [p||proj||'',CTRL_BUILDING||'',CTRL_ANAG_TAB||'',CTRL_DOC_SUBJECT||'',CTRL_ECON_LOTTO||''].join('::');
 }
@@ -3656,6 +3694,7 @@ function ctrlRender(p){
   }else ctrlCaptureFormDraft();
   let html='';
   if(p==='ctrl_anagrafica')html=ctrlRenderAnagrafica();
+  else if(p==='ctrl_subappaltatori')html=ctrlRenderSubappaltatoriGenerali();
   else if(p==='ctrl_quadro')html=ctrlRenderQuadroEconomico();
   else if(p==='ctrl_finanziario')html=ctrlRenderFinanziario();
   else if(p==='ctrl_riepilogo')html=ctrlRenderRiepilogo();
@@ -3709,6 +3748,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
       <button class="entity-cat" data-entity-cat="documenti">5. Documentazione a supporto</button>
     </div>
     <div class="entity-categories" style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.12)"><label>D|PARK GENERALE</label>
+      <button class="entity-cat" data-entity-cat="subappaltatori">Subappaltatori</button>
       <button class="entity-cat" data-entity-cat="quadro">▦ Quadro economico</button>
       <button class="entity-cat" data-entity-cat="finanziario">◦ Quadro finanziario</button>
       <button class="entity-cat" data-entity-cat="riepilogo">◦ Riepilogo</button>
@@ -3722,7 +3762,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     <div class="entity-context"><b id="entity-title">Armonia 1</b><span>Entità autonoma del progetto D|Park</span></div>`;
   tabs.insertAdjacentElement('afterend',nav);
   let entityCategory='vendite';
-  const openEntity=()=>{const bs=document.getElementById('entity-building');CTRL_BUILDING=bs.value;const generale=entityCategory==='quadro'||entityCategory==='finanziario'||entityCategory==='riepilogo'||entityCategory==='sicurezza_aedifica';bs.disabled=generale;document.getElementById('entity-title').textContent=generale?'D|Park generale':ctrlName(CTRL_BUILDING);document.querySelectorAll('.entity-cat').forEach(b=>b.classList.toggle('active',b.dataset.entityCat===entityCategory));if(entityCategory==='vendite')dparkOriginalSw(CTRL_BUILDING);else{proj='ctrl_'+entityCategory;document.getElementById('kpi').style.display='none';document.querySelector('.legend').style.display='none';document.getElementById('check-panel').innerHTML='';ctrlRender(proj)}};
+  const openEntity=()=>{const bs=document.getElementById('entity-building');CTRL_BUILDING=bs.value;const generale=entityCategory==='subappaltatori'||entityCategory==='quadro'||entityCategory==='finanziario'||entityCategory==='riepilogo'||entityCategory==='sicurezza_aedifica';bs.disabled=generale;document.getElementById('entity-title').textContent=generale?'D|Park generale':ctrlName(CTRL_BUILDING);document.querySelectorAll('.entity-cat').forEach(b=>b.classList.toggle('active',b.dataset.entityCat===entityCategory));if(entityCategory==='vendite')dparkOriginalSw(CTRL_BUILDING);else{proj='ctrl_'+entityCategory;document.getElementById('kpi').style.display='none';document.querySelector('.legend').style.display='none';document.getElementById('check-panel').innerHTML='';ctrlRender(proj)}};
   document.getElementById('entity-building').onchange=openEntity;document.querySelectorAll('.entity-cat').forEach(b=>b.onclick=()=>{entityCategory=b.dataset.entityCat;openEntity()});
   await ctrlLoad();
   openEntity();
