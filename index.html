@@ -403,6 +403,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   <div class="leg"><div class="leg-dot riservato"></div>Riservato</div>
   <div class="leg"><div class="leg-dot disponibile"></div>Disponibile</div>
   <div class="leg"><div class="leg-dot locale"></div>Locale</div>
+  <button class="btn" id="btn-listino-bulk" style="margin-left:auto;background:#e8f0fe;color:#1a2e4a;border:1.5px solid #b0c4e8;padding:6px 12px;font-size:12px" onclick="openListinoBulk()">✏️ Modifica prezzi previsionali in blocco</button>
 </div>
 
 <div id="check-panel"></div>
@@ -531,6 +532,34 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
       <button class="btn" id="btn-edit" style="background:#e8f0fe;color:#1a2e4a;border:1.5px solid #b0c4e8;display:none" onclick="unlockForm()">✏️ Modifica</button>
       <button class="btn btn-g" id="btn-cancel" onclick="cm()" style="display:none">Annulla</button>
       <button class="btn btn-p" id="btn-save" onclick="save()" style="display:none">💾 Salva Scheda</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODIFICA PREZZI PREVISIONALI IN BLOCCO -->
+<div class="ov" id="listino-ov" onclick="if(event.target===this)closeListinoBulk()">
+  <div class="modal" style="max-width:920px">
+    <div class="mhead">
+      <div>
+        <h3>✏️ Modifica prezzi previsionali in blocco</h3>
+        <div class="ms" id="listino-bulk-sub">—</div>
+      </div>
+      <button class="mclose" onclick="closeListinoBulk()">✕</button>
+    </div>
+    <div class="mbody" style="padding:18px 24px">
+      <input id="listino-bulk-search" type="search" placeholder="Cerca per unità, scala o proprietario…" style="width:100%;margin-bottom:12px;padding:9px 12px;border:1.5px solid #ddd1bd;border-radius:8px;font-size:13px" oninput="renderListinoBulkRows()">
+      <div style="overflow-x:auto">
+      <table class="ctrl-table" style="min-width:760px">
+        <thead><tr><th>Unità</th><th>Stato</th><th>S.L. (mq)</th><th>Previsionale attuale</th><th>Nuovo prezzo previsionale (€)</th></tr></thead>
+        <tbody id="listino-bulk-rows"></tbody>
+      </table>
+      </div>
+      <p style="font-size:11px;color:#8796a9;margin:10px 0 0">Lascia vuoto un campo per non modificare quell'unità. Il previsionale attuale mostra il listino manuale se presente, altrimenti il valore calcolato (<span id="listino-bulk-formula">—</span>).</p>
+    </div>
+    <div class="mfoot">
+      <span id="listino-bulk-saved" style="display:none;color:#2e7d32;font-weight:700">✓ Salvato</span>
+      <button class="btn btn-g" onclick="closeListinoBulk()">Annulla</button>
+      <button class="btn btn-p" onclick="saveListinoBulk()">💾 Salva tutte le modifiche</button>
     </div>
   </div>
 </div>
@@ -2407,6 +2436,77 @@ function delSalRow(i) {
 function ovc(e) { if (e.target===document.getElementById('ov')) cm(); }
 function cm()   { setFormLocked(true); document.getElementById('ov').classList.remove('open'); curId=null; }
 
+// ─── MODIFICA PREZZI PREVISIONALI IN BLOCCO (per lotto) ───
+function openListinoBulk() {
+  if (typeof CAN_EDIT !== 'undefined' && !CAN_EDIT) { openLogin(); return; }
+  if (!D[proj] || !D[proj].units) return; // solo dentro un lotto (a1, a2, ...)
+  document.getElementById('listino-bulk-sub').textContent = D[proj].name || proj;
+  document.getElementById('listino-bulk-formula').textContent = 'S.L. × €' + PRICE_PER_MQ.toLocaleString('it-IT') + '/mq + S.N.R. × €' + SNR_PRICE_PER_MQ.toLocaleString('it-IT') + '/mq';
+  document.getElementById('listino-bulk-search').value = '';
+  document.getElementById('listino-bulk-saved').style.display = 'none';
+  renderListinoBulkRows();
+  document.getElementById('listino-ov').classList.add('open');
+}
+function closeListinoBulk() {
+  document.getElementById('listino-ov').classList.remove('open');
+}
+function renderListinoBulkRows() {
+  const body = document.getElementById('listino-bulk-rows');
+  if (!body || !D[proj]) return;
+  const q = (document.getElementById('listino-bulk-search').value || '').trim().toLowerCase();
+  const stLabel = {disponibile:'🟢 Disponibile', riservato:'🟠 Riservato', venduto:'🔴 Venduto', locale:'🏪 Locale'};
+  const righe = Object.entries(D[proj].units)
+    .filter(([uid, u]) => {
+      if (!q) return true;
+      const hay = [uid, u.sc, u.lbl, u.tipo, u.owner, u.codice].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    })
+    .sort((a, b) => {
+      const ua = a[1], ub = b[1];
+      if ((ua.sc || '') !== (ub.sc || '')) return (ua.sc || '').localeCompare(ub.sc || '');
+      return String(ua.lbl || a[0]).localeCompare(String(ub.lbl || b[0]), 'it', {numeric: true});
+    })
+    .map(([uid, u]) => {
+      const nomeUnita = `${u.sc ? 'Scala ' + u.sc + ' · ' : ''}${u.tipo || 'Unità'} ${u.lbl || uid}`;
+      const manuale = (u.listino || '').toString().trim();
+      const previsionaleAttuale = manuale ? fmtEur(parseFloat(manuale.replace(/\./g, '').replace(',', '.')) || 0) + ' (manuale)' : fmtEur(prevOf(u)) + ' (calcolato)';
+      return `<tr data-listino-uid="${uid}"><td><b>${nomeUnita}</b>${u.owner ? '<br><small style="color:#8796a9">' + u.owner.replace(/</g,'&lt;') + '</small>' : ''}</td><td>${stLabel[u.st] || u.st || ''}</td><td>${u.sl || '—'}</td><td>${previsionaleAttuale}</td><td><input type="text" class="listino-bulk-input" data-current="${manuale}" placeholder="lascia vuoto = non modificare" style="width:100%;padding:6px 8px;border:1.5px solid #ddd1bd;border-radius:6px;font-size:12px"></td></tr>`;
+    }).join('');
+  body.innerHTML = righe || '<tr><td colspan="5" style="text-align:center;color:#8796a9;padding:16px">Nessuna unità trovata.</td></tr>';
+}
+function saveListinoBulk() {
+  if (typeof CAN_EDIT !== 'undefined' && !CAN_EDIT) { openLogin(); return; }
+  if (!D[proj] || !D[proj].units) return;
+  const rows = document.querySelectorAll('#listino-bulk-rows tr[data-listino-uid]');
+  let modificate = 0;
+  rows.forEach(row => {
+    const uid = row.dataset.listinoUid;
+    const input = row.querySelector('.listino-bulk-input');
+    const raw = (input.value || '').trim();
+    if (!raw) return; // vuoto = non modificare questa unità
+    const u = D[proj].units[uid];
+    if (!u) return;
+    const nuovo = parsePriceInput(raw);
+    const prima = (u.listino || '').toString();
+    if (nuovo === prima) return;
+    if (!Array.isArray(u.history)) u.history = [];
+    u.history.push({ts: tsNow(), changes: [{field: 'listino', from: prima, to: nuovo}]});
+    u.listino = nuovo;
+    modificate++;
+  });
+  if (modificate > 0) {
+    store();
+    renderKPI();
+    renderPlan();
+    renderCheckPanel(proj);
+    const saved = document.getElementById('listino-bulk-saved');
+    saved.textContent = '✓ Salvate ' + modificate + ' unità';
+    saved.style.display = 'inline';
+    setTimeout(() => { saved.style.display = 'none'; }, 2500);
+  }
+  renderListinoBulkRows(); // ricarica per mostrare i nuovi valori "attuali" e svuotare gli input
+}
+
 // ─── SAVE ───
 function save() {
   if (!CAN_EDIT) return;
@@ -3315,6 +3415,55 @@ function ctrlToggleSintesiLotto(key){
 function ctrlSetSintesiLotti(mode){
   CTRL_SINTESI_LOTTI=mode==='all'?CTRL_BUILDINGS.map(([k])=>k):[];
   ctrlRender('ctrl_riepilogo');
+}
+// Esporta in Excel esattamente i numeri mostrati nella Sintesi economica di progetto, compresa la vista/selezione lotti corrente.
+function ctrlEsportaSintesi(){
+  if(typeof XLSX==='undefined'){alert('Il modulo Excel non è disponibile. Controlla la connessione e riapri la pagina.');return}
+  const datiLotti=CTRL_BUILDINGS.map(([key,nome])=>{
+    const st=projStats(key),haBrogliaccio=key!=='sorriso';
+    const venduto=ctrlVendutoLotto(key),fatturato=haBrogliaccio?ctrlFatturatoLotto(key):0;
+    const r=ctrlCostiLottoRecord(key),costoEffettivo=r.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0);
+    const margine=haBrogliaccio?fatturato-costoEffettivo:null;
+    const invenduto=Object.values(D[key].units).filter(u=>u.st==='disponibile'||u.st==='riservato').reduce((a,u)=>a+prevOf(u),0);
+    return{key,nome,haBrogliaccio,unitTot:st.totAll,unitV:st.v,unitR:st.r,unitD:st.d,previsionale:st.prevTotAll,venduto,fatturato,costoEffettivo,margine,invenduto,incluso:CTRL_SINTESI_LOTTI.includes(key)};
+  });
+  const righe=datiLotti.map(r=>({
+    'Lotto':r.nome,
+    'Incluso nella vista corrente':r.incluso?'Sì':'No',
+    'Unità totali':r.unitTot,'Vendute':r.unitV,'Riservate':r.unitR,'Disponibili':r.unitD,
+    'Ricavo previsionale (€)':Math.round(r.previsionale),
+    'Venduto (€)':Math.round(r.venduto),
+    'Fatturato brogliaccio (€)':r.haBrogliaccio?Math.round(r.fatturato):'n/d (nessun centro di costo)',
+    'Costo effettivo brogliaccio (€)':r.haBrogliaccio?Math.round(r.costoEffettivo):(r.costoEffettivo?Math.round(r.costoEffettivo)+' (manuale, escluso dal margine)':'—'),
+    'Margine (€)':r.haBrogliaccio?(r.margine!=null?Math.round(r.margine):''):'n/d',
+    'Invenduto - valore previsionale (€)':Math.round(r.invenduto)
+  }));
+  const selezionati=datiLotti.filter(r=>r.incluso),selConBrogliaccio=selezionati.filter(r=>r.haBrogliaccio);
+  const generale=ctrlCostiGeneraliRecord(),effGenerale=generale.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0);
+  const lottiConBrogliaccio=CTRL_BUILDINGS.filter(([k])=>k!=='sorriso'),tuttiIBrogliaccioSelezionati=lottiConBrogliaccio.every(([k])=>CTRL_SINTESI_LOTTI.includes(k));
+  const fatturatoSel=selConBrogliaccio.reduce((a,r)=>a+r.fatturato,0),costoLottiSel=selConBrogliaccio.reduce((a,r)=>a+r.costoEffettivo,0);
+  const margineValore=selezionati.length?(tuttiIBrogliaccioSelezionati?(fatturatoSel-costoLottiSel-effGenerale):(fatturatoSel-costoLottiSel)):'';
+  righe.push({
+    'Lotto':'TOTALE — lotti selezionati ('+selezionati.length+'/7)',
+    'Incluso nella vista corrente':'',
+    'Unità totali':selezionati.reduce((a,r)=>a+r.unitTot,0),
+    'Vendute':selezionati.reduce((a,r)=>a+r.unitV,0),
+    'Riservate':selezionati.reduce((a,r)=>a+r.unitR,0),
+    'Disponibili':selezionati.reduce((a,r)=>a+r.unitD,0),
+    'Ricavo previsionale (€)':Math.round(selezionati.reduce((a,r)=>a+r.previsionale,0)),
+    'Venduto (€)':Math.round(selezionati.reduce((a,r)=>a+r.venduto,0)),
+    'Fatturato brogliaccio (€)':Math.round(fatturatoSel),
+    'Costo effettivo brogliaccio (€)':Math.round(costoLottiSel),
+    'Margine (€)':margineValore===''?'':Math.round(margineValore)+(tuttiIBrogliaccioSelezionati?' (include costi generali DPG)':' (esclusi costi generali DPG)'),
+    'Invenduto - valore previsionale (€)':Math.round(selezionati.reduce((a,r)=>a+r.invenduto,0))
+  });
+  righe.push({'Lotto':'Costi generali D|Park (DPG, intera operazione, non ripartiti per lotto)','Incluso nella vista corrente':'','Unità totali':'','Vendute':'','Riservate':'','Disponibili':'','Ricavo previsionale (€)':'','Venduto (€)':'','Fatturato brogliaccio (€)':'','Costo effettivo brogliaccio (€)':Math.round(effGenerale),'Margine (€)':'','Invenduto - valore previsionale (€)':''});
+  const ws=XLSX.utils.json_to_sheet(righe),wb=XLSX.utils.book_new();
+  ws['!cols']=[{wch:32},{wch:12},{wch:10},{wch:9},{wch:10},{wch:11},{wch:18},{wch:14},{wch:20},{wch:22},{wch:26},{wch:22}];
+  XLSX.utils.book_append_sheet(wb,ws,'Sintesi progetto');
+  const dataFile=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,`Sintesi_DPark_Carinaro_${dataFile}.xlsx`);
+  ctrlNotify('✓ File scaricato: Sintesi_DPark_Carinaro_'+dataFile+'.xlsx');
 }
 const CTRL_APPALTATRICE_DRAFTS={};
 const CTRL_FORM_DRAFTS={};
@@ -4249,7 +4398,7 @@ function ctrlSintesiGenerale(){
   };
   const righeLotti=datiLotti.map(rigaLotto).join('');
   return `<div class="ctrl-card" style="margin-bottom:14px;background:linear-gradient(135deg,#0f1f33,#16314f);color:white;border:0">
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:4px"><div><h3 style="color:white;margin:0">Sintesi economica di progetto</h3><small style="color:#b9c8da">Intera operazione e dettaglio per lotto. Seleziona i lotti (sotto o nelle righe della tabella) per combinare/isolare i numeri di un sottoinsieme. Dettaglio riga per riga nel Quadro economico.</small></div>${chipSelezione}</div>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:4px"><div><h3 style="color:white;margin:0">Sintesi economica di progetto</h3><small style="color:#b9c8da">Intera operazione e dettaglio per lotto. Seleziona i lotti (sotto o nelle righe della tabella) per combinare/isolare i numeri di un sottoinsieme. Dettaglio riga per riga nel Quadro economico.</small></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${chipSelezione}<button type="button" class="ctrl-btn" style="padding:6px 10px;font-size:11px;white-space:nowrap" onclick="ctrlEsportaSintesi()">⬇ Scarica i numeri (Excel)</button></div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center">
       <button type="button" class="ctrl-btn light" style="padding:6px 10px;font-size:11px" onclick="ctrlSetSintesiLotti('all')">Tutti i lotti</button>
       <button type="button" class="ctrl-btn light" style="padding:6px 10px;font-size:11px" onclick="ctrlSetSintesiLotti('none')">Nessuno</button>
