@@ -72,6 +72,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
 #kpi{display:flex;gap:12px;padding:14px 24px;background:#fff;border-bottom:1px solid #e0d8cc;flex-wrap:wrap;}
 .kpi{background:var(--bg);border-radius:var(--radius);padding:10px 16px;min-width:120px;flex:1;}
 .kpi.t{flex:2;display:flex;flex-direction:column;gap:6px;}
+.kpi.big{flex:2.6;min-width:280px;display:flex;flex-direction:column;gap:6px;background:#eef1f6;border:1px solid #ccd6e6;}
 .kl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#888;}
 .kv{font-size:22px;font-weight:800;color:var(--navy);}
 .ks{font-size:11px;color:#888;}
@@ -186,6 +187,26 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   font-size:13px;font-family:inherit;outline:none;transition:border .2s;}
 .fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--navy);}
 .fg textarea{resize:vertical;min-height:60px;}
+.box-picker{display:flex;flex-wrap:wrap;gap:6px;}
+.box-chip{display:flex;align-items:center;gap:5px;border:1.5px solid #ddd;border-radius:6px;
+  padding:5px 8px;font-size:11px;cursor:pointer;background:#fff;user-select:none;transition:border .15s,background .15s;}
+.box-chip input{margin:0;width:13px;height:13px;cursor:pointer;flex:none;}
+.box-chip .bn{font-weight:800;color:#1a2e4a;}
+.box-chip .bmq{color:#888;}
+.box-chip.sel{background:#dcfce7;border-color:#86efac;}
+.box-chip.occ{background:#f2f2f2;border-color:#e2e2e2;color:#aaa;cursor:not-allowed;}
+.box-chip.occ .bn,.box-chip.occ .bmq{color:#aaa;}
+.box-chip input:disabled{cursor:not-allowed;}
+.box-picker-empty{font-size:11px;color:#999;}
+.box-details{border:1.5px solid #ddd;border-radius:6px;padding:0;}
+.box-details[open]{padding-bottom:10px;}
+.box-details summary{list-style:none;cursor:pointer;padding:8px 10px;font-size:13px;color:#1a2e4a;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.box-details summary::-webkit-details-marker{display:none;}
+.box-details summary::after{content:'Modifica ▾';font-size:10px;font-weight:700;color:#3a5fa0;flex:none;}
+.box-details[open] summary::after{content:'Chiudi ▴';}
+.box-details summary:hover{background:#f7f9fc;}
+.box-details > div, .box-details > .box-picker{padding-left:10px;padding-right:10px;}
 .mfoot{padding:16px 24px;border-top:1px solid #f0e8dc;display:flex;align-items:center;gap:10px;justify-content:flex-end;}
 #msaved{font-size:12px;color:var(--green);font-weight:700;margin-right:auto;display:none;}
 .btn{padding:9px 20px;border-radius:7px;border:none;cursor:pointer;font-weight:700;font-size:13px;font-family:inherit;}
@@ -446,9 +467,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
           <label>Data Accordo</label>
           <input id="fda" type="date">
         </div>
-        <div class="fg">
-          <label>Box Auto (N° / Tipo)</label>
-          <input id="fbx" type="text" placeholder="es. 12 – singolo">
+        <div class="fg full">
+          <label>Box Auto</label>
+          <details id="fbx-details" class="box-details">
+            <summary id="fbx-summary">—</summary>
+            <div style="font-size:10px;color:#999;margin:8px 0 4px;">I box grigi sono già occupati da un'altra unità.</div>
+            <div id="fbx-picker" class="box-picker"></div>
+          </details>
+          <input id="fbx" type="hidden">
         </div>
         <div class="fg">
           <label>Tipo Accordo</label>
@@ -523,22 +549,22 @@ const BASE = {
       {id:'st', name:'Sottotetto',   quota:'+12,75', layout:[{sc:'A',ids:['A7','A8']},{sc:'B',ids:['BS1']}]},
     ],
     units:{
-      A1: {lbl:'1', sc:'A', sl:'133,00', tipo:'Trilocale',          st:"disponibile", owner:"",                              price:"", listino:"312500",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      A2: {lbl:'2', sc:'A', sl:'112,68', tipo:'Trilocale',          st:"venduto",     owner:"Marican",                       price:"210000",       accordo:"Permuta",        drive:'https://drive.google.com/drive/folders/1QuQ5kpLG_Tr3JVlqaD2vhlN5UxSvDZ0j',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      A3: {lbl:'3', sc:'A', sl:'133,00', tipo:'Trilocale',          st:"venduto",     owner:"Alessandro Spina",              price:"310000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1Rpu_u-l3WvkFnPtNQMy5FnbfBz7ixpLg',phone:'',email:'',date:'',box:'31/32',notaio:'',notes:"",history:[]},
-      A4: {lbl:'4', sc:'A', sl:'112,68', tipo:'Trilocale',          st:"venduto",     owner:"Marican",                       price:"210000",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/1QuQ5kpLG_Tr3JVlqaD2vhlN5UxSvDZ0j',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
-      A5: {lbl:'5', sc:'A', sl:'133,00', tipo:'Trilocale',          st:"venduto",     owner:"Luisi Vincenzo / Taglialatela", price:"315000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1aJuh6hU6SXgPGhGwotnqCMm99Ql4Amoy',phone:'',email:'',date:'',box:'15',notaio:'',notes:"- vedi qualcosa in affitto \n\nNumero alessandra: ‪+39 339 154 4160‬",history:[]},
-      A6: {lbl:'6', sc:'A', sl:'112,68', tipo:'Trilocale',          st:"venduto",     owner:"Mariarosaria Coppola",          price:"280000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1HbG-zM_fKMeurUAIDb6S-CTtRKc-Ft3t',phone:'',email:'',date:'',box:'29',notaio:'',notes:"",history:[]},
-      A7: {lbl:'S1',sc:'A', sl:'133,00', tipo:'Sottotetto',         st:"disponibile", owner:"",                              price:"", listino:"312500",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      A8: {lbl:'S2',sc:'A', sl:'112,68', tipo:'Sottotetto',         st:"disponibile", owner:"",                              price:"", listino:"280000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      B1: {lbl:'1', sc:'B', sl:'120,00', tipo:'Trilocale',          st:"venduto",     owner:"Marican",                       price:"210000",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/1QuQ5kpLG_Tr3JVlqaD2vhlN5UxSvDZ0j',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
-      B2: {lbl:'2', sc:'B', sl:'120,00', tipo:'Trilocale',          st:"venduto",     owner:"Marican",                       price:"210000",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/1QuQ5kpLG_Tr3JVlqaD2vhlN5UxSvDZ0j',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
-      B3: {lbl:'3', sc:'B', sl:'120,00', tipo:'Trilocale',          st:"venduto",     owner:"Menditto Giovanni",                      price:"125761",       accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"€ 2.000,00 per ciascuno dei due box.",history:[]},
-      BS1: {lbl:'S1',sc:'B', sl:'120,00', tipo:'Sottotetto',         st:"disponibile", owner:"",                              price:"", listino:"284000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      AL1: {lbl:'L1',sc:'',  sl:'117,60', tipo:'Locale Commerciale', st:"disponibile",      owner:"",                              price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      AL2: {lbl:'L2',sc:'',  sl:'67,00',  tipo:'Locale Commerciale', st:"disponibile",      owner:"",                              price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      AL3: {lbl:'L3',sc:'',  sl:'50,50',  tipo:'Locale Commerciale', st:"venduto",      owner:"Menditto Giovanni",                      price:"50000",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/111PFYdi1eTJi3yDS6wnVly08QC4LiZlT',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
-      AL4: {lbl:'L4',sc:'',  sl:'92,00',  tipo:'Locale Commerciale', st:"disponibile",      owner:"",                              price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      A1: {lbl:'1', sc:'A', sl:'133,00', snr:'60,95', tipo:'Trilocale',          st:"disponibile", owner:"",                              price:"", listino:"312500",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      A2: {lbl:'2', sc:'A', sl:'112,68', snr:'48,85', tipo:'Trilocale',          st:"venduto",     owner:"Marican",                       price:"210000",       accordo:"Permuta",        drive:'https://drive.google.com/drive/folders/1QuQ5kpLG_Tr3JVlqaD2vhlN5UxSvDZ0j',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      A3: {lbl:'3', sc:'A', sl:'133,00', snr:'60,95', tipo:'Trilocale',          st:"venduto",     owner:"Alessandro Spina",              price:"310000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1Rpu_u-l3WvkFnPtNQMy5FnbfBz7ixpLg',phone:'',email:'',date:'',box:'31/32',notaio:'',notes:"",history:[]},
+      A4: {lbl:'4', sc:'A', sl:'112,68', snr:'48,85', tipo:'Trilocale',          st:"venduto",     owner:"Marican",                       price:"210000",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/1QuQ5kpLG_Tr3JVlqaD2vhlN5UxSvDZ0j',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
+      A5: {lbl:'5', sc:'A', sl:'133,00', snr:'60,95', tipo:'Trilocale',          st:"venduto",     owner:"Luisi Vincenzo / Taglialatela", price:"315000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1aJuh6hU6SXgPGhGwotnqCMm99Ql4Amoy',phone:'',email:'',date:'',box:'15',notaio:'',notes:"- vedi qualcosa in affitto \n\nNumero alessandra: ‪+39 339 154 4160‬",history:[]},
+      A6: {lbl:'6', sc:'A', sl:'112,68', snr:'48,85', tipo:'Trilocale',          st:"venduto",     owner:"Mariarosaria Coppola",          price:"280000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1HbG-zM_fKMeurUAIDb6S-CTtRKc-Ft3t',phone:'',email:'',date:'',box:'29',notaio:'',notes:"",history:[]},
+      A7: {lbl:'S1',sc:'A', sl:'133,00', snr:'', tipo:'Sottotetto',         st:"disponibile", owner:"",                              price:"", listino:"312500",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      A8: {lbl:'S2',sc:'A', sl:'112,68', snr:'', tipo:'Sottotetto',         st:"disponibile", owner:"",                              price:"", listino:"280000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      B1: {lbl:'1', sc:'B', sl:'120,00', snr:'42,80', tipo:'Trilocale',          st:"venduto",     owner:"Marican",                       price:"210000",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/1QuQ5kpLG_Tr3JVlqaD2vhlN5UxSvDZ0j',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
+      B2: {lbl:'2', sc:'B', sl:'120,00', snr:'42,80', tipo:'Trilocale',          st:"venduto",     owner:"Marican",                       price:"210000",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/1QuQ5kpLG_Tr3JVlqaD2vhlN5UxSvDZ0j',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
+      B3: {lbl:'3', sc:'B', sl:'120,00', snr:'42,80', tipo:'Trilocale',          st:"venduto",     owner:"Menditto Giovanni",                      price:"125761",       accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"€ 2.000,00 per ciascuno dei due box.",history:[]},
+      BS1: {lbl:'S1',sc:'B', sl:'120,00', snr:'', tipo:'Sottotetto',         st:"disponibile", owner:"",                              price:"", listino:"284000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      AL1: {lbl:'L1',sc:'',  sl:'117,60', snr:'183,00', tipo:'Locale Commerciale', st:"disponibile",      owner:"",                              price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      AL2: {lbl:'L2',sc:'',  sl:'67,00', snr:'64,00',  tipo:'Locale Commerciale', st:"disponibile",      owner:"",                              price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      AL3: {lbl:'L3',sc:'',  sl:'44,00', snr:'64,00',  tipo:'Locale Commerciale', st:"venduto",      owner:"Menditto Giovanni",                      price:"50000",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/111PFYdi1eTJi3yDS6wnVly08QC4LiZlT',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
+      AL4: {lbl:'L4',sc:'',  sl:'92,00', snr:'174,00',  tipo:'Locale Commerciale', st:"disponibile",      owner:"",                              price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
     }
   },
 
@@ -552,24 +578,24 @@ const BASE = {
       {id:'st', name:'Sottotetto',   quota:'+12,75', layout:[{sc:'A',ids:['AS1','AS2']},{sc:'B',ids:['BS1','BS2']}]},
     ],
     units:{
-      A1: {lbl:'1', sc:'A', sl:'133,00', tipo:'Trilocale',          st:"disponibile", owner:"",                  price:"", listino:"310000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      A2: {lbl:'2', sc:'A', sl:'112,68', tipo:'Trilocale',          st:"disponibile", owner:"",                  price:"", listino:"270000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      A3: {lbl:'3', sc:'A', sl:'133,00', tipo:'Trilocale',          st:"disponibile", owner:"",                  price:"", listino:"310000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      A4: {lbl:'4', sc:'A', sl:'112,68', tipo:'Trilocale',          st:"venduto",     owner:"Real Estate SRLS",  price:"250000",       accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
-      A5: {lbl:'5', sc:'A', sl:'133,00', tipo:'Trilocale',          st:"venduto",     owner:"Luca Iannitti",     price:"310000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1qMJ1GltypGm--KB8r4ZVWYFvMDjZhLwR',phone:'',email:'',date:'',box:'28',notaio:'',notes:"",history:[]},
-      A6: {lbl:'6', sc:'A', sl:'112,68', tipo:'Trilocale',          st:"venduto",     owner:"Giovanni Andreozzi",price:"270000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1Wwrhy4I14vs6NfpjalPgQ4AuXSS3DYb_',phone:'',email:'',date:'',box:'27',notaio:'',notes:"",history:[]},
-      AS1: {lbl:'S1',sc:'A', sl:'123,00', tipo:'Sottotetto',         st:"disponibile", owner:"",                  price:"", listino:"268000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      AS2: {lbl:'S2',sc:'A', sl:'123,00', tipo:'Sottotetto',         st:"disponibile", owner:"",                  price:"", listino:"268000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      B1: {lbl:'1', sc:'B', sl:'67,46',  tipo:'Bilocale',           st:"venduto",     owner:"Antimo Garofalo",   price:"160000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1onga-khsSEuZFw0D3PZezYBIMmeEGKpv',phone:'',email:'',date:'',box:'23',notaio:'',notes:"",history:[]},
-      B2: {lbl:'2', sc:'B', sl:'53,30',  tipo:'Bilocale',           st:"venduto",     owner:"Coppola Giuseppa",  price:"",       accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta (Prop. Amore)",history:[]},
-      B3: {lbl:'3', sc:'B', sl:'120,76', tipo:'Trilocale',           st:"venduto",     owner:"Giuseppe Arena",    price:"244000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/16GNAEXU-jsVOQ9WPpSbRRi1xfhzUljYE',phone:'',email:'',date:'',box:'26',notaio:'',notes:"-35K x CCT \n-6k x CCT il 22.06.2026",history:[]},
-      B5: {lbl:'5', sc:'B', sl:'67,46',  tipo:'Bilocale',           st:"venduto",     owner:"Giuseppe D'Onofrio",price:"135000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/12WzBAaVwQiQrFiny7-kwaF7P593_p_D6',phone:'',email:'',date:'',box:'1',notaio:'',notes:"30k bb",history:[]},
-      B6: {lbl:'6', sc:'B', sl:'53,30',  tipo:'Bilocale',           st:"venduto",     owner:"Giuseppe D'Onofrio",price:"105000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1IIyqF3cfSUYnoUj8my_QIvWqGp5VwtNC',phone:'',email:'',date:'',box:'2',notaio:'',notes:"30k bb",history:[]},
-      BS1: {lbl:'S1',sc:'B', sl:'53,30',  tipo:'Sottotetto',         st:"disponibile", owner:"",                  price:"", listino:"105000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      BS2: {lbl:'S2',sc:'B', sl:'67,46',  tipo:'Sottotetto',         st:"disponibile", owner:"",                  price:"", listino:"147500",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      AL1: {lbl:'L1',sc:'A', sl:'117,60', tipo:'Locale Commerciale', st:"disponibile",      owner:"",                  price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      AL2: {lbl:'L2',sc:'A', sl:'117,60', tipo:'Locale Commerciale', st:"disponibile",      owner:"",                  price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      BL1: {lbl:'L1',sc:'B', sl:'92,00',  tipo:'Locale Commerciale', st:"disponibile",      owner:"",                  price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      A1: {lbl:'1', sc:'A', sl:'133,00', snr:'60,95', tipo:'Trilocale',          st:"disponibile", owner:"",                  price:"", listino:"310000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      A2: {lbl:'2', sc:'A', sl:'112,68', snr:'48,85', tipo:'Trilocale',          st:"disponibile", owner:"",                  price:"", listino:"270000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      A3: {lbl:'3', sc:'A', sl:'133,00', snr:'60,95', tipo:'Trilocale',          st:"disponibile", owner:"",                  price:"", listino:"310000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      A4: {lbl:'4', sc:'A', sl:'112,68', snr:'48,85', tipo:'Trilocale',          st:"venduto",     owner:"Real Estate SRLS",  price:"250000",       accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
+      A5: {lbl:'5', sc:'A', sl:'133,00', snr:'60,95', tipo:'Trilocale',          st:"venduto",     owner:"Luca Iannitti",     price:"310000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1qMJ1GltypGm--KB8r4ZVWYFvMDjZhLwR',phone:'',email:'',date:'',box:'28',notaio:'',notes:"",history:[]},
+      A6: {lbl:'6', sc:'A', sl:'112,68', snr:'48,85', tipo:'Trilocale',          st:"venduto",     owner:"Giovanni Andreozzi",price:"270000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1Wwrhy4I14vs6NfpjalPgQ4AuXSS3DYb_',phone:'',email:'',date:'',box:'27',notaio:'',notes:"",history:[]},
+      AS1: {lbl:'S1',sc:'A', sl:'123,00', snr:'', tipo:'Sottotetto',         st:"disponibile", owner:"",                  price:"", listino:"268000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      AS2: {lbl:'S2',sc:'A', sl:'123,00', snr:'', tipo:'Sottotetto',         st:"disponibile", owner:"",                  price:"", listino:"268000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      B1: {lbl:'1', sc:'B', sl:'67,46', snr:'19,46',  tipo:'Bilocale',           st:"venduto",     owner:"Antimo Garofalo",   price:"160000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1onga-khsSEuZFw0D3PZezYBIMmeEGKpv',phone:'',email:'',date:'',box:'23',notaio:'',notes:"",history:[]},
+      B2: {lbl:'2', sc:'B', sl:'53,30', snr:'23,35',  tipo:'Bilocale',           st:"venduto",     owner:"Coppola Giuseppa",  price:"",       accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta (Prop. Amore)",history:[]},
+      B3: {lbl:'3', sc:'B', sl:'120,76', snr:'42,80', tipo:'Trilocale',           st:"venduto",     owner:"Giuseppe Arena",    price:"244000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/16GNAEXU-jsVOQ9WPpSbRRi1xfhzUljYE',phone:'',email:'',date:'',box:'26',notaio:'',notes:"-35K x CCT \n-6k x CCT il 22.06.2026",history:[]},
+      B5: {lbl:'5', sc:'B', sl:'67,46', snr:'19,46',  tipo:'Bilocale',           st:"venduto",     owner:"Giuseppe D'Onofrio",price:"135000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/12WzBAaVwQiQrFiny7-kwaF7P593_p_D6',phone:'',email:'',date:'',box:'1',notaio:'',notes:"30k bb",history:[]},
+      B6: {lbl:'6', sc:'B', sl:'53,30', snr:'23,35',  tipo:'Bilocale',           st:"venduto",     owner:"Giuseppe D'Onofrio",price:"105000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1IIyqF3cfSUYnoUj8my_QIvWqGp5VwtNC',phone:'',email:'',date:'',box:'2',notaio:'',notes:"30k bb",history:[]},
+      BS1: {lbl:'S1',sc:'B', sl:'67,46', snr:'19,46',  tipo:'Sottotetto',         st:"disponibile", owner:"",                  price:"", listino:"105000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      BS2: {lbl:'S2',sc:'B', sl:'53,30', snr:'23,35',  tipo:'Sottotetto',         st:"disponibile", owner:"",                  price:"", listino:"147500",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      AL1: {lbl:'L1',sc:'A', sl:'117,60', snr:'', tipo:'Locale Commerciale', st:"disponibile",      owner:"",                  price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      AL2: {lbl:'L2',sc:'A', sl:'117,60', snr:'', tipo:'Locale Commerciale', st:"disponibile",      owner:"",                  price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      BL1: {lbl:'L1',sc:'B', sl:'92,00', snr:'',  tipo:'Locale Commerciale', st:"disponibile",      owner:"",                  price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
     }
   },
 
@@ -583,21 +609,21 @@ const BASE = {
       {id:'st', name:'Sottotetto',   quota:'+12,75', layout:[{sc:'U',ids:['S1','S2','S3'],stairAfter:1}]},
     ],
     units:{
-      U1: {lbl:'1', sc:'U', sl:'64,00',  tipo:'Bilocale',          st:"disponibile", owner:"",               price:"", listino:"160000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      U2: {lbl:'2', sc:'U', sl:'89,00',  tipo:'Trilocale',         st:"venduto",     owner:"Della Libera Nicola",   price:"87880",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/1S5l_Fti1aGrFVw__AbQvboZI3CGqhGIc',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
-      U3: {lbl:'3', sc:'U', sl:'89,00',  tipo:'Trilocale',         st:"venduto",     owner:"Della Libera Nicola",   price:"87880",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/1S5l_Fti1aGrFVw__AbQvboZI3CGqhGIc',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
-      U4: {lbl:'4', sc:'U', sl:'64,00',  tipo:'Bilocale',          st:"disponibile", owner:"",               price:"", listino:"160000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      U5: {lbl:'5', sc:'U', sl:'125,35', tipo:'Quadrilocale',      st:"disponibile", owner:"",               price:"", listino:"305000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      U6: {lbl:'6', sc:'U', sl:'89,00',  tipo:'Trilocale',         st:"venduto",     owner:"Nicla Di Biase", price:"210000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1MvWfOuePVbCUC9vu3pKZfPk6Dso_kr5A',phone:'',email:'',date:'',box:'15',notaio:'',notes:"",history:[]},
-      U7: {lbl:'7', sc:'U', sl:'64,00',  tipo:'Bilocale',          st:"disponibile", owner:"",               price:"", listino:"160000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      U8: {lbl:'8', sc:'U', sl:'64,00',  tipo:'Bilocale',          st:"venduto",     owner:"Sorici Angela",  price:"160000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1dSgaTuhJeY1jurpJMY6BQLw1y69YPiBQ',phone:'',email:'',date:'',box:'6',notaio:'',notes:"",history:[]},
-      U9: {lbl:'9', sc:'U', sl:'89,00',  tipo:'Trilocale',         st:"venduto",     owner:"Villano Elena/Fabiana Masiello",        price:"210000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1sNRa3COimfFGdsarp5xfK8n92xUaovT0',phone:'',email:'',date:'',box:'10',notaio:'',notes:"",history:[]},
-      U10: {lbl:'10',sc:'U', sl:'125,35', tipo:'Quadrilocale',      st:"venduto",     owner:"Fabio Natale",   price:"305000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1YqTqASJKZvYBFkDRH01jUw81FARH731i',phone:'',email:'',date:'',box:'14',notaio:'',notes:"",history:[]},
-      S1: {lbl:'S1',sc:'U', sl:'125,35', tipo:'Sottotetto',        st:"disponibile", owner:"",               price:"", listino:"305000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      S2: {lbl:'S2',sc:'U', sl:'86,50',  tipo:'Sottotetto',        st:"venduto",     owner:"Rocco Illibato", price:"100000",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/1ZO9dYQzvYDQQRdEhFSlRC682sMqO-J_m',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
-      S3: {lbl:'S3',sc:'U', sl:'64,00',  tipo:'Sottotetto',        st:"disponibile", owner:"",               price:"", listino:"160000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      PL1: {lbl:'L1',sc:'U', sl:'128,00', tipo:'Locale Commerciale',st:"disponibile",      owner:"",               price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      PL2: {lbl:'L2',sc:'U', sl:'133,00', tipo:'Locale Commerciale',st:"disponibile",      owner:"",               price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      U1: {lbl:'1', sc:'U', sl:'64,00', snr:'33,56',  tipo:'Bilocale',          st:"disponibile", owner:"",               price:"", listino:"160000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      U2: {lbl:'2', sc:'U', sl:'64,00', snr:'21,96',  tipo:'Trilocale',         st:"venduto",     owner:"Della Libera Nicola",   price:"87880",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/1S5l_Fti1aGrFVw__AbQvboZI3CGqhGIc',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
+      U3: {lbl:'3', sc:'U', sl:'89,00', snr:'21,96',  tipo:'Trilocale',         st:"venduto",     owner:"Della Libera Nicola",   price:"87880",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/1S5l_Fti1aGrFVw__AbQvboZI3CGqhGIc',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
+      U4: {lbl:'4', sc:'U', sl:'64,00', snr:'33,56',  tipo:'Bilocale',          st:"disponibile", owner:"",               price:"", listino:"160000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      U5: {lbl:'5', sc:'U', sl:'125,35', snr:'80,43', tipo:'Quadrilocale',      st:"disponibile", owner:"",               price:"", listino:"305000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      U6: {lbl:'6', sc:'U', sl:'89,00', snr:'21,96',  tipo:'Trilocale',         st:"venduto",     owner:"Nicla Di Biase", price:"210000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1MvWfOuePVbCUC9vu3pKZfPk6Dso_kr5A',phone:'',email:'',date:'',box:'15',notaio:'',notes:"",history:[]},
+      U7: {lbl:'7', sc:'U', sl:'64,00', snr:'33,56',  tipo:'Bilocale',          st:"disponibile", owner:"",               price:"", listino:"160000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      U8: {lbl:'8', sc:'U', sl:'64,00', snr:'33,56',  tipo:'Bilocale',          st:"venduto",     owner:"Sorici Angela",  price:"160000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1dSgaTuhJeY1jurpJMY6BQLw1y69YPiBQ',phone:'',email:'',date:'',box:'6',notaio:'',notes:"",history:[]},
+      U9: {lbl:'9', sc:'U', sl:'89,00', snr:'21,96',  tipo:'Trilocale',         st:"venduto",     owner:"Villano Elena/Fabiana Masiello",        price:"210000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1sNRa3COimfFGdsarp5xfK8n92xUaovT0',phone:'',email:'',date:'',box:'10',notaio:'',notes:"",history:[]},
+      U10: {lbl:'10',sc:'U', sl:'125,36', snr:'80,43', tipo:'Quadrilocale',      st:"venduto",     owner:"Fabio Natale",   price:"305000", accordo:"Acquisto",drive:'https://drive.google.com/drive/u/5/folders/1YqTqASJKZvYBFkDRH01jUw81FARH731i',phone:'',email:'',date:'',box:'14',notaio:'',notes:"",history:[]},
+      S1: {lbl:'S1',sc:'U', sl:'125,36', snr:'80,43', tipo:'Sottotetto',        st:"disponibile", owner:"",               price:"", listino:"305000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      S2: {lbl:'S2',sc:'U', sl:'89,00', snr:'21,96',  tipo:'Sottotetto',        st:"venduto",     owner:"Rocco Illibato", price:"100000",       accordo:"Permuta", drive:'https://drive.google.com/drive/folders/1ZO9dYQzvYDQQRdEhFSlRC682sMqO-J_m',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
+      S3: {lbl:'S3',sc:'U', sl:'64,00', snr:'33,56',  tipo:'Sottotetto',        st:"disponibile", owner:"",               price:"", listino:"160000",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      PL1: {lbl:'L1',sc:'U', sl:'128,00', snr:'171,00', tipo:'Locale Commerciale',st:"disponibile",      owner:"",               price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      PL2: {lbl:'L2',sc:'U', sl:'133,00', snr:'', tipo:'Locale Commerciale',st:"disponibile",      owner:"",               price:"",       accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
     }
   },
 
@@ -611,38 +637,38 @@ const BASE = {
       {id:'mans',name:'Piano Mansarda',quota:'+12,75',layout:[{sc:'A',ids:['AS1','AS2']},{sc:'B',ids:['BS1','BS2']},{sc:'C',ids:['CS1','CS2','CS3']}]},
     ],
     units:{
-      A1: {lbl:'1', sc:'A', sl:'98,50',  tipo:'ERS Bilocale',  st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A2: {lbl:'2', sc:'A', sl:'98,50',  tipo:'ERS Bilocale',  st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A3: {lbl:'3', sc:'A', sl:'109,60', tipo:'ERS Trilocale', st:"venduto",     owner:"Salvarezza Luigi", price:"230000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale\n\nAccordo: Ft lavori Salvarezza : 50% Acconto appartamento 50% pg fattura -",history:[]},
-      A4: {lbl:'4', sc:'A', sl:'110,20', tipo:'ERS Trilocale', st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A5: {lbl:'5', sc:'A', sl:'109,60', tipo:'ERS Trilocale', st:"venduto",     owner:"Turco Costruzioni",      price:"230000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale\n\nAccordo Turco : Ft lavori -> 50% compensazione ap.to e 50% pg fattura",history:[]},
-      A6: {lbl:'6', sc:'A', sl:'110,20', tipo:'ERS Trilocale', st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A7: {lbl:'7', sc:'A', sl:'109,60', tipo:'ERS Trilocale', st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A8: {lbl:'8', sc:'A', sl:'110,20', tipo:'ERS Trilocale', st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      AS1: {lbl:'S1',sc:'A', sl:'109,60', tipo:'ERS Sottotetto',st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      AS2: {lbl:'S2',sc:'A', sl:'110,20', tipo:'ERS Sottotetto',st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      B1: {lbl:'1', sc:'B', sl:'107,00', tipo:'Trilocale',     st:"disponibile", owner:"",           price:"", listino:"230000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      B2: {lbl:'2', sc:'B', sl:'107,00', tipo:'Trilocale',     st:"venduto",     owner:"Motti",      price:"79000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
-      B3: {lbl:'3', sc:'B', sl:'107,00', tipo:'Trilocale',     st:"venduto",   owner:"Motti",      price:"79000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
-      B4: {lbl:'4', sc:'B', sl:'107,00', tipo:'Trilocale',     st:"venduto",     owner:"Motti",      price:"250000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
-      B5: {lbl:'5', sc:'B', sl:'107,00', tipo:'Trilocale',     st:"venduto",     owner:"Sglavo Gabriella",     price:"230000",accordo:"Acquisto",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      B6: {lbl:'6', sc:'B', sl:'107,00', tipo:'Trilocale',     st:"venduto",     owner:"Motti",      price:"79000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
-      BS1: {lbl:'S1',sc:'B', sl:'107,00', tipo:'Sottotetto',    st:"venduto",     owner:"Motti",      price:"60000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
-      BS2: {lbl:'S2',sc:'B', sl:'107,00', tipo:'Sottotetto',    st:"venduto",     owner:"Motti",      price:"60000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
-      C1: {lbl:'1', sc:'C', sl:'115,00', tipo:'Trilocale',     st:"disponibile", owner:"",           price:"", listino:"267500",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      C2: {lbl:'2', sc:'C', sl:'115,00', tipo:'Trilocale',     st:"disponibile", owner:"",           price:"", listino:"267500",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      C3: {lbl:'3', sc:'C', sl:'115,00', tipo:'Trilocale',     st:"disponibile", owner:"",           price:"", listino:"267500",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      C4: {lbl:'4', sc:'C', sl:'115,00', tipo:'Trilocale',     st:"venduto", owner:"Tagliafierro Umberto",           price:"265000",accordo:"Acquisto",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      C5: {lbl:'5', sc:'C', sl:'115,00', tipo:'Trilocale',     st:"disponibile",     owner:"",   price:"", listino:"267500",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      C6: {lbl:'6', sc:'C', sl:'115,00', tipo:'Trilocale',     st:"venduto",     owner:"Mungiguerra Stefano",price:"270000",accordo:"Acquisto",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      CS1: {lbl:'S1',sc:'C', sl:'75,86',  tipo:'Sottotetto',    st:"venduto",     owner:"Motti",      price:"49685",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
-      CS2: {lbl:'S2',sc:'C', sl:'65,25',  tipo:'Sottotetto',    st:"disponibile", owner:"",           price:"", listino:"150000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      CS3: {lbl:'S3',sc:'C', sl:'88,70',  tipo:'Sottotetto',    st:"disponibile",     owner:"",      price:"", listino:"204000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
-      BL1: {lbl:'L3', sc:'B',sl:'109,00', tipo:'Locale Commerciale', st:"disponibile",owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      BL2: {lbl:'L1A',sc:'B',sl:'54,60',  tipo:'Locale Commerciale', st:"disponibile",owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      BL3: {lbl:'L1B',sc:'B',sl:'51,20',  tipo:'Locale Commerciale', st:"venduto",owner:"Motti",           price:"50000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      CL1: {lbl:'L3', sc:'C',sl:'108,35',  tipo:'Locale Commerciale', st:"disponibile",owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      CL2: {lbl:'L4', sc:'C',sl:'108,35',  tipo:'Locale Commerciale', st:"disponibile",owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      A1: {lbl:'1', sc:'A', sl:'98,50', snr:'108,00',  tipo:'ERS Bilocale',  st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A2: {lbl:'2', sc:'A', sl:'98,50', snr:'77,00',  tipo:'ERS Bilocale',  st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A3: {lbl:'3', sc:'A', sl:'109,60', snr:'56,10', tipo:'ERS Trilocale', st:"venduto",     owner:"Salvarezza Luigi", price:"230000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale\n\nAccordo: Ft lavori Salvarezza : 50% Acconto appartamento 50% pg fattura -",history:[]},
+      A4: {lbl:'4', sc:'A', sl:'110,20', snr:'40,80', tipo:'ERS Trilocale', st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A5: {lbl:'5', sc:'A', sl:'109,60', snr:'56,10', tipo:'ERS Trilocale', st:"venduto",     owner:"Turco Costruzioni",      price:"230000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale\n\nAccordo Turco : Ft lavori -> 50% compensazione ap.to e 50% pg fattura",history:[]},
+      A6: {lbl:'6', sc:'A', sl:'110,20', snr:'40,80', tipo:'ERS Trilocale', st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A7: {lbl:'7', sc:'A', sl:'109,60', snr:'56,10', tipo:'ERS Trilocale', st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A8: {lbl:'8', sc:'A', sl:'110,20', snr:'40,80', tipo:'ERS Trilocale', st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      AS1: {lbl:'S1',sc:'A', sl:'109,60', snr:'56,10', tipo:'ERS Sottotetto',st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      AS2: {lbl:'S2',sc:'A', sl:'110,20', snr:'40,80', tipo:'ERS Sottotetto',st:"disponibile", owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      B1: {lbl:'1', sc:'B', sl:'107,00', snr:'41,65', tipo:'Trilocale',     st:"disponibile", owner:"",           price:"", listino:"230000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      B2: {lbl:'2', sc:'B', sl:'107,00', snr:'41,65', tipo:'Trilocale',     st:"venduto",     owner:"Motti",      price:"79000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
+      B3: {lbl:'3', sc:'B', sl:'107,00', snr:'41,65', tipo:'Trilocale',     st:"venduto",   owner:"Motti",      price:"79000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
+      B4: {lbl:'4', sc:'B', sl:'107,00', snr:'41,65', tipo:'Trilocale',     st:"venduto",     owner:"Motti",      price:"250000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
+      B5: {lbl:'5', sc:'B', sl:'107,00', snr:'41,65', tipo:'Trilocale',     st:"venduto",     owner:"Sglavo Gabriella",     price:"230000",accordo:"Acquisto",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      B6: {lbl:'6', sc:'B', sl:'107,00', snr:'41,65', tipo:'Trilocale',     st:"venduto",     owner:"Motti",      price:"79000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
+      BS1: {lbl:'S1',sc:'B', sl:'107,00', snr:'41,65', tipo:'Sottotetto',    st:"venduto",     owner:"Motti",      price:"60000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
+      BS2: {lbl:'S2',sc:'B', sl:'107,00', snr:'41,65', tipo:'Sottotetto',    st:"venduto",     owner:"Motti",      price:"60000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
+      C1: {lbl:'1', sc:'C', sl:'115,00', snr:'36,00', tipo:'Trilocale',     st:"disponibile", owner:"",           price:"", listino:"267500",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      C2: {lbl:'2', sc:'C', sl:'115,00', snr:'45,25', tipo:'Trilocale',     st:"disponibile", owner:"",           price:"", listino:"267500",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      C3: {lbl:'3', sc:'C', sl:'115,00', snr:'36,00', tipo:'Trilocale',     st:"disponibile", owner:"",           price:"", listino:"267500",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      C4: {lbl:'4', sc:'C', sl:'115,00', snr:'45,25', tipo:'Trilocale',     st:"venduto", owner:"Tagliafierro Umberto",           price:"265000",accordo:"Acquisto",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      C5: {lbl:'5', sc:'C', sl:'115,00', snr:'36,00', tipo:'Trilocale',     st:"disponibile",     owner:"",   price:"", listino:"267500",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      C6: {lbl:'6', sc:'C', sl:'115,00', snr:'45,25', tipo:'Trilocale',     st:"venduto",     owner:"Mungiguerra Stefano",price:"270000",accordo:"Acquisto",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      CS1: {lbl:'S1',sc:'C', sl:'75,86', snr:'16,00',  tipo:'Sottotetto',    st:"venduto",     owner:"Motti",      price:"49685",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
+      CS2: {lbl:'S2',sc:'C', sl:'65,25', snr:'31,70',  tipo:'Sottotetto',    st:"disponibile", owner:"",           price:"", listino:"150000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      CS3: {lbl:'S3',sc:'C', sl:'88,70', snr:'19,40',  tipo:'Sottotetto',    st:"disponibile",     owner:"",      price:"", listino:"204000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta terreno",history:[]},
+      BL1: {lbl:'L3', sc:'B',sl:'109,00', snr:'87,83', tipo:'Locale Commerciale', st:"disponibile",owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      BL2: {lbl:'L1A',sc:'B',sl:'54,60', snr:'',  tipo:'Locale Commerciale', st:"disponibile",owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      BL3: {lbl:'L1B',sc:'B',sl:'51,20', snr:'',  tipo:'Locale Commerciale', st:"venduto",owner:"Motti",           price:"50000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      CL1: {lbl:'L3', sc:'C',sl:'108,35', snr:'',  tipo:'Locale Commerciale', st:"disponibile",owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      CL2: {lbl:'L4', sc:'C',sl:'108,35', snr:'',  tipo:'Locale Commerciale', st:"disponibile",owner:"",           price:"",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
     }
   },
   equilibrio:{
@@ -656,27 +682,27 @@ const BASE = {
     ],
     units:{
       // ─ Scala A ─
-      A01: {lbl:'1',  sc:'A', sl:'87,00', tipo:'ERS Trilocale', st:"disponibile", owner:"", codice:'DPEQA01', price:"", listino:"199000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A02: {lbl:'2',  sc:'A', sl:'90,00', tipo:'ERS Bilocale',  st:"disponibile", owner:"", codice:'DPEQA02', price:"", listino:"205000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A13: {lbl:'3',  sc:'A', sl:'92,00', tipo:'ERS Trilocale', st:"disponibile", owner:"", codice:'DPEQA13', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A14: {lbl:'4',  sc:'A', sl:'92,00', tipo:'ERS Trilocale', st:"disponibile", owner:"", codice:'DPEQA14', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A25: {lbl:'5',  sc:'A', sl:'92,00', tipo:'ERS Trilocale', st:"disponibile", owner:"", codice:'DPEQA25', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A26: {lbl:'6',  sc:'A', sl:'92,00', tipo:'ERS Trilocale', st:"disponibile", owner:"", codice:'DPEQA26', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A37: {lbl:'7',  sc:'A', sl:'92,00', tipo:'ERS Trilocale', st:"disponibile", owner:"", codice:'DPEQA37', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A38: {lbl:'8',  sc:'A', sl:'92,00', tipo:'ERS Trilocale', st:"venduto", owner:"Carmen Terracciano", codice:'DPEQA38', price:"210000",accordo:"Acquisto",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      AMS1: {lbl:'S1', sc:'A', sl:'92,00', tipo:'ERS Mansarda',  st:"disponibile", owner:"", codice:'DPEQAMS1',price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      AMS2: {lbl:'S2', sc:'A', sl:'92,00', tipo:'ERS Mansarda',  st:"disponibile", owner:"", codice:'DPEQAMS2',price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A01: {lbl:'1',  sc:'A', sl:'87,00', snr:'110,00', tipo:'ERS Trilocale', st:"disponibile", owner:"", codice:'DPEQA01', price:"", listino:"199000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A02: {lbl:'2',  sc:'A', sl:'90,00', snr:'115,00', tipo:'ERS Bilocale',  st:"disponibile", owner:"", codice:'DPEQA02', price:"", listino:"205000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A13: {lbl:'3',  sc:'A', sl:'92,00', snr:'44,75', tipo:'ERS Trilocale', st:"disponibile", owner:"", codice:'DPEQA13', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A14: {lbl:'4',  sc:'A', sl:'92,00', snr:'31,00', tipo:'ERS Trilocale', st:"disponibile", owner:"", codice:'DPEQA14', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A25: {lbl:'5',  sc:'A', sl:'92,00', snr:'44,75', tipo:'ERS Trilocale', st:"disponibile", owner:"", codice:'DPEQA25', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A26: {lbl:'6',  sc:'A', sl:'92,00', snr:'31,00', tipo:'ERS Trilocale', st:"disponibile", owner:"", codice:'DPEQA26', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A37: {lbl:'7',  sc:'A', sl:'92,00', snr:'44,75', tipo:'ERS Trilocale', st:"disponibile", owner:"", codice:'DPEQA37', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A38: {lbl:'8',  sc:'A', sl:'92,00', snr:'31,00', tipo:'ERS Trilocale', st:"venduto", owner:"Carmen Terracciano", codice:'DPEQA38', price:"210000",accordo:"Acquisto",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      AMS1: {lbl:'S1', sc:'A', sl:'92,00', snr:'44,75', tipo:'ERS Mansarda',  st:"disponibile", owner:"", codice:'DPEQAMS1',price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      AMS2: {lbl:'S2', sc:'A', sl:'92,00', snr:'31,00', tipo:'ERS Mansarda',  st:"disponibile", owner:"", codice:'DPEQAMS2',price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
       // ─ Scala B ─
-      B01: {lbl:'2',  sc:'B', sl:'90,00', tipo:'ERS Bilocale',  st:"disponibile", owner:"",               codice:'DPEQB01', price:"", listino:"205000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      B02: {lbl:'1',  sc:'B', sl:'87,00', tipo:'ERS Trilocale', st:"disponibile", owner:"",               codice:'DPEQB02', price:"", listino:"199000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      B13: {lbl:'4',  sc:'B', sl:'92,00', tipo:'ERS Trilocale', st:"venduto",     owner:"Barbato Angelo", codice:'DPEQB13', price:"150000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"si ipotizza vendita a 150k a stato grezzo",history:[]},
-      B14: {lbl:'3',  sc:'B', sl:'92,00', tipo:'ERS Trilocale', st:"venduto",     owner:"Barbato Angelo", codice:'DPEQB14', price:"150000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"si ipotizza vendita a 150k a stato grezzo",history:[]},
-      B25: {lbl:'6',  sc:'B', sl:'92,00', tipo:'ERS Trilocale', st:"disponibile", owner:"",               codice:'DPEQB25', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      B26: {lbl:'5',  sc:'B', sl:'92,00', tipo:'ERS Trilocale', st:"disponibile", owner:"",               codice:'DPEQB26', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      B37: {lbl:'8',  sc:'B', sl:'92,00', tipo:'ERS Trilocale', st:"venduto",     owner:"Barbato Michele",codice:'DPEQB37', price:"150000",accordo:"Acquisto",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"si ipotizza vendita a 150k a stato grezzo",history:[]},
-      B38: {lbl:'7',  sc:'B', sl:'92,00', tipo:'ERS Trilocale', st:"venduto",     owner:"Barbato Michele",codice:'DPEQB38', price:"100000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"valore 100.000 perchè in F3",history:[]},
-      BMS1: {lbl:'S2', sc:'B', sl:'92,00', tipo:'ERS Mansarda',  st:"disponibile", owner:"",               codice:'DPEQBMS1',price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      BMS2: {lbl:'S1', sc:'B', sl:'92,00', tipo:'ERS Mansarda',  st:"disponibile", owner:"",               codice:'DPEQBMS2',price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      B01: {lbl:'2',  sc:'B', sl:'87,00', snr:'110,00', tipo:'ERS Bilocale',  st:"disponibile", owner:"",               codice:'DPEQB01', price:"", listino:"205000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      B02: {lbl:'1',  sc:'B', sl:'90,00', snr:'115,00', tipo:'ERS Trilocale', st:"disponibile", owner:"",               codice:'DPEQB02', price:"", listino:"199000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      B13: {lbl:'4',  sc:'B', sl:'92,00', snr:'44,75', tipo:'ERS Trilocale', st:"venduto",     owner:"Barbato Angelo", codice:'DPEQB13', price:"150000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"si ipotizza vendita a 150k a stato grezzo",history:[]},
+      B14: {lbl:'3',  sc:'B', sl:'92,00', snr:'31,00', tipo:'ERS Trilocale', st:"venduto",     owner:"Barbato Angelo", codice:'DPEQB14', price:"150000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"si ipotizza vendita a 150k a stato grezzo",history:[]},
+      B25: {lbl:'6',  sc:'B', sl:'92,00', snr:'44,75', tipo:'ERS Trilocale', st:"disponibile", owner:"",               codice:'DPEQB25', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      B26: {lbl:'5',  sc:'B', sl:'92,00', snr:'31,00', tipo:'ERS Trilocale', st:"disponibile", owner:"",               codice:'DPEQB26', price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      B37: {lbl:'8',  sc:'B', sl:'92,00', snr:'44,75', tipo:'ERS Trilocale', st:"venduto",     owner:"Barbato Michele",codice:'DPEQB37', price:"150000",accordo:"Acquisto",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"si ipotizza vendita a 150k a stato grezzo",history:[]},
+      B38: {lbl:'7',  sc:'B', sl:'92,00', snr:'31,00', tipo:'ERS Trilocale', st:"venduto",     owner:"Barbato Michele",codice:'DPEQB38', price:"100000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"valore 100.000 perchè in F3",history:[]},
+      BMS1: {lbl:'S2', sc:'B', sl:'92,00', snr:'44,75', tipo:'ERS Mansarda',  st:"disponibile", owner:"",               codice:'DPEQBMS1',price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      BMS2: {lbl:'S1', sc:'B', sl:'92,00', snr:'31,00', tipo:'ERS Mansarda',  st:"disponibile", owner:"",               codice:'DPEQBMS2',price:"", listino:"210000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
     }
   },
 
@@ -691,21 +717,21 @@ const BASE = {
       {id:'mans', name:'Piano Mansarda', quota:'+12,75', layout:[{sc:'A',ids:['AS1','AS2']},{sc:'B',ids:['BS1']}]},
     ],
     units:{
-      AL1: {lbl:'L1',sc:'A',sl:'93,00', tipo:'Locale Commerciale',st:"disponibile",  owner:"",           codice:'',      price:"",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      A1: {lbl:'1', sc:'A',sl:'112,00',tipo:'ERS Trilocale',     st:"venduto",owner:"Barbato 1",         codice:'',      price:"",accordo:"Permuta",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A2: {lbl:'3', sc:'A',sl:'94,00', tipo:'Bilocale',           st:"venduto",owner:"Di Biase Vincenzo",         codice:'',      price:"235000",accordo:"Acquisto",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A3: {lbl:'2', sc:'A',sl:'112,00',tipo:'ERS Trilocale',     st:"disponibile",owner:"",         codice:'',      price:"", listino:"255000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A4: {lbl:'5', sc:'A',sl:'94,00', tipo:'Bilocale',           st:"venduto",owner:"Verde Silvestre",         codice:'',      price:"235000",accordo:"Acquisto",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A5: {lbl:'4', sc:'A',sl:'112,00',tipo:'ERS Trilocale',     st:"venduto",owner:"Migliaccio Cesario",         codice:'',      price:"250000",accordo:"Acquisto",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A6: {lbl:'7', sc:'A',sl:'94,00', tipo:'Bilocale',           st:"venduto",    owner:"Ugo Gloria",codice:'',     price:"150000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'9', notaio:'',notes:"consegnare finito",history:[]},
-      A7: {lbl:'6', sc:'A',sl:'112,00',tipo:'ERS Trilocale',     st:"venduto",owner:"Paone Osvaldo",         codice:'',      price:"260000",accordo:"Acquisto",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      AS1: {lbl:'S1',sc:'A',sl:'94,00', tipo:'Mansarda',           st:"venduto",    owner:"Ugo Gloria",codice:'',     price:"100000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'10',notaio:'',notes:"consegnare finito",history:[]},
-      AS2: {lbl:'S2',sc:'A',sl:'112,00',tipo:'ERS Mansarda',      st:"disponibile",owner:"",         codice:'',      price:"", listino:"255000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      B1: {lbl:'1', sc:'B',sl:'125,45',tipo:'Trilocale',         st:"venduto",    owner:"Sglavo",   codice:'',      price:"50000",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"50k perchè consegnato solo lo scheletro",history:[]},
-      B2: {lbl:'1', sc:'B',sl:'125,45',tipo:'Trilocale',         st:"venduto",    owner:"Sglavo",   codice:'',      price:"50000",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"50k perchè consegnato solo lo scheletro",history:[]},
-      B3: {lbl:'2', sc:'B',sl:'125,45',tipo:'Trilocale',         st:"venduto",    owner:"Sglavo",   codice:'',      price:"50000",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"50k perchè consegnato solo lo scheletro",history:[]},
-      B4: {lbl:'3', sc:'B',sl:'125,45',tipo:'Trilocale',         st:"venduto",    owner:"Sglavo",   codice:'',      price:"50000",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"50k perchè consegnato solo lo scheletro",history:[]},
-      BS1: {lbl:'S1',sc:'B',sl:'125,45',tipo:'Mansarda',          st:"venduto",    owner:"Sglavo",   codice:'',      price:"50000",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"50k perchè consegnato solo lo scheletro",history:[]},
+      AL1: {lbl:'L1',sc:'A',sl:'93,00', snr:'', tipo:'Locale Commerciale',st:"disponibile",  owner:"",           codice:'',      price:"",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      A1: {lbl:'1', sc:'A',sl:'112,00', snr:'161,00',tipo:'ERS Trilocale',     st:"venduto",owner:"Barbato 1",         codice:'',      price:"",accordo:"Permuta",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A2: {lbl:'3', sc:'A',sl:'94,00', snr:'37,70', tipo:'Bilocale',           st:"venduto",owner:"Di Biase Vincenzo",         codice:'',      price:"235000",accordo:"Acquisto",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A3: {lbl:'2', sc:'A',sl:'112,00', snr:'58,50',tipo:'ERS Trilocale',     st:"disponibile",owner:"",         codice:'',      price:"", listino:"255000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A4: {lbl:'5', sc:'A',sl:'94,00', snr:'37,70', tipo:'Bilocale',           st:"venduto",owner:"Verde Silvestre",         codice:'',      price:"235000",accordo:"Acquisto",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A5: {lbl:'4', sc:'A',sl:'112,00', snr:'58,50',tipo:'ERS Trilocale',     st:"venduto",owner:"Migliaccio Cesario",         codice:'',      price:"250000",accordo:"Acquisto",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A6: {lbl:'7', sc:'A',sl:'94,00', snr:'37,70', tipo:'Bilocale',           st:"venduto",    owner:"Ugo Gloria",codice:'',     price:"150000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'9', notaio:'',notes:"consegnare finito",history:[]},
+      A7: {lbl:'6', sc:'A',sl:'112,00', snr:'58,50',tipo:'ERS Trilocale',     st:"venduto",owner:"Paone Osvaldo",         codice:'',      price:"260000",accordo:"Acquisto",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      AS1: {lbl:'S1',sc:'A',sl:'91,00', snr:'37,70', tipo:'Mansarda',           st:"venduto",    owner:"Ugo Gloria",codice:'',     price:"100000",accordo:"Permuta",drive:'',phone:'',email:'',date:'',box:'10',notaio:'',notes:"consegnare finito",history:[]},
+      AS2: {lbl:'S2',sc:'A',sl:'112,00', snr:'58,50',tipo:'ERS Mansarda',      st:"disponibile",owner:"",         codice:'',      price:"", listino:"255000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      B1: {lbl:'1', sc:'B',sl:'112,00', snr:'',tipo:'Trilocale',         st:"venduto",    owner:"Sglavo",   codice:'',      price:"50000",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"50k perchè consegnato solo lo scheletro",history:[]},
+      B2: {lbl:'1', sc:'B',sl:'112,00', snr:'',tipo:'Trilocale',         st:"venduto",    owner:"Sglavo",   codice:'',      price:"50000",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"50k perchè consegnato solo lo scheletro",history:[]},
+      B3: {lbl:'2', sc:'B',sl:'112,00', snr:'',tipo:'Trilocale',         st:"venduto",    owner:"Sglavo",   codice:'',      price:"50000",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"50k perchè consegnato solo lo scheletro",history:[]},
+      B4: {lbl:'3', sc:'B',sl:'112,00', snr:'',tipo:'Trilocale',         st:"venduto",    owner:"Sglavo",   codice:'',      price:"50000",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"50k perchè consegnato solo lo scheletro",history:[]},
+      BS1: {lbl:'S1',sc:'B',sl:'112,00', snr:'',tipo:'Mansarda',          st:"venduto",    owner:"Sglavo",   codice:'',      price:"50000",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"50k perchè consegnato solo lo scheletro",history:[]},
     }
   },
 
@@ -720,28 +746,28 @@ const BASE = {
       {id:'st', name:'Piano Sottotetto', quota:'+12,60', layout:[{sc:'A',ids:['AS1','AS2']},          {sc:'B',ids:['BS1','BS2']}]},
     ],
     units:{
-      L1: {lbl:'L1',sc:'A',sl:'40,00', tipo:'Locale Commerciale',st:"disponibile",    owner:"",          codice:'DPAUA0L1',price:"",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
-      L2: {lbl:'L2',sc:'A',sl:'50,00', tipo:'Locale Commerciale',st:"venduto",    owner:"Sepe",          codice:'DPAUA0L2',price:"60300",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
-      L3: {lbl:'L3',sc:'A',sl:'50,00', tipo:'Locale Commerciale',st:"venduto",    owner:"Sepe",          codice:'DPAUA0L3',price:"60300",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
-      L4: {lbl:'L4',sc:'A',sl:'50,00', tipo:'Locale Commerciale',st:"venduto",     owner:"Sepe",              codice:'DPAUA0L4',price:"60300",accordo:"Permuta",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      B01: {lbl:'1', sc:'B',sl:'68,56', tipo:'ERS Bilocale',      st:"disponibile",owner:"",              codice:'DPAUB01', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      B02: {lbl:'2', sc:'B',sl:'68,56', tipo:'ERS Bilocale',      st:"disponibile",owner:"",              codice:'DPAUB02', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A11: {lbl:'1', sc:'A',sl:'100,00',tipo:'Trilocale',         st:"venduto",    owner:"Sepe",          codice:'DPAUA11', price:"100268",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
-      A12: {lbl:'2', sc:'A',sl:'100,00',tipo:'Trilocale',         st:"venduto",    owner:"Coppola Giuseppa",       codice:'DPAUA12', price:"",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta (Prop. Amore)",history:[]},
-      B13: {lbl:'3', sc:'B',sl:'71,00', tipo:'ERS Trilocale',     st:"disponibile",owner:"",              codice:'DPAUB13', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      B14: {lbl:'4', sc:'B',sl:'71,00', tipo:'ERS Trilocale',     st:"disponibile",owner:"",              codice:'DPAUB14', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A23: {lbl:'3', sc:'A',sl:'100,00',tipo:'Trilocale',         st:"venduto",    owner:"Sepe",          codice:'DPAUA23', price:"100268",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
-      A24: {lbl:'4', sc:'A',sl:'100,00',tipo:'Trilocale',         st:"disponibile",owner:"",              codice:'DPAUA24', price:"", listino:"250000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      B25: {lbl:'5', sc:'B',sl:'71,00', tipo:'ERS Trilocale',     st:"venduto",owner:"Puca Giulia",              codice:'DPAUB25', price:"165000",accordo:"Acquisto",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      B26: {lbl:'6', sc:'B',sl:'71,00', tipo:'ERS Trilocale',     st:"disponibile",    owner:"",   codice:'DPAUB26', price:"", listino:"165000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      A35: {lbl:'5', sc:'A',sl:'100,00',tipo:'Trilocale',         st:"venduto",    owner:"Sepe",          codice:'DPAUA35', price:"100268",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
-      A36: {lbl:'6', sc:'A',sl:'100,00',tipo:'Trilocale',         st:"venduto",    owner:"Domenico Primo",codice:'DPAUA36', price:"250000",accordo:"Acquisto", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta - Comunale",history:[]},
-      B37: {lbl:'7', sc:'B',sl:'71,00', tipo:'ERS Trilocale',     st:"disponibile",owner:"",              codice:'DPAUB37', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      B38: {lbl:'8', sc:'B',sl:'71,00', tipo:'ERS Trilocale',     st:"disponibile",owner:"",              codice:'DPAUB38', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      AS1: {lbl:'S1',sc:'A',sl:'100,00',tipo:'Mansarda',          st:"disponibile",owner:"",              codice:'DPAUA3S1',price:"", listino:"250000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      AS2: {lbl:'S2',sc:'A',sl:'100,00',tipo:'Mansarda',          st:"disponibile",owner:"",              codice:'DPAUA3S2',price:"", listino:"250000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
-      BS1: {lbl:'S1',sc:'B',sl:'71,00', tipo:'ERS Mansarda',      st:"disponibile",owner:"",              codice:'DPAUBS1', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
-      BS2: {lbl:'S2',sc:'B',sl:'71,00', tipo:'ERS Mansarda',      st:"disponibile",owner:"",              codice:'DPAUBS2', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      L1: {lbl:'L1',sc:'A',sl:'50,00', snr:'145,00', tipo:'Locale Commerciale',st:"disponibile",    owner:"",          codice:'DPAUA0L1',price:"",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
+      L2: {lbl:'L2',sc:'A',sl:'50,00', snr:'30,00', tipo:'Locale Commerciale',st:"venduto",    owner:"Sepe",          codice:'DPAUA0L2',price:"60300",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
+      L3: {lbl:'L3',sc:'A',sl:'50,00', snr:'58,00', tipo:'Locale Commerciale',st:"venduto",    owner:"Sepe",          codice:'DPAUA0L3',price:"60300",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
+      L4: {lbl:'L4',sc:'A',sl:'40,00', snr:'58,00', tipo:'Locale Commerciale',st:"venduto",     owner:"Sepe",              codice:'DPAUA0L4',price:"60300",accordo:"Permuta",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      B01: {lbl:'1', sc:'B',sl:'68,56', snr:'110,00', tipo:'ERS Bilocale',      st:"disponibile",owner:"",              codice:'DPAUB01', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      B02: {lbl:'2', sc:'B',sl:'68,56', snr:'200,00', tipo:'ERS Bilocale',      st:"disponibile",owner:"",              codice:'DPAUB02', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A11: {lbl:'1', sc:'A',sl:'100,00', snr:'58,00',tipo:'Trilocale',         st:"venduto",    owner:"Sepe",          codice:'DPAUA11', price:"100268",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
+      A12: {lbl:'2', sc:'A',sl:'100,00', snr:'45,00',tipo:'Trilocale',         st:"venduto",    owner:"Coppola Giuseppa",       codice:'DPAUA12', price:"",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta (Prop. Amore)",history:[]},
+      B13: {lbl:'3', sc:'B',sl:'71,00', snr:'26,00', tipo:'ERS Trilocale',     st:"disponibile",owner:"",              codice:'DPAUB13', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      B14: {lbl:'4', sc:'B',sl:'71,00', snr:'41,80', tipo:'ERS Trilocale',     st:"disponibile",owner:"",              codice:'DPAUB14', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A23: {lbl:'3', sc:'A',sl:'100,00', snr:'58,00',tipo:'Trilocale',         st:"venduto",    owner:"Sepe",          codice:'DPAUA23', price:"100268",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
+      A24: {lbl:'4', sc:'A',sl:'100,00', snr:'45,00',tipo:'Trilocale',         st:"disponibile",owner:"",              codice:'DPAUA24', price:"", listino:"250000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      B25: {lbl:'5', sc:'B',sl:'71,00', snr:'26,00', tipo:'ERS Trilocale',     st:"venduto",owner:"Puca Giulia",              codice:'DPAUB25', price:"165000",accordo:"Acquisto",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      B26: {lbl:'6', sc:'B',sl:'71,00', snr:'41,80', tipo:'ERS Trilocale',     st:"disponibile",    owner:"",   codice:'DPAUB26', price:"", listino:"165000",accordo:"",drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      A35: {lbl:'5', sc:'A',sl:'100,00', snr:'58,00',tipo:'Trilocale',         st:"venduto",    owner:"Sepe",          codice:'DPAUA35', price:"100268",accordo:"Permuta", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta",history:[]},
+      A36: {lbl:'6', sc:'A',sl:'100,00', snr:'45,00',tipo:'Trilocale',         st:"venduto",    owner:"Domenico Primo",codice:'DPAUA36', price:"250000",accordo:"Acquisto", drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Permuta - Comunale",history:[]},
+      B37: {lbl:'7', sc:'B',sl:'71,00', snr:'26,00', tipo:'ERS Trilocale',     st:"disponibile",owner:"",              codice:'DPAUB37', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      B38: {lbl:'8', sc:'B',sl:'71,00', snr:'41,80', tipo:'ERS Trilocale',     st:"disponibile",owner:"",              codice:'DPAUB38', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      AS1: {lbl:'S1',sc:'A',sl:'100,00', snr:'58,00',tipo:'Mansarda',          st:"disponibile",owner:"",              codice:'DPAUA3S1',price:"", listino:"250000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      AS2: {lbl:'S2',sc:'A',sl:'100,00', snr:'45,00',tipo:'Mansarda',          st:"disponibile",owner:"",              codice:'DPAUA3S2',price:"", listino:"250000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"",history:[]},
+      BS1: {lbl:'S1',sc:'B',sl:'71,00', snr:'26,00', tipo:'ERS Mansarda',      st:"disponibile",owner:"",              codice:'DPAUBS1', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
+      BS2: {lbl:'S2',sc:'B',sl:'71,00', snr:'41,80', tipo:'ERS Mansarda',      st:"disponibile",owner:"",              codice:'DPAUBS2', price:"", listino:"165000",accordo:"",        drive:'',phone:'',email:'',date:'',box:'',notaio:'',notes:"Edilizia Residenziale Sociale",history:[]},
     }
   }
 };
@@ -904,62 +930,68 @@ function loadFiles(){
 function renderKPI() {
   const allUnits = Object.values(D[proj].units);
   const units = allUnits.filter(u => u.st !== 'locale');
-  const totAll = allUnits.length;
   const tot = units.length, vUnits = units.filter(u=>u.st==='venduto'),
         v = vUnits.length, r = units.filter(u=>u.st==='riservato').length,
         d = units.filter(u=>u.st==='disponibile').length;
-  const loc = allUnits.filter(u=>u.st==='locale').length;
+  const nonVendute = units.filter(u=>u.st!=='venduto'); // riservate + disponibili
   const eurF = u => parseFloat((u.price||'').replace(/\./g,'').replace(',','.')) || 0;
-  // Ricavi del venduto = solo unità vendute con accordo "Acquisto"
-  const eur = vUnits.filter(u=>u.accordo==='Acquisto').reduce((s,u)=>s+eurF(u),0);
-  // ricavi preventivati = €2500 × mq di tutte le unità
-  const prevTot = allUnits.reduce((s,u)=>s+prevOf(u),0) + calcBoxRevenue(proj);
-  // mq venduti (con prezzo inserito)
-  const vConPrezzo = vUnits.filter(u=>eurF(u)>0);
-  const mqVenduti = vConPrezzo.reduce((s,u)=>s+parseSL(u.sl),0);
-  const prezzoMqEff = mqVenduti>0 ? Math.round(eur/mqVenduti) : 0;
-  const pv=tot?(v/tot*100).toFixed(0):0, pr=tot?(r/tot*100).toFixed(0):0, pd=tot?(d/tot*100).toFixed(0):0;
-  // ── KPI ricavi semplificati ──
-  const prevOper = Math.round(allUnits.reduce((s,u)=>s+parseSL(u.sl),0)*2100) + boxRevenueOper(proj);                  // S.L. × €2.100/mq + box auto
-  // Importo permuta = prezzo concordato se presente, altrimenti previsionale (S.L. × €/mq) — su unità vendute con accordo Permuta
-  const permVal  = vUnits.filter(u=>u.accordo==='Permuta').reduce((s,u)=>{ const c=eurF(u); return s + (c>0 ? c : prevOf(u)); }, 0);
-  const dispVal  = allUnits.filter(u=>u.st==='disponibile').reduce((s,u)=>s+prevOf(u),0);  // ricavi da effettuare (listino se presente)
-  const vAcqP    = vUnits.filter(u=>u.accordo==='Acquisto' && eurF(u)>0);                 // vendute acquisto con prezzo
-  const mqAcq    = vAcqP.reduce((s,u)=>s+parseSL(u.sl),0);
-  const prezzoMqAcq = mqAcq>0 ? Math.round(eur/mqAcq) : 0;                                 // €/mq del venduto (acquisto)
+  // Venduto (accordo Acquisto): prezzo concordato, se assente stima previsionale (SL+SNR+box)
+  const vendutoVal = vUnits.filter(u=>u.accordo==='Acquisto').reduce((s,u)=>{ const c=eurF(u); return s + (c>0 ? c : prevOf(u)); }, 0);
+  // Permuta: prezzo concordato, se assente stima previsionale
+  const permutaVal = vUnits.filter(u=>u.accordo==='Permuta').reduce((s,u)=>{ const c=eurF(u); return s + (c>0 ? c : prevOf(u)); }, 0);
+  // Invenduto: stima previsionale di ciò che resta da vendere (riservate + disponibili)
+  const invendutoVal = nonVendute.reduce((s,u)=>s+prevOf(u), 0);
+  // Ricavi previsti di tutta l'operazione = somma delle tre componenti (identità, sempre coerente)
+  const totaleOperazione = vendutoVal + permutaVal + invendutoVal;
+  const pctV = totaleOperazione ? (vendutoVal/totaleOperazione*100).toFixed(0) : 0;
+  const pctP = totaleOperazione ? (permutaVal/totaleOperazione*100).toFixed(0) : 0;
+  const pctI = totaleOperazione ? (invendutoVal/totaleOperazione*100).toFixed(0) : 0;
+  const pctRealizzato = totaleOperazione ? Math.round((vendutoVal+permutaVal)/totaleOperazione*100) : 0;
+  // Prezzo al mq venduto: solo Acquisto con prezzo inserito, mai le Permute
+  const vAcqP = vUnits.filter(u=>u.accordo==='Acquisto' && eurF(u)>0);
+  const mqAcq = vAcqP.reduce((s,u)=>s+parseSL(u.sl),0);
+  const eurAcqEffettivo = vAcqP.reduce((s,u)=>s+eurF(u),0);
+  const prezzoMqAcq = mqAcq>0 ? Math.round(eurAcqEffettivo/mqAcq) : 0;
+  // Acconti (SAL) ricevuti / da ricevere, su tutte le unità del lotto — soldi reali, non stime
+  let accontiRic = 0, accontiDaRic = 0;
+  allUnits.forEach(u => {
+    (u.sal||[]).forEach(rr => {
+      const imp = parseFloat(rr.importo) || 0;
+      if (rr.incassato) accontiRic += imp; else accontiDaRic += imp;
+    });
+  });
+  const eur = fmt => fmt>0 ? '€ '+Math.round(fmt).toLocaleString('it-IT') : '—';
   document.getElementById('kpi').innerHTML = `
-    <div class="kpi t">
-      <div class="kl">Totale Unità</div><div class="kv">${totAll}</div>
-      <div class="ks">${tot} res. + ${loc} locali</div>
-      <div class="pbar"><div class="pb-v" style="width:${pv}%"></div><div class="pb-r" style="width:${pr}%"></div><div class="pb-d" style="width:${pd}%"></div></div>
-    </div>
-    <div class="kpi v"><div class="kl">Vendute</div><div class="kv">${v}</div><div class="ks">${pv}% delle res.</div></div>
-    <div class="kpi r"><div class="kl">Riservate</div><div class="kv">${r}</div><div class="ks">${pr}% delle res.</div></div>
-    <div class="kpi d"><div class="kl">Disponibili</div><div class="kv">${d}</div><div class="ks">${pd}% delle res.</div></div>
-    <div class="kpi" style="background:#f0f4ff;border-color:#c8d8f8">
-      <div class="kl">Ricavi Previsti Operazione</div>
-      <div class="kv" style="color:#3a5fa0;font-size:15px">€ ${prevOper.toLocaleString('it-IT')}</div>
-      <div class="ks">S.L. × €2.100/mq + box auto</div>
+    <div class="kpi big">
+      <div class="kl">Ricavi Previsti Totale Operazione</div>
+      <div class="kv" style="color:var(--navy);font-size:20px">${eur(totaleOperazione)}</div>
+      <div class="ks">${v} vendute (${pctRealizzato}% del valore) · ${r} riservate · ${d} disponibili · ${tot} unità totali</div>
+      <div class="pbar"><div class="pb-v" style="width:${pctV}%" title="Venduto"></div><div class="pb-r" style="width:${pctP}%" title="Permuta"></div><div class="pb-d" style="width:${pctI}%;background:#b0a8a0" title="Invenduto"></div></div>
     </div>
     <div class="kpi" style="background:#fffbe6;border-color:#f0d060">
-      <div class="kl">Ricavi del Venduto</div>
-      <div class="kv" style="color:#b8860b;font-size:15px">${eur>0?'€ '+eur.toLocaleString('it-IT'):'—'}</div>
-      <div class="ks">prezzo concordato · vendute con accordo Acquisto</div>
+      <div class="kl">Venduto (Acquisto)</div>
+      <div class="kv" style="color:#b8860b;font-size:15px">${eur(vendutoVal)}</div>
+      <div class="ks">${prezzoMqAcq>0?'€ '+prezzoMqAcq.toLocaleString('it-IT')+'/mq medio · ':''}concordato, o previsionale se assente</div>
     </div>
     <div class="kpi" style="background:#f4eefb;border-color:#d7c4ee">
-      <div class="kl">Importo Permuta</div>
-      <div class="kv" style="color:#5e35b1;font-size:15px">${permVal>0?'€ '+permVal.toLocaleString('it-IT'):'—'}</div>
-      <div class="ks">accordo Permuta · concordato o, se assente, previsionale</div>
+      <div class="kl">Permuta</div>
+      <div class="kv" style="color:#5e35b1;font-size:15px">${eur(permutaVal)}</div>
+      <div class="ks">concordato, o previsionale se assente</div>
+    </div>
+    <div class="kpi" style="background:#f2f0ec;border-color:#d8d0c4">
+      <div class="kl">Invenduto</div>
+      <div class="kv" style="color:#6a6258;font-size:15px">${eur(invendutoVal)}</div>
+      <div class="ks">stima previsionale · riservate + disponibili, non ancora realizzato</div>
     </div>
     <div class="kpi" style="background:#eef7ee;border-color:#bfe0c0">
-      <div class="kl">Ricavi da Effettuare</div>
-      <div class="kv" style="color:#2e7d32;font-size:15px">${dispVal>0?'€ '+dispVal.toLocaleString('it-IT'):'—'}</div>
-      <div class="ks">unità disponibili (previsionale)</div>
+      <div class="kl">Incassato</div>
+      <div class="kv" style="color:#2e7d32;font-size:15px">${eur(accontiRic)}</div>
+      <div class="ks">SAL effettivamente incassati</div>
     </div>
-    <div class="kpi" style="background:#fffbe6;border-color:#f0d060">
-      <div class="kl">Prezzo al mq Venduto (Acquisto)</div>
-      <div class="kv" style="color:#b8860b;font-size:15px">${prezzoMqAcq>0?'€ '+prezzoMqAcq.toLocaleString('it-IT'):'—'}</div>
-      <div class="ks">${vAcqP.length>0?'su '+vAcqP.length+' vendite con prezzo':'nessun prezzo inserito'}</div>
+    <div class="kpi" style="background:#fdeeee;border-color:#f0c0c0">
+      <div class="kl">Da Incassare</div>
+      <div class="kv" style="color:#c0392b;font-size:15px">${eur(accontiDaRic)}</div>
+      <div class="ks">SAL programmati, non ancora incassati</div>
     </div>
   `;
 }
@@ -1284,7 +1316,104 @@ function sw(p) {
 
 // ─── DASHBOARD ───
 const PRICE_PER_MQ = 2000;
+const SNR_PRICE_PER_MQ = 1000; // €/mq di S.N.R. (balconi/terrazzi), sommato al prezzo previsionale
 const BOX_PRICE_PER_MQ = 1000;
+
+// ── Elenco box per progetto (usato per calcolare il valore del/dei box assegnati a un'unità) ──
+function boxesArrFor(projKey) {
+  if (projKey === 'a1' || projKey === 'a2') return BOXES_A1A2;
+  if (projKey === 'vittoria')   return BOXES_VITTORIA;
+  if (projKey === 'passione')   return BOXES_PASSIONE;
+  if (projKey === 'equilibrio') return BOXES_EQUILIBRIO;
+  if (projKey === 'sorriso')    return BOXES_SORRISO;
+  if (projKey === 'audacia')    return BOXES_AUDACIA;
+  return [];
+}
+// Mq totali dei box assegnati a un'unità (campo u.box, es. "12" oppure "31/32" per box doppi)
+function boxMqOf(u, projKey) {
+  if (!u || !u.box) return 0;
+  const arr = boxesArrFor(projKey);
+  if (!arr.length) return 0;
+  const map = {};
+  arr.forEach(b => { map[b.n] = b; });
+  return String(u.box).split('/').reduce((s, nb) => {
+    const n = parseInt(String(nb).trim(), 10);
+    const b = n ? map[n] : null;
+    return s + (b ? parseFloat(String(b.mq).replace(',', '.')) : 0);
+  }, 0);
+}
+// Valore in € dei box assegnati a un'unità
+function boxEurOf(u, projKey) {
+  return Math.round(boxMqOf(u, projKey) * BOX_PRICE_PER_MQ);
+}
+
+// ── Selettore interattivo box auto (nella scheda unità) ──
+// Lotti che condividono la stessa autorimessa/pool di box (Armonia 1 e Armonia 2 sono sullo stesso interrato)
+function boxProjKeysFor(projKey) {
+  if (projKey === 'a1' || projKey === 'a2') return ['a1','a2'];
+  return [projKey];
+}
+function boxMapFor(arr) {
+  const map = {};
+  arr.forEach(b => { map[b.n] = b; });
+  return map;
+}
+// Riga compatta col riepilogo dei box assegnati (quello che si vede senza aprire il pannello)
+function updateBoxSummaryText(selected, map) {
+  const summary = document.getElementById('fbx-summary');
+  if (!summary) return;
+  if (!selected.size) { summary.textContent = 'Nessun box assegnato'; return; }
+  const totMq = [...selected].reduce((s,n) => s + (map[n] ? parseFloat(String(map[n].mq).replace(',','.')) : 0), 0);
+  summary.textContent = `Box ${[...selected].sort((a,b)=>a-b).join(', ')} · ${totMq.toLocaleString('it-IT',{minimumFractionDigits:2})} mq totali`;
+}
+function renderBoxPicker(u, projKey) {
+  const details = document.getElementById('fbx-details');
+  const wrap = document.getElementById('fbx-picker');
+  if (!wrap) return;
+  if (details) details.open = false; // sempre chiuso all'apertura della scheda, per non affollare la vista
+  const arr = boxesArrFor(projKey);
+  const map = boxMapFor(arr);
+  const selected = new Set(String(u.box||'').split('/').map(s=>parseInt(s.trim(),10)).filter(Boolean));
+  document.getElementById('fbx').value = [...selected].join('/');
+  updateBoxSummaryText(selected, map);
+  if (!arr.length) { wrap.innerHTML = '<div class="box-picker-empty">Nessun box censito per questo lotto.</div>'; return; }
+  // box già assegnati ad ALTRE unità — nel lotto corrente e in quelli che condividono lo stesso interrato
+  const occupiedBy = {};
+  boxProjKeysFor(projKey).forEach(pk => {
+    const p = D[pk];
+    if (!p) return;
+    Object.entries(p.units).forEach(([otherUid, ou]) => {
+      if (pk === projKey && otherUid === curId) return; // salta l'unità che sto modificando
+      if (!ou.box) return;
+      String(ou.box).split('/').forEach(nb => {
+        const n = parseInt(String(nb).trim(), 10);
+        if (!n) return;
+        const who = ou.owner || `Int. ${ou.lbl||otherUid}`;
+        occupiedBy[n] = pk !== projKey ? `${who} (${p.name})` : who;
+      });
+    });
+  });
+  wrap.innerHTML = arr.map(b => {
+    const occ = occupiedBy[b.n];
+    const isSel = selected.has(b.n);
+    const disabled = occ && !isSel;
+    return `<label class="box-chip ${isSel?'sel':''} ${disabled?'occ':''}" title="${disabled ? 'Assegnato a '+esc(occ) : ''}">
+      <input type="checkbox" value="${b.n}" ${isSel?'checked':''} ${disabled?'disabled':''} onchange="toggleBoxPick(this)">
+      <span class="bn">${b.n}</span><span class="bmq">${b.mq} mq · ${b.tipo}</span>
+    </label>`;
+  }).join('');
+}
+
+function toggleBoxPick(cb) {
+  const wrap = document.getElementById('fbx-picker');
+  const selectedVals = [...wrap.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
+  document.getElementById('fbx').value = selectedVals.join('/');
+  cb.closest('label').classList.toggle('sel', cb.checked);
+  const map = boxMapFor(boxesArrFor(proj));
+  updateBoxSummaryText(new Set(selectedVals.map(Number)), map);
+  refreshPrevPreview();
+}
+
 // Ricavo preventivato box per progetto
 function calcBoxRevenue(proj) {
   const totA1A2 = BOXES_A1A2.reduce((s,b) => s + parseFloat(b.mq.replace(',','.')) * BOX_PRICE_PER_MQ, 0);
@@ -1337,10 +1466,12 @@ function parseSL(sl) {
   return parseFloat(String(sl).replace(',','.')) || 0;
 }
 
-// Prezzo previsionale unità: listino se impostato, altrimenti S.L. × €2.000/mq
-function prevOf(u) {
+// Prezzo previsionale unità: (listino se impostato, altrimenti S.L. × €2.000/mq + S.N.R. × €1.000/mq) + box auto × €1.000/mq
+function prevOf(u, projKey) {
+  projKey = projKey || proj;
   const l = parseFloat((u.listino||'').replace(/\./g,'').replace(',','.')) || 0;
-  return l > 0 ? Math.round(l) : Math.round(parseSL(u.sl) * PRICE_PER_MQ);
+  const base = l > 0 ? Math.round(l) : Math.round(parseSL(u.sl) * PRICE_PER_MQ + parseSL(u.snr) * SNR_PRICE_PER_MQ);
+  return base + boxEurOf(u, projKey);
 }
 
 function projStats(key) {
@@ -1699,7 +1830,7 @@ function renderDashboard() {
     let totPrev=0, totConc=0, totDelta=0, nConc=0;
     const rows = Object.entries(p.units).map(([uid,u]) => {
       const sl    = parseSL(u.sl);
-      const prev  = sl>0 ? prevOf(u) : 0;
+      const prev  = sl>0 ? prevOf(u, key) : 0;
       const conc  = parseFloat((u.price||'').replace(/\./g,'').replace(',','.')) || 0;
       const delta = conc>0 && prev>0 ? conc-prev : null;
       totPrev += prev; if(conc>0){totConc+=conc;totDelta+=(delta||0);nConc++;}
@@ -2002,7 +2133,7 @@ function openM(uid) {
   curId = uid;
   const u = D[proj].units[uid], p = D[proj];
   document.getElementById('mt').textContent = `${p.name} – Scala ${u.sc} / Int. ${u.lbl}`;
-  document.getElementById('ms').textContent = `${u.tipo} · S.L. ${u.sl} mq`;
+  document.getElementById('ms').textContent = `${u.tipo} · S.L. ${u.sl} mq${u.snr ? ` · S.N.R. ${u.snr} mq` : ''}`;
   document.getElementById('mi').innerHTML = `
     <span class="chip" style="background:#1a2e4a;color:#fff;font-weight:700;font-size:13px">🔑 Codice: <strong>${uid}</strong></span>
     <span class="chip">Progetto: <strong>${p.name}</strong></span>
@@ -2010,6 +2141,7 @@ function openM(uid) {
     <span class="chip">Int. N°: <strong>${u.lbl}</strong></span>
     <span class="chip">Tipologia: <strong>${u.tipo}</strong></span>
     <span class="chip">S.L.: <strong>${u.sl} mq</strong></span>
+    ${u.snr ? `<span class="chip">S.N.R. (balconi/terrazzi): <strong>${u.snr} mq</strong></span>` : ''}
   `;
   curIsLocale = false;
   document.getElementById('fst').value   = u.st;
@@ -2021,7 +2153,7 @@ function openM(uid) {
   document.getElementById('fpr').value   = formatPriceDisplay(u.price);
   document.getElementById('fpl').value   = formatPriceDisplay(u.listino);
   document.getElementById('fda').value   = u.date    || '';
-  document.getElementById('fbx').value   = u.box     || '';
+  renderBoxPicker(u, proj);
   document.getElementById('fac').value   = u.accordo || '';
   document.getElementById('fno').value   = u.notaio  || '';
   document.getElementById('fdr').value   = u.drive   || '';
@@ -2041,7 +2173,7 @@ function openM(uid) {
     : '';
   document.getElementById('mprev').innerHTML = `
     <div class="mprev-box">
-      <div class="mprev-lbl">📐 Prezzo previsionale ${hasListino ? '(listino)' : `(${sl > 0 ? sl.toLocaleString('it-IT',{minimumFractionDigits:2}) : '—'} mq × €${PRICE_PER_MQ.toLocaleString('it-IT')})`}</div>
+      <div class="mprev-lbl">📐 Prezzo previsionale ${(() => { const be=boxEurOf(u,proj); const bt = be>0 ? ` + box auto ${u.box} (€${be.toLocaleString('it-IT')})` : ''; return hasListino ? `(listino${bt})` : `(${sl > 0 ? sl.toLocaleString('it-IT',{minimumFractionDigits:2}) : '—'} mq S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}${parseSL(u.snr) > 0 ? ` + ${parseSL(u.snr).toLocaleString('it-IT',{minimumFractionDigits:2})} mq S.N.R. × €${SNR_PRICE_PER_MQ.toLocaleString('it-IT')}` : ''}${bt})`; })()}</div>
       <div class="mprev-val">${prevEur > 0 ? '€ ' + prevEur.toLocaleString('it-IT') : '—'}</div>
     </div>
     <div class="mprev-box">
@@ -2070,6 +2202,14 @@ function setFormLocked(locked) {
     el.style.background = locked ? '#f5f5f5' : '';
     el.style.color = locked ? '#555' : '';
     el.style.cursor = locked ? 'default' : '';
+  });
+  // Selettore box auto: i box liberi seguono il blocco form; quelli occupati da un'altra unità restano sempre bloccati
+  document.querySelectorAll('#fbx-picker .box-chip').forEach(chip => {
+    const cb = chip.querySelector('input[type=checkbox]');
+    if (!cb) return;
+    const isOcc = chip.classList.contains('occ');
+    cb.disabled = locked || isOcc;
+    chip.style.cursor = (locked || isOcc) ? 'not-allowed' : 'pointer';
   });
   // campo Stato: bloccato solo per i locali commerciali, sempre libero per tutti gli altri
   const fst = document.getElementById('fst');
@@ -2122,24 +2262,42 @@ function rb() {
   b.textContent = STLBL[v]||v; b.className='badge '+v;
 }
 
+// Ricalcola e ridisegna prezzo previsionale / concordato / delta nella scheda unità aperta.
+// Legge listino e concordato dal form, e il box dal selettore #fbx (aggiornato live dai chip).
+function refreshPrevPreview() {
+  if (!curId) return;
+  const u = D[proj].units[curId];
+  const boxVal = document.getElementById('fbx').value;
+  const boxEur = boxEurOf({box: boxVal}, proj);
+  const fplRaw = (document.getElementById('fpl').value||'').replace(/\./g,'').replace(/[^0-9]/g,'');
+  const lVal = parseFloat(fplRaw) || 0;
+  const prevEur = (lVal > 0 ? Math.round(lVal) : Math.round(parseSL(u.sl) * PRICE_PER_MQ + parseSL(u.snr) * SNR_PRICE_PER_MQ)) + boxEur;
+  const boxTxt = boxEur > 0 ? ` + box auto ${boxVal} (€${boxEur.toLocaleString('it-IT')})` : '';
+  const box0 = document.getElementById('mprev').children[0];
+  if (box0) {
+    box0.querySelector('.mprev-val').textContent = prevEur > 0 ? '€ ' + prevEur.toLocaleString('it-IT') : '—';
+    box0.querySelector('.mprev-lbl').textContent = '📐 Prezzo previsionale ' + (lVal > 0 ? `(listino${boxTxt})` : `(${parseSL(u.sl).toLocaleString('it-IT',{minimumFractionDigits:2})} mq S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}${parseSL(u.snr) > 0 ? ` + ${parseSL(u.snr).toLocaleString('it-IT',{minimumFractionDigits:2})} mq S.N.R. × €${SNR_PRICE_PER_MQ.toLocaleString('it-IT')}` : ''}${boxTxt})`);
+  }
+  const fprRaw = (document.getElementById('fpr').value||'').replace(/\./g,'').replace(/[^0-9]/g,'');
+  const concEur = parseFloat(fprRaw) || 0;
+  const box1 = document.getElementById('mprev').children[1];
+  if (box1) box1.querySelector('.mprev-val').textContent = concEur>0 ? '€ '+concEur.toLocaleString('it-IT') : '—';
+  const delta = prevEur>0 && concEur>0 ? concEur-prevEur : null;
+  const existing = document.getElementById('mprev').children[2];
+  const deltaHtml = delta!==null
+    ? `<div class="mprev-box"><div class="mprev-lbl">Delta</div><div class="mprev-val ${delta>=0?'delta-pos':'delta-neg'}">${delta>=0?'+':'−'} € ${Math.abs(delta).toLocaleString('it-IT')}</div></div>`
+    : '';
+  if (existing) existing.outerHTML = deltaHtml;
+  else if (deltaHtml) document.getElementById('mprev').insertAdjacentHTML('beforeend', deltaHtml);
+}
+
 document.addEventListener('input', e => {
   if (e.target.id==='fpl' && curId) {
-    const u = D[proj].units[curId];
     const raw = e.target.value.replace(/\./g,'').replace(/[^0-9]/g,'');
     if (raw !== '') e.target.value = parseInt(raw,10).toLocaleString('it-IT');
-    const lVal = parseFloat(raw) || 0;
-    const shown = lVal > 0 ? lVal : Math.round(parseSL(u.sl) * PRICE_PER_MQ);
-    const box1 = document.getElementById('mprev').children[0];
-    if (box1) {
-      box1.querySelector('.mprev-val').textContent = shown > 0 ? '€ ' + shown.toLocaleString('it-IT') : '—';
-      box1.querySelector('.mprev-lbl').textContent = '📐 Prezzo previsionale ' + (lVal > 0 ? '(listino)' : `(${parseSL(u.sl).toLocaleString('it-IT',{minimumFractionDigits:2})} mq × €${PRICE_PER_MQ.toLocaleString('it-IT')})`);
-    }
+    refreshPrevPreview();
   }
   if (e.target.id==='fpr' && curId) {
-    const u = D[proj].units[curId];
-    const fplRaw = (document.getElementById('fpl').value||'').replace(/\./g,'').replace(/[^0-9]/g,'');
-    const lVal = parseFloat(fplRaw) || 0;
-    const sl = parseSL(u.sl), prevEur = lVal > 0 ? Math.round(lVal) : (sl>0?Math.round(sl*PRICE_PER_MQ):0);
     // Formatta con separatore migliaia mentre si digita
     const raw = e.target.value.replace(/\./g,'').replace(/[^0-9]/g,'');
     if (raw !== '') {
@@ -2147,19 +2305,9 @@ document.addEventListener('input', e => {
       const formatted = parseInt(raw,10).toLocaleString('it-IT');
       e.target.value = formatted;
       // Riposiziona il cursore tenendo conto dei punti aggiunti
-      const diff = formatted.length - (e.target.value.length);
       try { e.target.setSelectionRange(cursor + (formatted.length - raw.length), cursor + (formatted.length - raw.length)); } catch(_){}
     }
-    const concEur = parseFloat(raw) || 0;
-    const delta = prevEur>0 && concEur>0 ? concEur-prevEur : null;
-    const box2 = document.getElementById('mprev').children[1];
-    if (box2) box2.querySelector('.mprev-val').textContent = concEur>0 ? '€ '+concEur.toLocaleString('it-IT') : '—';
-    const existing = document.getElementById('mprev').children[2];
-    const deltaHtml = delta!==null
-      ? `<div class="mprev-box"><div class="mprev-lbl">Delta</div><div class="mprev-val ${delta>=0?'delta-pos':'delta-neg'}">${delta>=0?'+':'−'} € ${Math.abs(delta).toLocaleString('it-IT')}</div></div>`
-      : '';
-    if (existing) existing.outerHTML = deltaHtml;
-    else if (deltaHtml) document.getElementById('mprev').insertAdjacentHTML('beforeend', deltaHtml);
+    refreshPrevPreview();
   }
   if (e.target.id==='fdr') {
     const drBtn = document.getElementById('fdr-btn');
@@ -3109,6 +3257,36 @@ load(); sw('lotti'); initAuth(); loadFiles();
   .ctrl-empty{padding:20px;text-align:center;color:#aaa;font-size:12px}.ctrl-progress{height:7px;border-radius:9px;background:#eee;overflow:hidden}.ctrl-progress i{display:block;height:100%;background:#2e7d32}
   .gantt-board{position:relative;min-width:900px}.gantt-section{font-size:10px;font-weight:900;color:#8b7656;letter-spacing:.7px;text-transform:uppercase;margin:18px 0 8px;border-bottom:1px solid #eadfce;padding-bottom:5px}.gantt-item{margin-bottom:9px}.gantt-label{font-size:11px;font-weight:800;color:#15263e;margin-bottom:4px}.gantt-meta{font-weight:400;color:#55708f;margin-left:8px}.gantt-track2{position:relative;height:30px;background:#e1e7ef;border-radius:6px;overflow:hidden}.gantt-bar2{position:absolute;top:3px;height:24px;border-radius:5px;background:#2864e8;color:#fff;font-size:9px;display:flex;align-items:center;padding:0 8px;white-space:nowrap;overflow:hidden;min-width:4px}.gantt-bar2.running{background:#e87800}.gantt-bar2.done{background:#16966f}.gantt-today2{position:absolute;top:0;bottom:0;width:2px;background:#e62929;z-index:5;pointer-events:none}.gantt-ruler2{position:relative;height:28px;border-bottom:1px solid #cfd8e5;margin-bottom:8px}.gantt-tick2{position:absolute;bottom:4px;font-size:9px;color:#70839a;transform:translateX(-50%);white-space:nowrap}
   .diary-day{background:#fff;border-radius:12px;box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}.diary-day-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 16px;background:#f8f5ef;border-bottom:1px solid #eee4d5}.diary-day-head h3{margin:0;font-size:13px;color:var(--navy)}.diary-day-body{padding:15px 16px}.diary-facts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}.diary-fact{background:#f7f9fc;border-radius:8px;padding:9px}.diary-fact span{display:block;font-size:8px;color:#8796a9;text-transform:uppercase;font-weight:800}.diary-fact b{display:block;font-size:11px;color:var(--navy);margin-top:3px}.diary-photos{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.diary-photos img{width:88px;height:62px;object-fit:cover;border-radius:7px;border:1px solid #ddd}.diary-work{font-size:12px;line-height:1.5;color:#35465d;white-space:pre-wrap}
+  .jg-section-lbl{font-size:10px;font-weight:900;color:#9aa5b5;text-transform:uppercase;letter-spacing:.9px;display:flex;align-items:center;gap:7px}
+  .jg-section-lbl::before{content:'';width:4px;height:13px;border-radius:2px;background:var(--gold)}
+  .jg-add-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+  .jg-add-row select,.jg-add-row input[type=text]{border:1px solid #ddd1bd;border-radius:9px;padding:9px 12px;font:inherit;font-size:12px;background:#fff;transition:border-color .15s}
+  .jg-add-row select{flex:1;min-width:230px;cursor:pointer}
+  .jg-add-row input[type=text]{flex:1;min-width:180px}
+  .jg-add-row select:focus,.jg-add-row input[type=text]:focus{outline:none;border-color:var(--gold)}
+  .jg-add-btn{border:0;border-radius:9px;padding:9px 16px;background:var(--navy);color:#fff;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;transition:background .15s}
+  .jg-add-btn:hover{background:#233f63}
+  .jg-picked-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .jg-picked{display:flex;align-items:center;gap:11px;background:#fff;border:1px solid #eee4d5;border-radius:11px;padding:10px 12px 10px 10px;box-shadow:0 1px 3px rgba(20,30,50,.05);animation:jgPop .18s ease-out}
+  @keyframes jgPop{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+  .jg-picked-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--navy),#2c4a72);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+  .jg-picked-name{min-width:150px;max-width:190px;font-size:12px;font-weight:800;color:var(--navy);line-height:1.25}
+  .jg-picked input[type=text]{flex:1;border:1px solid #eee4d5;border-radius:8px;padding:8px 11px;font:inherit;font-size:12px;background:#faf8f4;transition:border-color .15s,background .15s}
+  .jg-picked input[type=text]:focus{outline:none;border-color:var(--gold);background:#fff}
+  .jg-picked-remove{width:26px;height:26px;border-radius:50%;border:0;background:#fdeeee;color:#c62828;font-size:14px;font-weight:800;cursor:pointer;flex-shrink:0;line-height:1;transition:background .15s}
+  .jg-picked-remove:hover{background:#f8c9c9}
+  .jg-ddt-card{display:flex;align-items:flex-start;gap:13px}
+  .jg-ddt-icon{width:36px;height:36px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+  .jg-ddt-toggle{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:800;color:var(--navy);cursor:pointer;margin-bottom:9px}
+  .jg-ddt-toggle input{width:17px;height:17px;accent-color:#0d9488;cursor:pointer}
+  .diary-app-list{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+  .diary-app-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f0ece2;font-size:12px}
+  .diary-app-item:last-child{border-bottom:none}
+  .diary-app-dot{width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .diary-app-item b{color:var(--navy);min-width:130px}
+  .diary-app-item span{color:#5c6b80;flex:1}
+  .diary-ddt-yes{color:#0d9488;font-weight:800}
+  .diary-ddt-no{color:#aaa}
   .tabs{display:none!important}.entity-nav{position:fixed;left:0;top:54px;bottom:0;width:255px;padding:20px 14px;background:#132640;color:#fff;box-shadow:4px 0 18px rgba(15,32,55,.12);z-index:30;overflow-y:auto}
   .entity-brand{font-size:10px;font-weight:900;letter-spacing:1.4px;color:#c9a84c;padding:0 7px 15px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:16px}.entity-nav-field{min-width:0;margin-bottom:18px}.entity-nav-field label{display:block;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;color:#9eb0c6;margin:0 6px 6px}
   .entity-nav-field select{width:100%;padding:10px 12px;border:1px solid #d9cbb6;border-radius:9px;background:#faf8f4;color:var(--navy);font-weight:800;font-size:12px}
@@ -3415,26 +3593,129 @@ function ctrlRenderCrono(){
 }
 function ctrlSeedCrono(){if(!CAN_EDIT){openLogin();return}if(CTRL_DATA.crono.some(x=>x.fabbricato===CTRL_BUILDING)&&!confirm('Sono già presenti fasi. Aggiungere comunque lo schema?'))return;CTRL_FASI_MODELLO.forEach(([sezione,fase,durata,inizio,fine],i)=>CTRL_DATA.crono.push({id:Date.now()+i+Math.random(),fabbricato:CTRL_BUILDING,sezione,fase,durata,inizio,fine,fineEffettiva:'',subappaltoId:'',avanzamento:'0',note:'',bloccato:false}));ctrlSave();ctrlRender('ctrl_crono')}
 function ctrlUpdateCrono(id){if(!CAN_EDIT){openLogin();return}const x=CTRL_DATA.crono.find(v=>String(v.id)===String(id)),row=document.querySelector(`tr[data-crono-id="${id}"]`);if(!x||!row)return;x.fase=row.querySelector('.ct-fase').value;x.durata=row.querySelector('.ct-durata').value;x.subappaltoId=row.querySelector('.ct-sub').value;x.inizio=row.querySelector('.ct-inizio').value;x.fine=row.querySelector('.ct-fine').value;x.fineEffettiva=row.querySelector('.ct-fineeff').value;x.avanzamento=row.querySelector('.ct-avanzamento').value;x.note=row.querySelector('.ct-note').value;ctrlSave();ctrlRender('ctrl_crono')}
+// Iniziali per gli avatar circolari (es. "MELAN" -> "ME", "Edilcostruzioni Srl" -> "ES")
+function ctrlInitials(nome){
+  const parole=(nome||'').trim().split(/\s+/).filter(Boolean);
+  if(!parole.length) return '?';
+  if(parole.length===1) return parole[0].slice(0,2).toUpperCase();
+  return (parole[0][0]+parole[1][0]).toUpperCase();
+}
+// Società appaltatrici scelte dal menù a tendina per la giornata in compilazione: [{nome, lavorazione}]
+let JG_APP_TODAY = [];
+function jgRenderAppaltatoriOggiHtml(){
+  if(!JG_APP_TODAY.length) return '<div class="ctrl-empty">Nessuna società ancora aggiunta a questa giornata.</div>';
+  return `<div class="jg-picked-list">${JG_APP_TODAY.map((a,i)=>`<div class="jg-picked" data-jg-today-idx="${i}"><div class="jg-picked-avatar">${ctrlInitials(a.nome)}</div><div class="jg-picked-name">${ctrlEsc(a.nome)}</div><input type="text" class="jg-app-lavoro" value="${ctrlEsc(a.lavorazione||'')}" placeholder="Cosa ha lavorato oggi…" oninput="JG_APP_TODAY[${i}].lavorazione=this.value"><button type="button" class="jg-picked-remove" title="Rimuovi" onclick="jgRemoveAppaltatore(${i})">×</button></div>`).join('')}</div>`;
+}
+function jgAppSelectChanged(){
+  const sel=document.getElementById('jg-app-select'), extra=document.getElementById('jg-app-extra-nome');
+  if(!sel||!extra) return;
+  extra.style.display = sel.value==='extra' ? 'block' : 'none';
+}
+function jgAddAppaltatore(){
+  const sel=document.getElementById('jg-app-select');
+  if(!sel||!sel.value) return;
+  let nome;
+  if(sel.value==='extra'){
+    const extra=document.getElementById('jg-app-extra-nome');
+    nome=(extra&&extra.value||'').trim();
+    if(!nome){ alert('Inserisci il nome dell\'impresa.'); return; }
+    if(extra) extra.value='';
+  } else {
+    const appaltatori=ctrlAppaltatoriPerGiornale();
+    const a=appaltatori[Number(sel.value)];
+    if(!a) return;
+    nome=a.nome;
+  }
+  if(JG_APP_TODAY.some(x=>x.nome===nome)){ alert(nome+' è già stata aggiunta a questa giornata.'); return; }
+  JG_APP_TODAY.push({nome, lavorazione:''});
+  sel.value='';
+  jgAppSelectChanged();
+  const list=document.getElementById('jg-appaltatori-oggi');
+  if(list) list.innerHTML = jgRenderAppaltatoriOggiHtml();
+}
+function jgRemoveAppaltatore(i){
+  JG_APP_TODAY.splice(i,1);
+  const list=document.getElementById('jg-appaltatori-oggi');
+  if(list) list.innerHTML = jgRenderAppaltatoriOggiHtml();
+}
+// Elenco appaltatori/subappaltatori noti per il lotto corrente, usato per precompilare il giornale di cantiere
+function ctrlAppaltatoriPerGiornale(){
+  const root=ctrlAnagRecord();
+  const list=[];
+  (root.appaltatrici||[]).forEach((a,i)=>{ const nome=(a.denominazione||a.ragioneSociale||'').trim(); if(nome) list.push({nome, tipo:'Appaltatrice'}); });
+  (root.subappaltatori||[]).forEach((s,i)=>{ const nome=(s.ragioneSociale||s.lavorazione||'').trim(); if(nome) list.push({nome, tipo:s.lavorazione||'Subappaltatore'}); });
+  (CTRL_DATA.subappaltatoriGenerali||[]).filter(s=>(s.lotti||[]).includes(CTRL_BUILDING)).forEach(s=>{ const nome=(s.ragioneSociale||s.lavorazione||'').trim(); if(nome) list.push({nome, tipo:(s.lavorazione||'Subappaltatore')+' · generale'}); });
+  return list;
+}
 function ctrlRenderGiornale(){
   const giorni=ctrlRows('giornale').sort((a,b)=>(b.data||'').localeCompare(a.data||''));
   const validati=giorni.filter(x=>x.stato==='Validato').length,foto=giorni.reduce((s,x)=>s+(Array.isArray(x.foto)?x.foto.length:0),0),presenze=giorni.reduce((s,x)=>s+(Number(x.presenze)||0),0);
-  const cards=giorni.map(x=>`<article class="diary-day"><div class="diary-day-head"><div><h3>${ctrlDateIt(x.data)} · ${ctrlEsc(x.compilatoDa||x.ruolo||'')}</h3><small>${ctrlEsc(x.impresa||'')}</small></div><div><span class="ctrl-chip ${x.stato==='Validato'?'ok':x.stato==='Da validare'?'warn':''}">${ctrlEsc(x.stato||'Bozza')}</span> <button class="ctrl-btn red" onclick="ctrlDel('giornale','${x.id}')">Elimina</button></div></div><div class="diary-day-body"><div class="diary-facts"><div class="diary-fact"><span>Meteo</span><b>${ctrlEsc(x.meteo||'-')}</b></div><div class="diary-fact"><span>Impresa</span><b>${ctrlEsc(x.impresa||'-')}</b></div><div class="diary-fact"><span>Addetti</span><b>${ctrlEsc(x.presenze||'0')}</b></div><div class="diary-fact"><span>Orario</span><b>${ctrlEsc(x.orario||'-')}</b></div></div><div class="diary-work"><b>Lavorazioni eseguite</b><br>${ctrlEsc(x.lavorazione||x.lavorazioni||'-')}</div>${x.attrezzature?`<div class="diary-work" style="margin-top:9px"><b>Mezzi e attrezzature</b><br>${ctrlEsc(x.attrezzature)}</div>`:''}${x.note?`<div class="diary-work" style="margin-top:9px"><b>Note, criticità e disposizioni</b><br>${ctrlEsc(x.note)}</div>`:''}${Array.isArray(x.foto)&&x.foto.length?`<div class="diary-photos">${x.foto.map((f,i)=>`<a href="${f.dati}" download="${ctrlEsc(f.nome||`foto-${i+1}.jpg`)}"><img src="${f.dati}" alt="Foto giornata"></a>`).join('')}</div>`:''}</div></article>`).join('');
+  const cards=giorni.map(x=>{
+    const appList=Array.isArray(x.appaltatori)?x.appaltatori:null;
+    const appHtml=appList&&appList.length
+      ? `<div class="diary-app-list">${appList.map(a=>`<div class="diary-app-item"><div class="diary-app-dot">${ctrlInitials(a.nome)}</div><b>${ctrlEsc(a.nome)}</b><span>${ctrlEsc(a.lavorazione||'presente, nessuna nota sull’attività')}</span></div>`).join('')}</div>`
+      : `<div class="diary-work">${ctrlEsc(x.lavorazione||x.lavorazioni||'-')}</div>`; // retrocompatibilità giornate salvate col vecchio formato
+    const impresePresenti=appList&&appList.length ? appList.map(a=>a.nome).join(', ') : (x.impresa||'-');
+    const ddtHtml = x.ddtArrivati===undefined ? '' : `<div class="diary-work" style="margin-top:9px"><b>DDT (documenti di trasporto)</b><br><span class="ctrl-chip ${x.ddtArrivati?'ok':''}" style="${x.ddtArrivati?'':'background:#f2f0ec;color:#999'}">${x.ddtArrivati?'✓ Arrivati':'Nessuno arrivato'}</span>${x.ddtNote?' · '+ctrlEsc(x.ddtNote):''}</div>`;
+    return `<article class="diary-day"><div class="diary-day-head"><div><h3>${ctrlDateIt(x.data)} · ${ctrlEsc(x.compilatoDa||x.ruolo||'')}</h3><small>${ctrlEsc(impresePresenti)}</small></div><div><span class="ctrl-chip ${x.stato==='Validato'?'ok':x.stato==='Da validare'?'warn':''}">${ctrlEsc(x.stato||'Bozza')}</span> <button class="ctrl-btn red" onclick="ctrlDel('giornale','${x.id}')">Elimina</button></div></div><div class="diary-day-body"><div class="diary-facts"><div class="diary-fact"><span>Meteo</span><b>${ctrlEsc(x.meteo||'-')}</b></div><div class="diary-fact"><span>Appaltatori</span><b>${appList?appList.length:(x.impresa?1:0)}</b></div><div class="diary-fact"><span>Addetti</span><b>${ctrlEsc(x.presenze||'0')}</b></div><div class="diary-fact"><span>Orario</span><b>${ctrlEsc(x.orario||'-')}</b></div></div><div class="jg-section-lbl">Chi ha lavorato e cosa</div>${appHtml}${x.attrezzature?`<div class="diary-work" style="margin-top:9px"><b>Mezzi e attrezzature</b><br>${ctrlEsc(x.attrezzature)}</div>`:''}${ddtHtml}${x.note?`<div class="diary-work" style="margin-top:9px"><b>Note, criticità e disposizioni</b><br>${ctrlEsc(x.note)}</div>`:''}${Array.isArray(x.foto)&&x.foto.length?`<div class="diary-photos">${x.foto.map((f,i)=>`<a href="${f.dati}" download="${ctrlEsc(f.nome||`foto-${i+1}.jpg`)}"><img src="${f.dati}" alt="Foto giornata"></a>`).join('')}</div>`:''}</div></article>`;
+  }).join('');
+  const appaltatori=ctrlAppaltatoriPerGiornale();
+  JG_APP_TODAY = []; // ogni apertura del pannello riparte da una giornata vuota
+  const selOptions = `<option value="">— scegli una società appaltatrice —</option>`
+    + appaltatori.map((a,i)=>`<option value="${i}">${ctrlEsc(a.nome)}${a.tipo?' · '+ctrlEsc(a.tipo):''}</option>`).join('')
+    + `<option value="extra">Altra impresa non elencata…</option>`;
   return ctrlShell('Giornale di cantiere','Diario giornaliero completo e indipendente per '+ctrlName(CTRL_BUILDING)+'.',`
     <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${giorni.length}</strong><span>Giornate registrate</span></div><div class="ctrl-kpi"><strong>${validati}</strong><span>Giornate validate</span></div><div class="ctrl-kpi"><strong>${presenze}</strong><span>Presenze complessive</span></div><div class="ctrl-kpi"><strong>${foto}</strong><span>Foto allegate</span></div></div>
-    <details class="ctrl-card" open><summary style="cursor:pointer;font-weight:800;color:var(--navy)">+ Nuova giornata</summary><div class="ctrl-form" style="margin-top:14px">
-      <input id="jg_data" type="date" value="${new Date().toISOString().slice(0,10)}"><select id="jg_ruolo"><option>Direttore lavori</option><option>Tecnico di cantiere</option><option>Project manager</option><option>Amministrazione</option></select>
-      <input id="jg_compilatoDa" placeholder="Compilato da"><select id="jg_meteo"><option>Sole</option><option>Nuvoloso</option><option>Pioggia</option><option>Vento forte</option><option>Lavori sospesi</option></select>
-      <input id="jg_impresa" placeholder="Impresa presente"><input id="jg_presenze" type="number" min="0" placeholder="Numero addetti"><input id="jg_orario" placeholder="Orario, es. 07:30–17:00"><input id="jg_attrezzature" placeholder="Mezzi e attrezzature">
-      <textarea id="jg_lavorazione" class="wide" rows="4" placeholder="Lavorazioni eseguite nella giornata"></textarea><textarea id="jg_note" class="wide" rows="4" placeholder="Note, criticità, disposizioni e sospensioni"></textarea>
-      <select id="jg_stato"><option>Bozza</option><option>Da validare</option><option>Validato</option></select><div><input id="jg_foto" type="file" accept="image/*" multiple><small>Massimo 6 foto, 1,5 MB ciascuna</small></div>
-      <button class="ctrl-btn" onclick="ctrlAddJournal()">Salva giornata</button>
+    <details class="ctrl-card" open><summary style="cursor:pointer;font-weight:800;color:var(--navy)">+ Nuova giornata</summary><div style="margin-top:14px">
+      <div class="ctrl-form">
+        <input id="jg_data" type="date" value="${new Date().toISOString().slice(0,10)}"><select id="jg_ruolo"><option>Direttore lavori</option><option>Tecnico di cantiere</option><option>Project manager</option><option>Amministrazione</option></select>
+        <input id="jg_compilatoDa" placeholder="Compilato da"><select id="jg_meteo"><option>Sole</option><option>Nuvoloso</option><option>Pioggia</option><option>Vento forte</option><option>Lavori sospesi</option></select>
+        <input id="jg_presenze" type="number" min="0" placeholder="Numero addetti"><input id="jg_orario" placeholder="Orario, es. 07:30–17:00"><input id="jg_attrezzature" class="wide" placeholder="Mezzi e attrezzature">
+      </div>
+      <div style="margin-top:16px">
+        <div class="jg-section-lbl">Chi ha lavorato oggi</div>
+        <div class="jg-add-row">
+          <select id="jg-app-select" onchange="jgAppSelectChanged()">${selOptions}</select>
+          <input type="text" id="jg-app-extra-nome" placeholder="Nome impresa" style="display:none">
+          <button type="button" class="jg-add-btn" onclick="jgAddAppaltatore()">+ Aggiungi</button>
+        </div>
+        ${appaltatori.length?'':'<div class="ctrl-empty" style="padding:10px 0 0;text-align:left">Nessuna società ancora registrata in Anagrafica per questo lotto — puoi comunque aggiungerla con "Altra impresa non elencata".</div>'}
+        <div id="jg-appaltatori-oggi">${jgRenderAppaltatoriOggiHtml()}</div>
+      </div>
+      <div class="ctrl-card" style="margin-top:16px;background:#f7f5f0">
+        <div class="jg-ddt-card">
+          <div class="jg-ddt-icon">🚚</div>
+          <div style="flex:1">
+            <label class="jg-ddt-toggle"><input type="checkbox" id="jg_ddt"> Sono arrivati DDT (documenti di trasporto) oggi</label>
+            <textarea id="jg_ddt_note" class="wide" rows="2" placeholder="Numero DDT, fornitore, materiale consegnato" style="margin:0"></textarea>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:16px">
+        <div class="jg-section-lbl">Altre note e allegati</div>
+        <div class="ctrl-form" style="margin-top:9px">
+          <textarea id="jg_note" class="wide" rows="4" placeholder="Note, criticità, disposizioni e sospensioni da aggiungere"></textarea>
+          <select id="jg_stato"><option>Bozza</option><option>Da validare</option><option>Validato</option></select><div><input id="jg_foto" type="file" accept="image/*" multiple><small>Massimo 6 foto, 1,5 MB ciascuna</small></div>
+        </div>
+      </div>
+      <button class="ctrl-btn" style="margin-top:6px;padding:11px 22px;font-size:12px" onclick="ctrlAddJournal()">✓ Salva giornata</button>
     </div></details><div style="margin-top:14px">${cards||'<div class="ctrl-card ctrl-empty">Nessuna giornata registrata.</div>'}</div>`);
 }
 async function ctrlAddJournal(){
-  if(!CAN_EDIT){openLogin();return}if(!jg_data.value||!jg_lavorazione.value.trim()){alert('Inserisci data e lavorazioni eseguite.');return}
+  if(!CAN_EDIT){openLogin();return}
+  if(!jg_data.value){alert('Inserisci la data della giornata.');return}
+  if(!JG_APP_TODAY.length){alert('Aggiungi almeno una società appaltatrice dal menù a tendina.');return}
+  const appaltatoriOggi=JG_APP_TODAY.map(a=>({nome:a.nome, lavorazione:(a.lavorazione||'').trim()}));
   const files=[...(jg_foto.files||[])];if(files.length>6){alert('Puoi allegare al massimo 6 foto.');return}if(files.some(f=>f.size>1.5*1024*1024)){alert('Ogni fotografia deve essere inferiore a 1,5 MB.');return}
   const read=f=>new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve({nome:f.name,dati:r.result});r.onerror=reject;r.readAsDataURL(f)});
-  const foto=await Promise.all(files.map(read));CTRL_DATA.giornale.push({id:Date.now()+Math.random(),fabbricato:CTRL_BUILDING,data:jg_data.value,ruolo:jg_ruolo.value,compilatoDa:jg_compilatoDa.value,meteo:jg_meteo.value,impresa:jg_impresa.value,presenze:jg_presenze.value,orario:jg_orario.value,attrezzature:jg_attrezzature.value,lavorazione:jg_lavorazione.value,note:jg_note.value,stato:jg_stato.value,foto,creatoIl:new Date().toISOString()});ctrlSave();ctrlRender('ctrl_giornale')
+  const foto=await Promise.all(files.map(read));
+  CTRL_DATA.giornale.push({
+    id:Date.now()+Math.random(), fabbricato:CTRL_BUILDING, data:jg_data.value, ruolo:jg_ruolo.value, compilatoDa:jg_compilatoDa.value,
+    meteo:jg_meteo.value, presenze:jg_presenze.value, orario:jg_orario.value, attrezzature:jg_attrezzature.value,
+    appaltatori:appaltatoriOggi, ddtArrivati:jg_ddt.checked, ddtNote:jg_ddt_note.value,
+    note:jg_note.value, stato:jg_stato.value, foto, creatoIl:new Date().toISOString()
+  });
+  ctrlSave();ctrlRender('ctrl_giornale')
 }
 function ctrlRenderAnagrafica(){
   const x=CTRL_DATA.anagrafica[CTRL_BUILDING]||{},p=D[CTRL_BUILDING]||{};
