@@ -3310,6 +3310,171 @@ const CTRL_APPALTATRICE_DRAFTS={};
 const CTRL_FORM_DRAFTS={};
 let CTRL_DISCARD_DRAFT_ON_RENDER=false;
 const CTRL_COSTI_CATEGORIE=['Terreno e acquisizioni','Progettazione e tecnici','Oneri, permessi e autorizzazioni','Opere strutturali','Murature e involucro','Impianti','Serramenti','Finiture interne','Sistemazioni esterne','Sicurezza','Spese generali','Commercializzazione','Imprevisti','Altri costi'];
+// Costi effettivi per lotto, importati dal brogliaccio centri di costo AEDIFICA SRL (periodo 2025+2026).
+// Ogni lotto ha una "version": quando cambia, l'import si riesegue una sola volta e sostituisce
+// solo le categorie qui elencate, senza toccare eventuali voci aggiunte a mano dall'utente.
+const IMPORT_COSTI_BROGLIACCIO = {
+  a1: { version:'2025_2026_v3', voci:[
+    {categoria:'Materie prime', effettivo:136006.91, note:'Conto 602101 · 2025 + 2026'},
+    {categoria:'Immobili', effettivo:337000, note:'Conto 60210101 · 2025 + 2026'},
+    {categoria:'Materie sussidiarie', effettivo:35412, note:'Conto 602105 · 2025 + 2026'},
+    {categoria:'Servizi vari su acquisti', effettivo:181139.70, note:'Conto 604101 · 2025 + 2026'},
+    {categoria:'Costi di consulenza', effettivo:1040, note:'Conto 604141 · 2025 + 2026'},
+    {categoria:'Locazioni immobili uso industriale/commerciale', effettivo:2500, note:'Conto 608101 · 2025 + 2026'},
+    {categoria:'Noleggi autoveicoli indeducibili', effettivo:3750, note:'Conto 608107 · 2025 + 2026'},
+    {categoria:'Oneri di Urbanizzazione', effettivo:45585, note:'Conto 65023501 · 2025 + 2026'},
+  ]},
+  a2: { version:'2025_2026_v1', voci:[
+    {categoria:'Materie prime', effettivo:141285.35, note:'Conto 602101 · 2025 + 2026'},
+    {categoria:'Immobili', effettivo:337000, note:'Conto 60210101 · 2025 + 2026'},
+    {categoria:'Materie sussidiarie', effettivo:35412, note:'Conto 602105 · 2025 + 2026'},
+    {categoria:'Servizi vari su acquisti', effettivo:179777.50, note:'Conto 604101 · 2025 + 2026'},
+    {categoria:'Costi di consulenza', effettivo:1040, note:'Conto 604141 · 2025 + 2026'},
+    {categoria:'Locazioni immobili uso industriale/commerciale', effettivo:2500, note:'Conto 608101 · 2025 + 2026'},
+    {categoria:'Noleggi autoveicoli indeducibili', effettivo:3753, note:'Conto 608107 · 2025 + 2026'},
+    {categoria:'Oneri di Urbanizzazione', effettivo:45587, note:'Conto 65023501 · 2025 + 2026'},
+  ]},
+  vittoria: { version:'2025_2026_v1', voci:[
+    {categoria:'Materie prime', effettivo:179600.77, note:'Conto 602101 · 2025 + 2026'},
+    {categoria:'Immobili', effettivo:468685.45, note:'Conto 60210101 · 2025 + 2026'},
+    {categoria:'Servizi vari su acquisti', effettivo:196820, note:'Conto 604101 · 2025 + 2026'},
+    {categoria:'Costi di consulenza', effettivo:24000, note:'Conto 604141 · 2025 + 2026'},
+    {categoria:'Noleggi autoveicoli indeducibili', effettivo:31200, note:'Conto 608107 · 2025 + 2026'},
+    {categoria:'Oneri di Urbanizzazione', effettivo:94146, note:'Conto 65023501 · 2025 + 2026'},
+  ]},
+  passione: { version:'2025_2026_v1', voci:[
+    {categoria:'Materie prime', effettivo:35368.30, note:'Conto 602101 · 2025 + 2026'},
+    {categoria:'Immobili', effettivo:359521.82, note:'Conto 60210101 · 2025 + 2026'},
+    {categoria:'Servizi vari su acquisti', effettivo:18570, note:'Conto 604101 · 2025 + 2026'},
+    {categoria:'Servizi e consulenze tecniche', effettivo:135, note:'Conto 604140 · 2025 + 2026'},
+    {categoria:'Locazioni immobili uso industriale/commerciale', effettivo:15000, note:'Conto 608101 · 2025 + 2026'},
+  ]},
+  equilibrio: { version:'2025_2026_v1', voci:[
+    {categoria:'Immobili', effettivo:337000, note:'Conto 60210101 · 2025 + 2026'},
+  ]},
+  audacia: { version:'2025_2026_v1', voci:[
+    {categoria:'Oneri di Urbanizzazione', effettivo:830, note:'Conto 65023501 · 2025 + 2026'},
+  ]},
+};
+// Costi generali D|Park (centro di costo DPG), non attribuiti a un singolo lotto.
+const IMPORT_COSTI_GENERALI_BROGLIACCIO = { version:'2025_2026_v1', voci:[
+  {categoria:'Materie prime', effettivo:105897.45, note:'Conto 602101 · 2025 + 2026'},
+  {categoria:'Servizi e consulenze tecniche', effettivo:280, note:'Conto 604140 · 2025 + 2026'},
+  {categoria:'Costi di consulenza', effettivo:140825, note:'Conto 604141 · 2025 + 2026'},
+  {categoria:'Locazioni immobili uso industriale/commerciale', effettivo:2450.50, note:'Conto 608101 · 2025 + 2026'},
+  {categoria:'Noleggi mezzi di trasporto non strumentali', effettivo:950.88, note:'Conto 608108 · 2025 + 2026'},
+]};
+// Righe grezze del brogliaccio sui conti ricavo (502101, 50210101 - colonna Avere), già filtrate per
+// centro di costo del lotto. Non ancora filtrate per unità: quel filtro avviene a runtime in ctrlFatturatoLotto,
+// confrontando la "Descrizione di riga" con i nominativi/codici REALI delle unità (D[k].units, sincronizzati
+// dal database live) - così se un'unità viene venduta o rinominata nel gestionale, il fatturato si aggiorna
+// da solo senza bisogno di un nuovo import manuale.
+const RICAVI_RIGHE_BROGLIACCIO={version:'2025_2026_v1',righe:{
+  a1:[{descr:'DI PARK ARMONIA 1 - Ft 89 -90',importo:38460.0},{descr:'Ft. numero FPR 18/26 - MARIA ROSARIA  COPPOLA',importo:5000.0},{descr:'Ft. numero FPR 28/26 - MARIA ROSARIA  COPPOLA',importo:35000.0},{descr:'Ft. numero FPR 29/26 - COD IMM: DPA1A23',importo:5000.0},{descr:'Ft. numero FPR 30/26 - COD IMM: DPA1A23',importo:45000.0},{descr:'Ft. numero 34 - AMENDOLA EMILIANA',importo:50000.0},{descr:'Ft. numero 63 - LUISI VINCENZO',importo:9615.38},{descr:'Ft. numero 64 - TAGLIALATELA ALESSANDRA',importo:9615.38}],
+  a2:[{descr:'DI PARK ARMONIA 2 - ft 143/25',importo:5000.0},{descr:'DI PARK ARMONIA 2- FT 113',importo:19230.77},{descr:'Ft. numero FPR 11/26 - LUCA  IANNITI',importo:5000.0},{descr:'Ft. numero FPR 15/26 - LUCA  IANNITI',importo:24038.46},{descr:'Ft. numero FPR 20/26 - ANTIMO  GAROFALO',importo:30000.0},{descr:'Ft. numero 45 - ARENA GIUSEPPE',importo:34000.0}],
+  vittoria:[{descr:'DI PARK VITTORIA - 88/25',importo:28846.15},{descr:'DI PARK VITTORIA - nr. FPR 114/25',importo:9615.38},{descr:'DI PARK - VITTORIA nr. FPR 116/25',importo:28846.15},{descr:'FT VENDITA PERMUTA VITTORIA',importo:50000.0},{descr:'di park VITTORIA - ft 106 e 107',importo:28846.0},{descr:'DI PARK VITTORIA - FT 87 - 115',importo:57692.0},{descr:'permuta terreno Motti',importo:468685.45},{descr:'Ft. numero FPR 7/26 - GABRIELLA  SGLAVO',importo:43269.23},{descr:'Ft. numero FPR 10/26 - TURCO COSTRUZIONI SOCIETA\' A RESPONSABILITA\' LIMITATA',importo:31000.0},{descr:'Ft. numero 40 - SALVAREZZA SRL',importo:15000.0},{descr:'Ft. numero 42 - MUNGIGUERRA STEFANO',importo:57692.31},{descr:'Ft. numero 50 - SGLAVO GABRIELLA',importo:43269.23},{descr:'Ft. numero 58 - FRANCESE DAVIDE',importo:27500.0},{descr:'Ft. numero 59 - GIROSO BARBARA',importo:27500.0}],
+  passione:[{descr:'DI PARK PASSIONE ft 120 -121',importo:15000.0},{descr:'di park passione - ft 141 e 142',importo:40000.0},{descr:'vendita di park',importo:15000.0},{descr:'ACQUISTO SUOLO PASSIONE',importo:179760.91},{descr:'ACQUISTO SUOLO PASSIONE',importo:179760.91},{descr:'CAPARRA CONF - DI PARK PASSIONE',importo:10000.0},{descr:'Ft. numero FPR 12/26 - ANGELA  SORICI',importo:5000.0},{descr:'Ft. numero FPR 14/26 - ANGELA  SORICI',importo:25000.0},{descr:'Ft. numero FPR 22/26 - ANGELA  SORICI',importo:10000.0},{descr:'Ft. numero FPR 26/26 - FABIO NATALE',importo:55000.0},{descr:'Ft. numero 43 - VILLANO ELENA',importo:15000.0},{descr:'Ft. numero 44 - MASELLI FABIANA',importo:15000.0},{descr:'Ft. numero 62 - GRANATA RAFFAELE',importo:5000.0}],
+  equilibrio:[],
+  audacia:[{descr:'Ft. numero FPR 23/26 - DOMENICO PRIMO  COMUNALE',importo:20000.0},{descr:'Ft. numero 56 - MOTTI BENITO',importo:2500.0},{descr:'Ft. numero 57 - SCHIAVONE ALESSIA ANGELA',importo:2500.0},{descr:'Ft. numero 60 - SCHIAVONE ALESSIA ANGELA',importo:15000.0},{descr:'Ft. numero 61 - MOTTI BENITO',importo:15000.0}],
+}};
+const CTRL_FATT_STOP=new Set(['di','de','del','della','e','srl','s','r','l','societa',"societa'",'a','responsabilita',"responsabilita'",'limitata','fabbricato','park','dpark']);
+function ctrlNormalizzaTesto(s){
+  return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+}
+function ctrlOwnerTokens(owner){
+  const out=[];
+  String(owner||'').split('/').forEach(parte=>{
+    ctrlNormalizzaTesto(parte).split(' ').forEach(tok=>{ if(tok.length>=4 && !CTRL_FATT_STOP.has(tok)) out.push(tok); });
+  });
+  return out;
+}
+// Una riga del brogliaccio "si riferisce" a un'unità se la Descrizione di riga contiene il cognome/nome
+// del proprietario registrato per quell'unità, oppure il suo codice immobile.
+function ctrlRigaRiferisceUnita(descr,unit){
+  const nd=ctrlNormalizzaTesto(descr);
+  const tokens=ctrlOwnerTokens(unit.owner);
+  for(const tok of tokens) if(nd.includes(tok)) return tok;
+  const cod=ctrlNormalizzaTesto(unit.codice);
+  if(cod && cod.length>=4 && nd.includes(cod)) return unit.codice;
+  return null;
+}
+// Fatturato per lotto secondo il brogliaccio, limitato alle righe la cui Descrizione di riga cita un
+// nominativo o un codice presente nella scheda vendite del lotto (D[k].units) - le righe generiche
+// ("vendita di park", numeri di fattura senza nominativo) vengono escluse.
+// Righe grezze: preferisce l'ultimo brogliaccio caricato dall'utente (CTRL_DATA.economico.ricaviRighe,
+// sincronizzato via Supabase come il resto dei dati) e ricade sull'import statico solo se non è mai stato caricato nulla.
+function ctrlRicaviRigheCorrenti(k){
+  const caricato=CTRL_DATA.economico&&CTRL_DATA.economico.ricaviRighe&&CTRL_DATA.economico.ricaviRighe.righe;
+  if(caricato&&caricato[k])return caricato[k];
+  return RICAVI_RIGHE_BROGLIACCIO.righe[k]||[];
+}
+// Parsing del file "Elenco movimenti prima nota con indicazione centri di costo": individua la riga di
+// intestazione cercando le colonne Conto / Descrizione di riga / Avere € / Centri di Costo, poi tiene solo
+// le righe sui conti ricavo (502101, 50210101) i cui centri di costo iniziano con un prefisso D|Park noto.
+function ctrlImportRicaviBrogliaccio(input){
+  const file=input.files&&input.files[0];if(!file)return;
+  if(typeof XLSX==='undefined'){alert('Il lettore Excel non è disponibile. Controlla la connessione e riapri la pagina.');input.value='';return}
+  const reader=new FileReader();
+  reader.onload=e=>{try{
+    const wb=XLSX.read(e.target.result,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+    const txt=v=>v==null?'':String(v).trim();
+    let headerRow=-1,colConto=-1,colDescr=-1,colAvere=-1,colCdc=-1;
+    for(let i=0;i<rows.length&&headerRow<0;i++){
+      const r=rows[i]||[];
+      const idxConto=r.findIndex(c=>txt(c).toLowerCase()==='conto');
+      const idxDescr=r.findIndex(c=>txt(c).toLowerCase().includes('descrizione di riga'));
+      const idxAvere=r.findIndex(c=>txt(c).toLowerCase().includes('avere'));
+      const idxCdc=r.findIndex(c=>txt(c).toLowerCase().includes('centri di costo'));
+      if(idxConto>=0&&idxDescr>=0&&idxAvere>=0&&idxCdc>=0){headerRow=i;colConto=idxConto;colDescr=idxDescr;colAvere=idxAvere;colCdc=idxCdc}
+    }
+    if(headerRow<0)throw Error('non trovo le colonne attese (Conto, Descrizione di riga, Avere €, Centri di Costo)');
+    const CONTI_RICAVO=new Set(['502101','50210101']);
+    const CDC_MAP=[['DPA1','a1'],['DPA2','a2'],['DPV','vittoria'],['DPP','passione'],['DPEQ','equilibrio'],['DPA','audacia']];
+    function lottoDiCdc(cdc){const c=txt(cdc);if(!c)return null;for(const[pref,lot]of CDC_MAP)if(c===pref||c.startsWith(pref+' '))return lot;return null}
+    const righe={a1:[],a2:[],vittoria:[],passione:[],equilibrio:[],audacia:[]};
+    for(let i=headerRow+1;i<rows.length;i++){
+      const r=rows[i]||[],conto=txt(r[colConto]);
+      if(!CONTI_RICAVO.has(conto))continue;
+      const lotto=lottoDiCdc(r[colCdc]);if(!lotto)continue;
+      const avere=Number(r[colAvere])||0;if(!avere)continue;
+      righe[lotto].push({descr:txt(r[colDescr]),importo:Math.round(avere*100)/100});
+    }
+    const tot=Object.values(righe).reduce((s,arr)=>s+arr.length,0);
+    if(!tot)throw Error('nessuna riga di ricavo riconosciuta per i centri di costo D|Park (attesi: DPA1, DPA2, DPV, DPP, DPEQ, DPA)');
+    if(!CTRL_DATA.economico)CTRL_DATA.economico={};
+    CTRL_DATA.economico.ricaviRighe={righe,fileName:file.name,importedAt:new Date().toISOString()};
+    ctrlSave();ctrlRender('ctrl_quadro');
+    ctrlNotify('✓ Brogliaccio ricavi importato: '+tot+' righe');
+  }catch(err){alert('Impossibile leggere il file: '+err.message)}finally{input.value=''}};
+  reader.readAsArrayBuffer(file);
+}
+function ctrlFatturatoDettaglioLotto(k){
+  const righe=ctrlRicaviRigheCorrenti(k),units=Object.values((D[k]||{}).units||{});
+  return righe.map(r=>{
+    let match=null,tok=null,permutaMatch=null;
+    for(const u of units){
+      if(!u.owner)continue;
+      const t=ctrlRigaRiferisceUnita(r.descr,u);
+      if(!t)continue;
+      if(u.accordo==='Acquisto'){match=u;tok=t;break}
+      if(!permutaMatch)permutaMatch=u;
+    }
+    const motivo=match?'':(permutaMatch?('riferita a una permuta ('+(permutaMatch.owner||'')+'), non è un incasso e non va contata nel fatturato'):'nessun nominativo/codice riconosciuto nella scheda vendite');
+    return{descr:r.descr,importo:r.importo,inclusa:!!match,unita:match?(match.owner||''):'',token:tok,motivo};
+  });
+}
+function ctrlFatturatoLotto(k){
+  return ctrlFatturatoDettaglioLotto(k).filter(r=>r.inclusa).reduce((s,r)=>s+r.importo,0);
+}
+// Venduto (CRM): prezzo concordato delle unità vendute con accordo Acquisto — esclude le Permute, coerente col resto dell'app.
+function ctrlVendutoLotto(k){
+  const eurF=u=>parseFloat((u.price||'').replace(/\./g,'').replace(',','.'))||0;
+  return Object.values(D[k].units).filter(u=>u.st==='venduto'&&u.accordo==='Acquisto').reduce((s,u)=>s+eurF(u),0);
+}
+function ctrlToggleFatturatoDettaglio(key){
+  const row=document.getElementById('fatt-dett-'+key);
+  if(row)row.style.display=row.style.display==='none'?'':'none';
+}
 const CTRL_FASI_MODELLO=[
  ['OPERE STRUTTURALI / PREPARAZIONE','Montaggio della gru a torre',6,'2026-07-08','2026-07-10'],
  ['OPERE STRUTTURALI / PREPARAZIONE','Montaggio del ponteggio metallico fisso',15,'2026-07-06','2026-07-25'],
@@ -3878,20 +4043,73 @@ function ctrlRenderQuadroEconomico(){
     <div class="ctrl-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><div><h3 style="margin:0">Costi generali D|Park per categoria</h3><small>Inserisci il budget complessivo e quanto effettivamente sostenuto nell’intera operazione.</small></div><button type="button" class="ctrl-btn" onclick="ctrlSaveQuadroEconomico()">Salva quadro economico</button></div><div style="overflow-x:auto"><table class="ctrl-table" style="min-width:900px"><thead><tr><th>Categoria</th><th>Costo presunto</th><th>Costo effettivo</th><th>Scostamento</th><th>Note</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td><b>Totale costi D|Park</b></td><td><b>${ctrlEuro(costiPresunti)}</b></td><td><b>${ctrlEuro(costiEffettivi)}</b></td><td><b>${ctrlEuro(deltaCosti)}</b></td><td></td></tr></tfoot></table></div></div></div>`;
 }
 function ctrlSaveQuadroEconomico(){const x=ctrlEconomicoRecord();x.ricaviPresuntiExtra=Number(document.getElementById('eq-ricavi-presunti-extra').value)||0;x.ricaviEffettiviExtra=Number(document.getElementById('eq-ricavi-effettivi-extra').value)||0;x.noteRicavi=document.getElementById('eq-note-ricavi').value.trim();document.querySelectorAll('[data-econ-cost]').forEach(row=>{const r=x.costi[Number(row.dataset.econCost)];r.presunto=Number(row.querySelector('.ec-presunto').value)||0;r.effettivo=Number(row.querySelector('.ec-effettivo').value)||0;r.note=row.querySelector('.ec-note').value.trim()});ctrlSave();ctrlRender('ctrl_quadro');ctrlNotify('✓ Quadro economico salvato')}
-function ctrlCostiLottoRecord(k){if(!CTRL_DATA.economico)CTRL_DATA.economico={};if(!CTRL_DATA.economico.costiLotti)CTRL_DATA.economico.costiLotti={};if(!CTRL_DATA.economico.costiLotti[k])CTRL_DATA.economico.costiLotti[k]={costi:[]};const x=CTRL_DATA.economico.costiLotti[k];if(!Array.isArray(x.costi))x.costi=[];if(k==='a1'&&!x.importSituazioneContabile2025_2026_v2){const importate=[{categoria:'Materie prime',presunto:0,effettivo:101852.05,note:'Conto 602101 · 2025 + 2026'},{categoria:'Immobili',presunto:0,effettivo:337000,note:'Conto 60210101 · 2025 + 2026'},{categoria:'Materie sussidiarie',presunto:0,effettivo:35412,note:'Conto 602105 · 2025 + 2026'},{categoria:'Servizi vari su acquisti',presunto:0,effettivo:168639.70,note:'Conto 604101 · 2025 + 2026'},{categoria:'Costi di consulenza',presunto:0,effettivo:1040,note:'Conto 604141 · 2025 + 2026'},{categoria:'Locazioni immobili uso industriale/commerciale',presunto:0,effettivo:2500,note:'Conto 608101 · 2025 + 2026'},{categoria:'Noleggi autoveicoli indeducibili',presunto:0,effettivo:3750,note:'Conto 608107 · 2025 + 2026'},{categoria:'Oneri di Urbanizzazione',presunto:0,effettivo:45360,note:'Conto 65023501 · 2025 + 2026'}],nomi=importate.map(r=>r.categoria),altre=x.costi.filter(r=>!nomi.includes(r.categoria)&&((Number(r.presunto)||0)!==0||(Number(r.effettivo)||0)!==0||(r.note||'').trim()));x.costi=[...importate,...altre];x.importSituazioneContabile2025_2026_v2=true;ctrlSave()}if(k!=='a1')CTRL_COSTI_CATEGORIE.forEach(c=>{if(!x.costi.some(r=>r.categoria===c))x.costi.push({categoria:c,presunto:0,effettivo:0,note:''})});return x}
+function ctrlCostiLottoRecord(k){
+  if(!CTRL_DATA.economico)CTRL_DATA.economico={};
+  if(!CTRL_DATA.economico.costiLotti)CTRL_DATA.economico.costiLotti={};
+  if(!CTRL_DATA.economico.costiLotti[k])CTRL_DATA.economico.costiLotti[k]={costi:[]};
+  const x=CTRL_DATA.economico.costiLotti[k];
+  if(!Array.isArray(x.costi))x.costi=[];
+  const imp=IMPORT_COSTI_BROGLIACCIO[k];
+  const flag='importBrogliaccio_'+(imp?imp.version:'');
+  if(imp&&!x[flag]){
+    const importate=imp.voci.map(v=>({categoria:v.categoria,presunto:0,effettivo:v.effettivo,note:v.note}));
+    const nomi=importate.map(r=>r.categoria);
+    const altre=x.costi.filter(r=>!nomi.includes(r.categoria)&&((Number(r.presunto)||0)!==0||(Number(r.effettivo)||0)!==0||(r.note||'').trim()));
+    x.costi=[...importate,...altre];
+    x[flag]=true;
+    ctrlSave();
+  }
+  if(!imp)CTRL_COSTI_CATEGORIE.forEach(c=>{if(!x.costi.some(r=>r.categoria===c))x.costi.push({categoria:c,presunto:0,effettivo:0,note:''})});
+  return x;
+}
+// Costi generali D|Park (centro di costo DPG), non attribuiti a un singolo lotto.
+function ctrlCostiGeneraliRecord(){
+  if(!CTRL_DATA.economico)CTRL_DATA.economico={};
+  if(!CTRL_DATA.economico.costiGenerali)CTRL_DATA.economico.costiGenerali={costi:[]};
+  const x=CTRL_DATA.economico.costiGenerali;
+  if(!Array.isArray(x.costi))x.costi=[];
+  const imp=IMPORT_COSTI_GENERALI_BROGLIACCIO;
+  const flag='importBrogliaccio_'+imp.version;
+  if(!x[flag]){
+    const importate=imp.voci.map(v=>({categoria:v.categoria,presunto:0,effettivo:v.effettivo,note:v.note}));
+    const nomi=importate.map(r=>r.categoria);
+    const altre=x.costi.filter(r=>!nomi.includes(r.categoria)&&((Number(r.presunto)||0)!==0||(Number(r.effettivo)||0)!==0||(r.note||'').trim()));
+    x.costi=[...importate,...altre];
+    x[flag]=true;
+    ctrlSave();
+  }
+  return x;
+}
+function ctrlAddCostoGenerale(){if(!CAN_EDIT){openLogin();return}ctrlCostiGeneraliRecord().costi.push({categoria:'Nuova voce',presunto:0,effettivo:0,note:''});ctrlSave();ctrlRender('ctrl_quadro')}
+function ctrlSaveCostiGenerali(){if(!CAN_EDIT){openLogin();return}const x=ctrlCostiGeneraliRecord();document.querySelectorAll('[data-econ-generale-cost]').forEach(row=>{const r=x.costi[Number(row.dataset.econGeneraleCost)];const cat=row.querySelector('.ec-categoria');if(cat)r.categoria=cat.value.trim()||r.categoria;r.presunto=Number(row.querySelector('.ec-presunto').value)||0;r.effettivo=Number(row.querySelector('.ec-effettivo').value)||0;r.note=row.querySelector('.ec-note').value.trim()});ctrlSave();ctrlRender('ctrl_quadro');ctrlNotify('✓ Costi generali D|Park salvati')}
 ctrlRenderQuadroEconomico=function(){
-  const x=ctrlEconomicoRecord(),stats=CTRL_BUILDINGS.map(([k,n])=>({key:k,nome:n,...projStats(k)})),presVendite=stats.reduce((a,s)=>a+(Number(s.prevTotAll)||0),0),effVendite=stats.reduce((a,s)=>a+(Number(s.ricavi)||0),0),pres=presVendite+(Number(x.ricaviPresuntiExtra)||0),eff=effVendite+(Number(x.ricaviEffettiviExtra)||0),daRicavare=Math.max(0,pres-eff),unita=stats.reduce((a,s)=>a+s.units.filter(u=>u.st!=='venduto'&&!u.owner).length,0);
+  const x=ctrlEconomicoRecord();
   if(!CTRL_BUILDINGS.some(([k])=>k===CTRL_ECON_LOTTO))CTRL_ECON_LOTTO=CTRL_BUILDINGS[0][0];
-  const riepilogo=CTRL_BUILDINGS.map(([key,nome])=>{const r=ctrlCostiLottoRecord(key),presunto=r.costoPresuntoTotale==null?r.costi.reduce((a,c)=>a+(Number(c.presunto)||0),0):(Number(r.costoPresuntoTotale)||0),effettivo=r.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0);return{key,nome,presunto,effettivo,residuo:Math.max(0,presunto-effettivo)}}),totPres=riepilogo.reduce((a,r)=>a+r.presunto,0),totEff=riepilogo.reduce((a,r)=>a+r.effettivo,0),totResiduo=Math.max(0,totPres-totEff),lotto=ctrlCostiLottoRecord(CTRL_ECON_LOTTO),lottoNome=(CTRL_BUILDINGS.find(([k])=>k===CTRL_ECON_LOTTO)||[])[1]||'Lotto';
-  const ricaviLotti=stats.map(s=>{const rp=Number(s.prevTotAll)||0,re=Number(s.ricavi)||0,rd=Math.max(0,rp-re),delta=(re+rd)-rp;return`<tr><td><b>${ctrlEsc(s.nome)}</b></td><td>${ctrlEuro(rp)}</td><td>${ctrlEuro(re)}</td><td>${ctrlEuro(rd)}</td><td><span class="ctrl-chip ${delta>=0?'ok':'bad'}">${ctrlEuro(delta)}</span></td></tr>`}).join('');
-  const costiLotti=riepilogo.map(r=>{const scheda=ctrlCostiLottoRecord(r.key),bloccato=scheda.costoPresuntoTotale!=null&&scheda.costoPresuntoBloccato!==false,presunto=bloccato?`<div style="display:flex;gap:9px;align-items:center;min-width:230px"><strong style="font-size:18px">${ctrlEuro(r.presunto)}</strong><span class="ctrl-chip ok">Salvato</span><button type="button" class="ctrl-btn" style="padding:7px 10px" onclick="ctrlUnlockCostoPresunto('${r.key}')">Modifica</button></div>`:`<div style="display:flex;gap:7px;align-items:center;min-width:230px"><input id="costo-presunto-${r.key}" type="number" step="0.01" value="${r.presunto||''}" placeholder="Inserisci costo presunto"><button type="button" class="ctrl-btn" onclick="ctrlSaveCostoPresunto('${r.key}')">Salva</button></div>`;return`<tr><td><b>${ctrlEsc(r.nome)}</b></td><td>${presunto}</td><td><strong style="font-size:18px">${ctrlEuro(r.effettivo)}</strong></td><td><label class="ctrl-btn" style="display:inline-block;cursor:pointer">${scheda.fileName?'Aggiorna file':'Allega file contabile'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="ctrlImportCostiFile(this,'${r.key}')"></label>${scheda.fileName?`<div style="font-size:10px;color:#0d9488;margin-top:5px">✓ ${ctrlEsc(scheda.fileName)}</div>`:''}</td></tr>`}).join('');
+  const ricaviImport=(CTRL_DATA.economico&&CTRL_DATA.economico.ricaviRighe)||null;
+  // RICAVI: venduto (CRM, accordo Acquisto) vs fatturato (dal brogliaccio) vs da fatturare, per fabbricato
+  const ricaviLottoDati=CTRL_BUILDINGS.filter(([key])=>key!=='sorriso').map(([key,nome])=>{const venduto=ctrlVendutoLotto(key),fatturato=ctrlFatturatoLotto(key),daFatturare=venduto-fatturato;return{key,nome,venduto,fatturato,daFatturare}}),
+        totVenduto=ricaviLottoDati.reduce((a,r)=>a+r.venduto,0),totFatturato=ricaviLottoDati.reduce((a,r)=>a+r.fatturato,0),totDaFatturare=totVenduto-totFatturato;
+  const ricaviLotti=ricaviLottoDati.map(r=>{
+    const dett=ctrlFatturatoDettaglioLotto(r.key),righeHtml=dett.map(d=>`<tr><td style="width:22px">${d.inclusa?'<span style="color:#0d9488">✓</span>':'<span style="color:#c93b3b">✕</span>'}</td><td>${ctrlEsc(d.descr)}</td><td>${ctrlEuro(d.importo)}</td><td style="font-size:10px;color:#8796a9">${d.inclusa?('unità: '+ctrlEsc(d.unita)):ctrlEsc(d.motivo)}</td></tr>`).join('');
+    return `<tr><td><b>${ctrlEsc(r.nome)}</b></td><td>${ctrlEuro(r.venduto)}</td><td>${ctrlEuro(r.fatturato)}</td><td><span class="ctrl-chip ${r.daFatturare<=0?'ok':'warn'}">${ctrlEuro(r.daFatturare)}</span></td><td><button type="button" class="ctrl-btn light" style="padding:5px 9px;font-size:11px" onclick="ctrlToggleFatturatoDettaglio('${r.key}')">▸ Righe (${dett.length})</button></td></tr><tr id="fatt-dett-${r.key}" style="display:none"><td colspan="5" style="background:#f7f9fc"><div style="overflow-x:auto"><table class="ctrl-table" style="margin:6px 0"><thead><tr><th></th><th>Descrizione di riga (brogliaccio)</th><th>Importo</th><th>Esito</th></tr></thead><tbody>${righeHtml}</tbody></table></div></td></tr>`;
+  }).join('');
+  // COSTI: presunto (manuale) vs effettivo (dal brogliaccio), per fabbricato + una voce a parte per i costi generali D|Park
+  const riepilogo=CTRL_BUILDINGS.map(([key,nome])=>{const r=ctrlCostiLottoRecord(key),presunto=r.costoPresuntoTotale==null?r.costi.reduce((a,c)=>a+(Number(c.presunto)||0),0):(Number(r.costoPresuntoTotale)||0),effettivo=r.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0);return{key,nome,presunto,effettivo,differenza:presunto-effettivo}}),generale=ctrlCostiGeneraliRecord(),presGenerale=generale.costi.reduce((a,c)=>a+(Number(c.presunto)||0),0),effGenerale=generale.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0),totPres=riepilogo.reduce((a,r)=>a+r.presunto,0)+presGenerale,totEff=riepilogo.reduce((a,r)=>a+r.effettivo,0)+effGenerale,totDifferenza=totPres-totEff,lotto=ctrlCostiLottoRecord(CTRL_ECON_LOTTO);
+  const costiLotti=riepilogo.map(r=>{const scheda=ctrlCostiLottoRecord(r.key),bloccato=scheda.costoPresuntoTotale!=null&&scheda.costoPresuntoBloccato!==false,presunto=bloccato?`<div style="display:flex;gap:9px;align-items:center;min-width:230px"><strong style="font-size:18px">${ctrlEuro(r.presunto)}</strong><span class="ctrl-chip ok">Salvato</span><button type="button" class="ctrl-btn" style="padding:7px 10px" onclick="ctrlUnlockCostoPresunto('${r.key}')">Modifica</button></div>`:`<div style="display:flex;gap:7px;align-items:center;min-width:230px"><input id="costo-presunto-${r.key}" type="number" step="0.01" value="${r.presunto||''}" placeholder="Inserisci costo presunto"><button type="button" class="ctrl-btn" onclick="ctrlSaveCostoPresunto('${r.key}')">Salva</button></div>`;const diffLabel=r.presunto?`<span class="ctrl-chip ${r.differenza>=0?'ok':'warn'}">${ctrlEuro(r.differenza)}</span>`:`<span style="color:#8796a9;font-size:11px">— (nessun presunto)</span>`;return`<tr><td><b>${ctrlEsc(r.nome)}</b></td><td>${presunto}</td><td><strong style="font-size:18px">${ctrlEuro(r.effettivo)}</strong></td><td>${diffLabel}</td><td><label class="ctrl-btn" style="display:inline-block;cursor:pointer">${scheda.fileName?'Aggiorna file':'Allega file contabile'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="ctrlImportCostiFile(this,'${r.key}')"></label>${scheda.fileName?`<div style="font-size:10px;color:#0d9488;margin-top:5px">✓ ${ctrlEsc(scheda.fileName)}</div>`:''}</td></tr>`}).join('');
   const righe=lotto.costi.map((r,i)=>`<tr data-econ-lotto-cost="${i}"><td><b>${ctrlEsc(r.categoria)}</b></td><td><input class="ec-presunto" type="number" step="0.01" value="${Number(r.presunto)||''}" placeholder="0,00"></td><td><input class="ec-effettivo" type="number" step="0.01" value="${Number(r.effettivo)||''}" placeholder="0,00"></td><td><b>${ctrlEuro(Math.max(0,(Number(r.presunto)||0)-(Number(r.effettivo)||0)))}</b></td><td><input class="ec-note" value="${ctrlEsc(r.note||'')}" placeholder="Note / riferimento"></td></tr>`).join('');
-  return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Quadro economico D|Park</h2><p>Ricavi complessivi dell'operazione e costi distinti per ciascun lotto.</p></div><span class="ctrl-chip ok">D|Park generale</span></div>
-  <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(pres)}</strong><span>1. Ricavi presunti dell'operazione</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(eff)}</strong><span>2. Ricavi effettivi</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(daRicavare)}</strong><span>3. Ricavi da effettuare</span></div><div class="ctrl-kpi"><strong>${unita}</strong><span>4. Unità da vendere</span></div></div>
-  <div class="ctrl-card" style="margin-bottom:14px"><h3>Ricavi per lotto</h3><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>1. Ricavi presunti</th><th>2. Ricavi effettivi</th><th>3. Ricavi da effettuare</th><th>Delta (2 + 3) − 1</th></tr></thead><tbody>${ricaviLotti}</tbody><tfoot><tr><td><b>Totale D|Park</b></td><td><b>${ctrlEuro(presVendite)}</b></td><td><b>${ctrlEuro(effVendite)}</b></td><td><b>${ctrlEuro(Math.max(0,presVendite-effVendite))}</b></td><td><b>${ctrlEuro((effVendite+Math.max(0,presVendite-effVendite))-presVendite)}</b></td></tr></tfoot></table></div><p style="font-size:10px;color:#8796a9;margin-bottom:0">Il delta confronta la somma dei ricavi effettivi e ancora da effettuare con i ricavi presunti.</p></div>
-  <div class="ctrl-card" style="margin-bottom:14px"><h3>Altri ricavi dell'operazione</h3><div class="ctrl-form"><input id="eq-ricavi-presunti-extra" type="number" step="0.01" value="${Number(x.ricaviPresuntiExtra)||''}" placeholder="Ricavi presunti extra"><input id="eq-ricavi-effettivi-extra" type="number" step="0.01" value="${Number(x.ricaviEffettiviExtra)||''}" placeholder="Ricavi effettivi extra"><input id="eq-note-ricavi" class="wide" value="${ctrlEsc(x.noteRicavi||'')}" placeholder="Descrizione / note"></div></div>
-  <div class="ctrl-kpis" style="grid-template-columns:repeat(2,minmax(220px,1fr))"><div class="ctrl-kpi"><strong>${ctrlEuro(totPres)}</strong><span>Somma dei costi presunti D|Park</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totEff)}</strong><span>Somma dei costi effettivi D|Park</span></div></div>
-  <div class="ctrl-card"><div style="margin-bottom:12px"><h3 style="margin:0">Costi presunti ed effettivi per lotto</h3><small>Inserisci il costo presunto; per il costo effettivo allega la situazione contabile del lotto.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Costo presunto</th><th>Costo effettivo</th><th>File contabile</th></tr></thead><tbody>${costiLotti}</tbody><tfoot><tr><td><b>Totale D|Park</b></td><td><strong style="font-size:18px">${ctrlEuro(totPres)}</strong></td><td><strong style="font-size:18px">${ctrlEuro(totEff)}</strong></td><td></td></tr></tfoot></table></div></div></div>`;
+  const righeGenerale=generale.costi.map((r,i)=>`<tr data-econ-generale-cost="${i}"><td><input class="ec-categoria" value="${ctrlEsc(r.categoria)}" placeholder="Categoria"></td><td><input class="ec-presunto" type="number" step="0.01" value="${Number(r.presunto)||''}" placeholder="0,00"></td><td><input class="ec-effettivo" type="number" step="0.01" value="${Number(r.effettivo)||''}" placeholder="0,00"></td><td><input class="ec-note" value="${ctrlEsc(r.note||'')}" placeholder="Note / riferimento"></td></tr>`).join('');
+  return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Quadro economico D|Park</h2><p>Da un lato i ricavi (venduto vs fatturato), dall'altro i costi (presunto vs effettivo), per ciascun fabbricato.</p></div><span class="ctrl-chip ok">D|Park generale</span></div>
+
+  <div class="jg-section-lbl" style="font-size:13px;margin-bottom:10px">RICAVI</div>
+  <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(totVenduto)}</strong><span>1. Venduto (prezzo concordato, accordo Acquisto)</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totFatturato)}</strong><span>2. Fatturato secondo il brogliaccio</span></div><div class="ctrl-kpi"><strong style="color:${totDaFatturare<=0?'#0d9488':'#d97706'}">${ctrlEuro(totDaFatturare)}</strong><span>3. Da fatturare (1 − 2)</span></div></div>
+  <div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap"><div><h3 style="margin:0">Ricavi per fabbricato</h3>${ricaviImport?`<small style="color:#0d9488">✓ Brogliaccio: ${ctrlEsc(ricaviImport.fileName||'')} · ${ricaviImport.importedAt?new Date(ricaviImport.importedAt).toLocaleDateString('it-IT'):''}</small>`:`<small style="color:#8796a9">Nessun brogliaccio caricato: valori dell'ultimo import manuale</small>`}</div><label class="ctrl-btn" style="display:inline-block;cursor:pointer;white-space:nowrap">${ricaviImport?'Aggiorna brogliaccio':'Carica brogliaccio'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="ctrlImportRicaviBrogliaccio(this)"></label></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Fabbricato</th><th>Venduto</th><th>Fatturato</th><th>Da fatturare</th><th></th></tr></thead><tbody>${ricaviLotti}</tbody><tfoot><tr><td><b>Totale D|Park</b></td><td><b>${ctrlEuro(totVenduto)}</b></td><td><b>${ctrlEuro(totFatturato)}</b></td><td><b>${ctrlEuro(totDaFatturare)}</b></td><td></td></tr></tfoot></table></div><p style="font-size:10px;color:#8796a9;margin-bottom:0">Venduto = prezzo concordato delle unità vendute con accordo Acquisto (esclude le Permute, come nel resto dell'app). Fatturato = solo le righe del brogliaccio la cui Descrizione di riga cita un nominativo o un codice presente nella scheda vendite del lotto (le righe generiche, senza nominativo, sono escluse - apri "Righe" per il dettaglio riga per riga). Sorriso non è ancora incluso: il centro di costo non è ancora partito.</p></div>
+  <div class="ctrl-card" style="margin-bottom:22px"><h3>Altri ricavi dell'operazione</h3><div class="ctrl-form"><input id="eq-ricavi-presunti-extra" type="number" step="0.01" value="${Number(x.ricaviPresuntiExtra)||''}" placeholder="Ricavi presunti extra"><input id="eq-ricavi-effettivi-extra" type="number" step="0.01" value="${Number(x.ricaviEffettiviExtra)||''}" placeholder="Ricavi effettivi extra"><input id="eq-note-ricavi" class="wide" value="${ctrlEsc(x.noteRicavi||'')}" placeholder="Descrizione / note"></div></div>
+
+  <div class="jg-section-lbl" style="font-size:13px;margin-bottom:10px">COSTI</div>
+  <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(totPres)}</strong><span>1. Costo presunto (budget, inserito a mano)</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totEff)}</strong><span>2. Costo effettivo secondo il brogliaccio</span></div><div class="ctrl-kpi"><strong style="color:${totPres===0?'#8796a9':(totDifferenza>=0?'#0d9488':'#d97706')}">${totPres===0?'—':ctrlEuro(totDifferenza)}</strong><span>3. Differenza (1 − 2)${totPres===0?' · nessun presunto inserito':''}</span></div></div>
+  <div class="ctrl-card" style="margin-bottom:14px"><div style="margin-bottom:12px"><h3 style="margin:0">Costi presunti ed effettivi per lotto</h3><small>Inserisci il costo presunto; per il costo effettivo allega la situazione contabile del lotto.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Costo presunto</th><th>Costo effettivo</th><th>Differenza</th><th>File contabile</th></tr></thead><tbody>${costiLotti}</tbody><tfoot><tr><td><b>Totale per lotto</b></td><td><strong style="font-size:18px">${ctrlEuro(riepilogo.reduce((a,r)=>a+r.presunto,0))}</strong></td><td><strong style="font-size:18px">${ctrlEuro(riepilogo.reduce((a,r)=>a+r.effettivo,0))}</strong></td><td>${riepilogo.reduce((a,r)=>a+r.presunto,0)===0?'<span style="color:#8796a9;font-size:11px">— (nessun presunto)</span>':`<strong style="font-size:18px">${ctrlEuro(riepilogo.reduce((a,r)=>a+r.differenza,0))}</strong>`}</td><td></td></tr></tfoot></table></div><p style="font-size:10px;color:#8796a9;margin:10px 0 0">Costo presunto = budget inserito manualmente per lotto (non deriva da una fonte dati, a differenza del Venduto nei ricavi). Costo effettivo = quanto risulta speso secondo il brogliaccio contabile o il file allegato. Differenza negativa = costo effettivo sopra il presunto.</p></div>
+  <div class="ctrl-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><div><h3 style="margin:0">Costi generali D|Park <span style="font-weight:400;color:#8796a9;font-size:11px">(non attribuiti a un lotto)</span></h3><small>Consulenze, spese di struttura e altri costi comuni a tutta l'operazione — centro di costo DPG.</small></div><button type="button" class="ctrl-btn" onclick="ctrlSaveCostiGenerali()">Salva</button></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Categoria</th><th>Costo presunto</th><th>Costo effettivo</th><th>Note</th></tr></thead><tbody>${righeGenerale}</tbody><tfoot><tr><td><b>Totale costi generali</b></td><td><strong style="font-size:18px">${ctrlEuro(presGenerale)}</strong></td><td><strong style="font-size:18px">${ctrlEuro(effGenerale)}</strong></td><td></td></tr></tfoot></table></div><button type="button" class="ctrl-btn light" style="margin-top:12px" onclick="ctrlAddCostoGenerale()">+ Aggiungi voce</button>
+  <p style="font-size:10px;color:#8796a9;margin:12px 0 0">"Totale D|Park" qui sopra include anche questi costi generali (per lotto + generali = ${ctrlEuro(totPres)} presunto, ${ctrlEuro(totEff)} effettivo).</p></div></div>`;
 }
 ctrlSaveQuadroEconomico=function(){const x=ctrlEconomicoRecord(),lotto=ctrlCostiLottoRecord(CTRL_ECON_LOTTO);x.ricaviPresuntiExtra=Number(document.getElementById('eq-ricavi-presunti-extra').value)||0;x.ricaviEffettiviExtra=Number(document.getElementById('eq-ricavi-effettivi-extra').value)||0;x.noteRicavi=document.getElementById('eq-note-ricavi').value.trim();document.querySelectorAll('[data-econ-lotto-cost]').forEach(row=>{const r=lotto.costi[Number(row.dataset.econLottoCost)];r.presunto=Number(row.querySelector('.ec-presunto').value)||0;r.effettivo=Number(row.querySelector('.ec-effettivo').value)||0;r.note=row.querySelector('.ec-note').value.trim()});ctrlSave();ctrlRender('ctrl_quadro');ctrlNotify('✓ Quadro economico salvato per '+((CTRL_BUILDINGS.find(([k])=>k===CTRL_ECON_LOTTO)||[])[1]||'lotto'))}
 function ctrlSaveCostoPresunto(lottoKey){const input=document.getElementById('costo-presunto-'+lottoKey);if(!input)return;const valore=Number(input.value)||0;if(valore<0){alert('Il costo presunto non può essere negativo.');return}const scheda=ctrlCostiLottoRecord(lottoKey);scheda.costoPresuntoTotale=valore;scheda.costoPresuntoBloccato=true;ctrlSave();ctrlRender('ctrl_quadro');ctrlNotify('✓ Costo presunto salvato e bloccato per '+ctrlName(lottoKey))}
