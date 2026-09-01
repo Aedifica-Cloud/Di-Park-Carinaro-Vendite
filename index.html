@@ -84,6 +84,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
 .pb-v{background:var(--red);height:100%;}
 .pb-r{background:var(--orange);height:100%;}
 .pb-d{background:var(--green);height:100%;}
+.kl-row{display:flex;align-items:center;gap:5px;}
+.kpi-info-btn{cursor:pointer;opacity:.5;font-size:12px;line-height:1;border:none;background:none;padding:0;color:#666;}
+.kpi-info-btn:hover{opacity:1;color:var(--navy);}
+.kf-row{display:flex;justify-content:space-between;gap:14px;padding:7px 0;border-bottom:1px solid #f0e8dc;font-size:13px;}
+.kf-row:last-child{border-bottom:none;}
+.kf-row .kf-l{color:#555;}
+.kf-row .kf-v{font-weight:700;color:var(--navy);white-space:nowrap;}
+.kf-row.kf-total{border-top:2px solid #ccd6e6;margin-top:2px;padding-top:10px;font-weight:800;}
+.kf-row.kf-total .kf-v{font-size:15px;}
+.kf-note{font-size:12px;color:#8796a9;line-height:1.5;margin-bottom:10px;}
+.kf-formula{font-size:11px;color:#aaa;margin-top:10px;font-style:italic;}
+.cat-costi-suggerita{background:#fffbe6;border-color:#f0d060 !important;}
 
 /* ── LEGEND ── */
 .legend{display:flex;gap:16px;padding:10px 24px;background:#fff;border-bottom:1px solid #e0d8cc;flex-wrap:wrap;}
@@ -564,6 +576,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
   </div>
 </div>
 
+<div class="ov" id="kpi-info-ov" onclick="if(event.target===this)closeKpiInfo()">
+  <div class="modal" style="max-width:460px">
+    <div class="mhead">
+      <div><h3 id="kpi-info-title">—</h3></div>
+      <button class="mclose" onclick="closeKpiInfo()">✕</button>
+    </div>
+    <div class="mbody" id="kpi-info-body" style="padding:18px 24px 22px"></div>
+  </div>
+</div>
+
+<datalist id="cat-costi-datalist"></datalist>
+
 <script>
 // ═══════════════ DATI BASE ═══════════════
 const BASE = {
@@ -968,14 +992,25 @@ function renderKPI() {
   const vendutoVal = vUnits.filter(u=>u.accordo==='Acquisto').reduce((s,u)=>{ const c=eurF(u); return s + (c>0 ? c : prevOf(u)); }, 0);
   // Permuta: prezzo concordato, se assente stima previsionale
   const permutaVal = vUnits.filter(u=>u.accordo==='Permuta').reduce((s,u)=>{ const c=eurF(u); return s + (c>0 ? c : prevOf(u)); }, 0);
+  // Venduto senza Tipo Accordo impostato correttamente (né Acquisto né Permuta): non deve sparire dal totale.
+  // Va comunque contato una volta sola: prezzo concordato se presente, altrimenti stima previsionale.
+  const vendutoAltroUnits = vUnits.filter(u=>u.accordo!=='Acquisto' && u.accordo!=='Permuta');
+  const vendutoAltroVal = vendutoAltroUnits.reduce((s,u)=>{ const c=eurF(u); return s + (c>0 ? c : prevOf(u)); }, 0);
   // Invenduto: stima previsionale di ciò che resta da vendere (riservate + disponibili)
   const invendutoVal = nonVendute.reduce((s,u)=>s+prevOf(u), 0);
-  // Ricavi previsti di tutta l'operazione = somma delle tre componenti (identità, sempre coerente)
-  const totaleOperazione = vendutoVal + permutaVal + invendutoVal;
+  // Box invenduti: valore dei box del lotto NON ancora assegnati a nessuna unità (quindi non già conteggiati sopra tramite prevOf/boxEurOf di una specifica unità).
+  const boxGiaAssegnatoVal = allUnits.reduce((s,u)=>s+(u.box?boxEurOf(u,proj):0), 0);
+  const boxInvendutiVal = Math.max(0, calcBoxRevenue(proj) - boxGiaAssegnatoVal);
+  // Ricavi previsti di tutta l'operazione = venduto + permuta + venduto senza accordo specificato + invenduto (appartamenti) + box ancora invenduti
+  const totaleOperazione = vendutoVal + permutaVal + vendutoAltroVal + invendutoVal + boxInvendutiVal;
   const pctV = totaleOperazione ? (vendutoVal/totaleOperazione*100).toFixed(0) : 0;
   const pctP = totaleOperazione ? (permutaVal/totaleOperazione*100).toFixed(0) : 0;
-  const pctI = totaleOperazione ? (invendutoVal/totaleOperazione*100).toFixed(0) : 0;
-  const pctRealizzato = totaleOperazione ? Math.round((vendutoVal+permutaVal)/totaleOperazione*100) : 0;
+  const pctA = totaleOperazione ? (vendutoAltroVal/totaleOperazione*100).toFixed(0) : 0;
+  const pctI = totaleOperazione ? ((invendutoVal+boxInvendutiVal)/totaleOperazione*100).toFixed(0) : 0;
+  const pctRealizzato = totaleOperazione ? Math.round((vendutoVal+permutaVal+vendutoAltroVal)/totaleOperazione*100) : 0;
+  const vAcqCount = vUnits.filter(u=>u.accordo==='Acquisto').length;
+  const vPerCount = vUnits.filter(u=>u.accordo==='Permuta').length;
+  const totBoxLotto = calcBoxRevenue(proj);
   // Prezzo al mq venduto: solo Acquisto con prezzo inserito, mai le Permute
   const vAcqP = vUnits.filter(u=>u.accordo==='Acquisto' && eurF(u)>0);
   const mqAcq = vAcqP.reduce((s,u)=>s+parseSL(u.sl),0);
@@ -990,35 +1025,108 @@ function renderKPI() {
     });
   });
   const eur = fmt => fmt>0 ? '€ '+Math.round(fmt).toLocaleString('it-IT') : '—';
+
+  const kfRow  = (l,v) => `<div class="kf-row"><span class="kf-l">${l}</span><span class="kf-v">${v}</span></div>`;
+  const kfTot  = (l,v) => `<div class="kf-row kf-total"><span class="kf-l">${l}</span><span class="kf-v">${v}</span></div>`;
+  const kfNote = t => `<div class="kf-note">${t}</div>`;
+  const kfForm = t => `<div class="kf-formula">${t}</div>`;
+
+  KPI_EXPLAIN = {
+    totale: {
+      title: 'Ricavi Previsti Totale Operazione',
+      html: kfNote('Somma di tutto il valore del lotto, venduto o ancora da vendere. Ogni unità e ogni box contribuisce una sola volta.')
+        + kfRow('Venduto (Acquisto)', eur(vendutoVal))
+        + kfRow('Permuta', eur(permutaVal))
+        + (vendutoAltroVal>0 ? kfRow('⚠️ Venduto senza Tipo Accordo', eur(vendutoAltroVal)) : '')
+        + kfRow('Invenduto', eur(invendutoVal))
+        + kfRow('Box invenduti', eur(boxInvendutiVal))
+        + kfTot('Totale', eur(totaleOperazione))
+        + kfForm('Venduto (Acquisto) + Permuta' + (vendutoAltroVal>0?' + Venduto senza Tipo Accordo':'') + ' + Invenduto + Box invenduti')
+    },
+    venduto: {
+      title: 'Venduto (Acquisto)',
+      html: kfNote(`Per ogni unità venduta con Tipo Accordo = "Acquisto": il Prezzo Concordato se inserito, altrimenti la stima previsionale (S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq + S.N.R. × €${SNR_PRICE_PER_MQ.toLocaleString('it-IT')}/mq + box eventualmente assegnato).`)
+        + kfRow('Unità con accordo "Acquisto"', vAcqCount)
+        + kfTot('Totale', eur(vendutoVal))
+    },
+    permuta: {
+      title: 'Permuta',
+      html: kfNote(`Per ogni unità venduta con Tipo Accordo = "Permuta": il Prezzo Concordato se inserito, altrimenti la stima previsionale (S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq + S.N.R. × €${SNR_PRICE_PER_MQ.toLocaleString('it-IT')}/mq + box eventualmente assegnato).`)
+        + kfRow('Unità con accordo "Permuta"', vPerCount)
+        + kfTot('Totale', eur(permutaVal))
+    },
+    altro: {
+      title: '⚠️ Venduto senza Tipo Accordo',
+      html: kfNote('Unità marcate "Venduto" ma con il campo Tipo Accordo diverso da Acquisto/Permuta (vuoto, "In trattativa", ecc.). Vengono contate qui — con il Prezzo Concordato se inserito, altrimenti la stima previsionale — per non far sparire il loro valore dal totale. La classificazione corretta va comunque impostata sulla scheda dell\'unità.')
+        + kfRow('Unità coinvolte', vendutoAltroUnits.length)
+        + kfTot('Totale', eur(vendutoAltroVal))
+    },
+    invenduto: {
+      title: 'Invenduto',
+      html: kfNote(`Per ogni unità non ancora venduta (riservata o disponibile): il Prezzo Previsionale manuale se inserito, altrimenti la stima calcolata (S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq + S.N.R. × €${SNR_PRICE_PER_MQ.toLocaleString('it-IT')}/mq + box eventualmente già assegnato).`)
+        + kfRow('Riservate', r)
+        + kfRow('Disponibili', d)
+        + kfTot('Totale', eur(invendutoVal))
+    },
+    boxInv: {
+      title: 'Box invenduti',
+      html: kfNote(`Valore dei box del lotto non ancora assegnati a nessuna unità (mq del box × €${BOX_PRICE_PER_MQ.toLocaleString('it-IT')}/mq).`)
+        + kfRow('Valore totale box del lotto', eur(totBoxLotto))
+        + kfRow('− Box già assegnati a un\'unità', eur(boxGiaAssegnatoVal))
+        + kfTot('Box invenduti', eur(boxInvendutiVal))
+        + kfForm('I box già assegnati sono già inclusi nel Venduto/Permuta/Invenduto dell\'unità a cui appartengono: non vengono ricontati qui.')
+    },
+    incassato: {
+      title: 'Incassato',
+      html: kfNote('Somma di tutti gli acconti (SAL) di tutte le unità del lotto marcati come effettivamente incassati. Soldi reali, non stime.')
+        + kfTot('Totale incassato', eur(accontiRic))
+    },
+    daIncassare: {
+      title: 'Da Incassare',
+      html: kfNote('Somma di tutti gli acconti (SAL) programmati sulle unità del lotto ma non ancora marcati come incassati.')
+        + kfTot('Totale da incassare', eur(accontiDaRic))
+    },
+  };
+
   document.getElementById('kpi').innerHTML = `
     <div class="kpi big">
-      <div class="kl">Ricavi Previsti Totale Operazione</div>
+      <div class="kl-row"><div class="kl">Ricavi Previsti Totale Operazione</div><button class="kpi-info-btn" onclick="showKpiInfo('totale')" title="Come si calcola">ⓘ</button></div>
       <div class="kv" style="color:var(--navy);font-size:20px">${eur(totaleOperazione)}</div>
       <div class="ks">${v} vendute (${pctRealizzato}% del valore) · ${r} riservate · ${d} disponibili · ${tot} unità totali</div>
-      <div class="pbar"><div class="pb-v" style="width:${pctV}%" title="Venduto"></div><div class="pb-r" style="width:${pctP}%" title="Permuta"></div><div class="pb-d" style="width:${pctI}%;background:#b0a8a0" title="Invenduto"></div></div>
+      <div class="pbar"><div class="pb-v" style="width:${pctV}%" title="Venduto"></div><div class="pb-r" style="width:${pctP}%" title="Permuta"></div>${vendutoAltroVal>0?`<div style="width:${pctA}%;background:#c0392b;display:inline-block;height:100%" title="Venduto senza Tipo Accordo"></div>`:''}<div class="pb-d" style="width:${pctI}%;background:#b0a8a0" title="Invenduto"></div></div>
     </div>
     <div class="kpi" style="background:#fffbe6;border-color:#f0d060">
-      <div class="kl">Venduto (Acquisto)</div>
+      <div class="kl-row"><div class="kl">Venduto (Acquisto)</div><button class="kpi-info-btn" onclick="showKpiInfo('venduto')" title="Come si calcola">ⓘ</button></div>
       <div class="kv" style="color:#b8860b;font-size:15px">${eur(vendutoVal)}</div>
       <div class="ks">${prezzoMqAcq>0?'€ '+prezzoMqAcq.toLocaleString('it-IT')+'/mq medio · ':''}concordato, o previsionale se assente</div>
     </div>
     <div class="kpi" style="background:#f4eefb;border-color:#d7c4ee">
-      <div class="kl">Permuta</div>
+      <div class="kl-row"><div class="kl">Permuta</div><button class="kpi-info-btn" onclick="showKpiInfo('permuta')" title="Come si calcola">ⓘ</button></div>
       <div class="kv" style="color:#5e35b1;font-size:15px">${eur(permutaVal)}</div>
       <div class="ks">concordato, o previsionale se assente</div>
     </div>
+    ${vendutoAltroVal>0?`<div class="kpi" style="background:#fdeeee;border-color:#e0a0a0">
+      <div class="kl-row"><div class="kl">⚠️ Venduto senza Tipo Accordo</div><button class="kpi-info-btn" onclick="showKpiInfo('altro')" title="Come si calcola">ⓘ</button></div>
+      <div class="kv" style="color:#c0392b;font-size:15px">${eur(vendutoAltroVal)}</div>
+      <div class="ks">${vendutoAltroUnits.length} unità "venduto" con Tipo Accordo non impostato su Acquisto/Permuta — imposta il campo per classificarle correttamente</div>
+    </div>`:''}
     <div class="kpi" style="background:#f2f0ec;border-color:#d8d0c4">
-      <div class="kl">Invenduto</div>
+      <div class="kl-row"><div class="kl">Invenduto</div><button class="kpi-info-btn" onclick="showKpiInfo('invenduto')" title="Come si calcola">ⓘ</button></div>
       <div class="kv" style="color:#6a6258;font-size:15px">${eur(invendutoVal)}</div>
       <div class="ks">stima previsionale · riservate + disponibili, non ancora realizzato</div>
     </div>
+    <div class="kpi" style="background:#f2f0ec;border-color:#d8d0c4">
+      <div class="kl-row"><div class="kl">Box invenduti</div><button class="kpi-info-btn" onclick="showKpiInfo('boxInv')" title="Come si calcola">ⓘ</button></div>
+      <div class="kv" style="color:#6a6258;font-size:15px">${eur(boxInvendutiVal)}</div>
+      <div class="ks">box del lotto non ancora assegnati a nessuna unità (€${BOX_PRICE_PER_MQ.toLocaleString('it-IT')}/mq)</div>
+    </div>
     <div class="kpi" style="background:#eef7ee;border-color:#bfe0c0">
-      <div class="kl">Incassato</div>
+      <div class="kl-row"><div class="kl">Incassato</div><button class="kpi-info-btn" onclick="showKpiInfo('incassato')" title="Come si calcola">ⓘ</button></div>
       <div class="kv" style="color:#2e7d32;font-size:15px">${eur(accontiRic)}</div>
       <div class="ks">SAL effettivamente incassati</div>
     </div>
     <div class="kpi" style="background:#fdeeee;border-color:#f0c0c0">
-      <div class="kl">Da Incassare</div>
+      <div class="kl-row"><div class="kl">Da Incassare</div><button class="kpi-info-btn" onclick="showKpiInfo('daIncassare')" title="Come si calcola">ⓘ</button></div>
       <div class="kv" style="color:#c0392b;font-size:15px">${eur(accontiDaRic)}</div>
       <div class="ks">SAL programmati, non ancora incassati</div>
     </div>
@@ -1516,7 +1624,11 @@ function projStats(key) {
   const prev = prevOf;
   const ricavi       = v.reduce((s,u)=>s+eur(u),0);
   const prevTotRes   = res.reduce((s,u)=>s+prev(u),0);
-  const prevTotAll   = all.reduce((s,u)=>s+prev(u),0) + calcBoxRevenue(key);
+  // prev(u) include già il valore del box quando è assegnato a quell'unità (boxEurOf dentro prevOf).
+  // calcBoxRevenue(key) è il valore dell'INTERO inventario box del lotto (assegnati + non assegnati).
+  // Sommarli entrambi senza correzione conta due volte i box già assegnati: si sottrae quindi qui il valore dei box già assegnati.
+  const boxGiaAssegnato = all.reduce((s,u)=>s+(u.box?boxEurOf(u,key):0),0);
+  const prevTotAll   = all.reduce((s,u)=>s+prev(u),0) - boxGiaAssegnato + calcBoxRevenue(key);
   const prevVenduti  = v.reduce((s,u)=>s+prev(u),0);
   const acq = [...v,...r].filter(u=>u.accordo==='Acquisto');
   const per = [...v,...r].filter(u=>u.accordo==='Permuta');
@@ -2435,6 +2547,26 @@ function delSalRow(i) {
 
 function ovc(e) { if (e.target===document.getElementById('ov')) cm(); }
 function cm()   { setFormLocked(true); document.getElementById('ov').classList.remove('open'); curId=null; }
+
+// ─── SPIEGAZIONE FORMULE KPI (pagina lotto) ───
+let KPI_EXPLAIN = {};
+function showKpiInfo(key) {
+  const e = KPI_EXPLAIN[key];
+  if (!e) return;
+  document.getElementById('kpi-info-title').textContent = e.title;
+  document.getElementById('kpi-info-body').innerHTML = e.html;
+  document.getElementById('kpi-info-ov').classList.add('open');
+}
+function closeKpiInfo() { document.getElementById('kpi-info-ov').classList.remove('open'); }
+
+// ─── CATEGORIZZAZIONE COSTI PER FORNITORE (microcategorie) ───
+// Nota di design: in precedenza qui c'era un modale separato ("Categorizza fornitori") da aprire e
+// confermare a mano anche per i ~30 fornitori già noti. Su richiesta di Noemi ("evita cose che mi facciano
+// perder tempo") il flusso è stato reso interamente automatico per i fornitori riconosciuti (vedi
+// ctrlMicroCategoriaDiRiga) e il modale è stato eliminato: l'unica azione manuale rimasta è nel blocco
+// "Fornitori da categorizzare" dentro il Quadro economico (ctrlRenderQuadroEconomico), visibile SOLO
+// quando esiste almeno un fornitore che l'app non è riuscita a identificare da sola.
+function catCostiNomeLotto(k){ return k==='generale' ? 'DPG (generale)' : ctrlName(k); }
 
 // ─── MODIFICA PREZZI PREVISIONALI IN BLOCCO (per lotto) ───
 function openListinoBulk() {
@@ -3396,6 +3528,21 @@ load(); sw('lotti'); initAuth(); loadFiles();
   #kpi,.legend,#check-panel,#content{margin-left:255px}.header{z-index:40}.ctrl-shell{max-width:1250px}.ctrl-subtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}.ctrl-subtab{border:1px solid #d9cbb6;border-radius:8px;padding:8px 11px;background:#fff;color:var(--navy);font-size:10px;font-weight:800;cursor:pointer}.ctrl-subtab.active{background:var(--navy);color:#fff}
   @media(max-width:850px){.ctrl-kpis,.ctrl-grid{grid-template-columns:1fr 1fr}.ctrl-form{grid-template-columns:1fr 1fr}}@media(max-width:560px){.ctrl-kpis,.ctrl-grid,.ctrl-form{grid-template-columns:1fr}.ctrl-form .wide{grid-column:auto}}
   @media(max-width:750px){.entity-nav{position:static;width:auto;display:block}.entity-categories{display:flex;gap:4px;overflow-x:auto}.entity-cat{white-space:nowrap;width:auto}.entity-context{display:none}#kpi,.legend,#check-panel,#content{margin-left:0}}
+  .ctrl-bot-fab{position:fixed;right:22px;bottom:22px;width:56px;height:56px;border-radius:50%;background:var(--navy);color:#fff;border:0;font-size:24px;cursor:pointer;box-shadow:0 4px 14px rgba(15,32,55,.35);z-index:200;display:flex;align-items:center;justify-content:center}
+  .ctrl-bot-fab:hover{background:#233f63}
+  .ctrl-bot-panel{position:fixed;right:22px;bottom:88px;width:340px;max-width:calc(100vw - 32px);height:460px;max-height:calc(100vh - 120px);background:#fff;border-radius:14px;box-shadow:0 10px 40px rgba(15,32,55,.3);z-index:200;display:none;flex-direction:column;overflow:hidden}
+  .ctrl-bot-panel.open{display:flex}
+  .ctrl-bot-head{background:var(--navy);color:#fff;padding:12px 14px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .ctrl-bot-head b{font-size:13px}
+  .ctrl-bot-head small{display:block;font-size:9px;color:#9eb0c6;font-weight:400;margin-top:2px}
+  .ctrl-bot-close{background:transparent;border:0;color:#fff;font-size:16px;cursor:pointer;line-height:1}
+  .ctrl-bot-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:9px;background:#f7f9fc}
+  .ctrl-bot-msg{max-width:85%;padding:8px 11px;border-radius:11px;font-size:12px;line-height:1.45;white-space:pre-wrap}
+  .ctrl-bot-msg.user{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:3px}
+  .ctrl-bot-msg.bot{align-self:flex-start;background:#fff;color:#26374d;border:1px solid #e8e4da;border-bottom-left-radius:3px}
+  .ctrl-bot-form{display:flex;gap:7px;padding:10px;border-top:1px solid #eee}
+  .ctrl-bot-form input{flex:1;border:1px solid #ddd1bd;border-radius:9px;padding:9px 11px;font:inherit;font-size:12px}
+  .ctrl-bot-form button{border:0;border-radius:9px;padding:0 14px;background:var(--navy);color:#fff;font-weight:800;cursor:pointer}
 </style>
 <script>
 const CTRL_BUILDINGS=[['a1','Armonia 1'],['a2','Armonia 2'],['passione','Passione'],['vittoria','Vittoria'],['equilibrio','Equilibrio'],['sorriso','Sorriso'],['audacia','Audacia']];
@@ -3515,6 +3662,47 @@ const IMPORT_COSTI_BROGLIACCIO = {
     {categoria:'Oneri di Urbanizzazione', effettivo:830, note:'Conto 65023501 · 2025 + 2026'},
   ]},
 };
+// Suggerimenti di categoria per fornitore, indicati manualmente da Noemi (non presenti nell'Anagrafica di
+// commessa: Appaltatori/Professionisti generali sono ancora vuoti in app, quindi non recuperabili da lì).
+// Servono solo a precompilare il modale "Categorizza fornitori": ogni assegnazione diventa effettiva solo
+// quando viene salvata da lì (CTRL_DATA.economico.microCategorie), non sono applicate automaticamente qui.
+const FORNITORI_CATEGORIA_SUGGERITE = {
+  'BETONPAV S.R.L.': 'Calcestruzzo',
+  'COMMERCIO EDILE S.R.L.': 'Ferro',
+  'EDILFLAGIELLO DUE S.r.l.': 'Solai',
+  'STEEL METAL PRO SRL': 'Ferro',
+  'Movisid  S.P.A.': 'Ferro',
+  'INDUSTRIE RIUNITE ODOLESI I.R.O. S.P.A.': 'Ferro',
+  'SALVAREZZA SRL': 'Scavi',
+  'Francesca Coppola': 'Architetto',
+  'Coppola Nicola': 'Architetto',
+  'ANSA SRL': 'Calcestruzzo',
+  'ANNALISA CASTALDO': 'Architetto',
+  'Industrie Polieco-M.P.B. S.p.A': 'Strade',
+  'IDROSISTEMI SRL': 'Impiantistica',
+  'Antonio Falco': 'Architetto',
+  'REAL ESTATE SRLS': 'Consulente immobiliare',
+  'NUOVA EDILIA S.R.L': 'Materiali edili',
+  'SAN PIO PAVIMENTAZIONI SRL': 'Massetti industriali',
+  'Francesco Del Villano': 'Architetto',
+  'IPIEMME S.P.A.': 'Manufatti fogne',
+  'Villani Calce srl': 'Murature',
+  'Copaco Evolution srl': 'Manodopera',
+  'LOGCENTER SRL': 'Noleggio',
+  'Domenico Fernandez': 'Architetto',
+  'LOGRENT SRL': 'Noleggio',
+  'PETRONE PASQUALE': 'Ferro',
+  'FABIO CAMPANIELLO': 'Ingegnere',
+  'Ld.Termoidraulica srl': 'Materiali idraulici',
+  'SEBACH SPA Unipersonale': 'Bagni chimici',
+  'MEGAWATT S.P.A.': 'Materiale edile',
+  'PLP GROUP S.R.L.': 'Analisi materiale',
+};
+// Note suggerite per fornitore (dettaglio oltre la categoria, es. cosa fornisce esattamente) - indicate a
+// mano da Noemi, stesso meccanismo di precompilazione di FORNITORI_CATEGORIA_SUGGERITE.
+const FORNITORI_NOTA_SUGGERITA = {
+  'Industrie Polieco-M.P.B. S.p.A': 'Guarnizioni Ecopal',
+};
 // Righe grezze del brogliaccio dietro ai totali per categoria di IMPORT_COSTI_BROGLIACCIO/IMPORT_COSTI_GENERALI_BROGLIACCIO
 // (stessi conti costo, colonna Dare €, Descrizione di riga) - servono solo a mostrare il dettaglio riga per riga.
 const COSTI_RIGHE_BROGLIACCIO={version:'2025_2026_v1',righe:{
@@ -3531,6 +3719,420 @@ function ctrlCostiRigheCategoria(lotKey,categoria){
   const l=COSTI_RIGHE_BROGLIACCIO.righe[lotKey];
   return (l&&l[categoria])||[];
 }
+
+// ─── CATEGORIZZAZIONE COSTI PER FORNITORE/MATERIALE (microcategorie) ───
+// Estrae il nome del fornitore da una riga del brogliaccio costi, quando il formato lo rende
+// inequivocabile ("Ft. numero <rif.fattura> - <FORNITORE>"). Le righe generiche (chiusure, acconti,
+// oneri, acquisti terreno...) non hanno un fornitore riconoscibile e restituiscono null.
+function ctrlEstraiFornitoreRiga(descr){
+  const m=String(descr||'').match(/^Ft\.\s*numero\s+.+?\s-\s(.+)$/i);
+  return m?m[1].trim():null;
+}
+// Tutte le righe del brogliaccio costi (tutti i lotti + 'generale'/DPG), appiattite con un id stabile
+// (posizionale: lotto+categoria contabile+indice, invariato finché non si modifica COSTI_RIGHE_BROGLIACCIO).
+function ctrlTutteLeRigheCostiFornitori(){
+  const out=[];
+  Object.entries(COSTI_RIGHE_BROGLIACCIO.righe).forEach(([lotto,categorie])=>{
+    Object.entries(categorie).forEach(([categoriaContabile,righe])=>{
+      righe.forEach((r,idx)=>{
+        out.push({rigaId:lotto+'::'+categoriaContabile+'::'+idx,lotto,categoriaContabile,descr:r.descr,importo:r.importo,fornitore:ctrlEstraiFornitoreRiga(r.descr)});
+      });
+    });
+  });
+  return out;
+}
+function ctrlMicroCategorieState(){
+  if(!CTRL_DATA.economico)CTRL_DATA.economico={};
+  if(!CTRL_DATA.economico.microCategorie)CTRL_DATA.economico.microCategorie={fornitori:{},manuali:{},elenco:[],note:{},descrizioni:{}};
+  const x=CTRL_DATA.economico.microCategorie;
+  if(!x.fornitori)x.fornitori={};
+  if(!x.manuali)x.manuali={};
+  if(!Array.isArray(x.elenco))x.elenco=[];
+  if(!x.note)x.note={};
+  if(!x.descrizioni)x.descrizioni={};
+  return x;
+}
+// Categoria assegnata a una riga, in ordine: 1) un'eventuale correzione manuale su quella riga precisa,
+// 2) un'assegnazione per fornitore salvata da Noemi (si applica automaticamente a tutte le righe dello
+// stesso fornitore, su tutti i lotti), 3) il suggerimento noto per quel fornitore (FORNITORI_CATEGORIA_
+// SUGGERITE) - applicato SUBITO, senza bisogno di nessuna conferma manuale: è questo il meccanismo che
+// "canalizza in automatico" le righe. 4) per le righe SENZA fornitore riconoscibile (chiusure contabili,
+// terreno, oneri...), un'eventuale categoria assegnata a mano per quella descrizione (ctrlSetMicroCategoria
+// Descrizione) - facoltativa, mai chiesta in automatico: Noemi la usa solo se e quando vuole (vedi
+// ctrlRigheGenericheRaggruppate). Se nessuno dei quattro casi si applica, la riga resta senza categoria.
+function ctrlMicroCategoriaDiRiga(riga){
+  const x=ctrlMicroCategorieState();
+  if(x.manuali[riga.rigaId])return x.manuali[riga.rigaId];
+  if(riga.fornitore){
+    const key=ctrlNormalizzaTesto(riga.fornitore);
+    if(x.fornitori[key])return x.fornitori[key];
+    const suggerita=ctrlSuggerimentoCategoriaFornitore(riga.fornitore);
+    if(suggerita)return suggerita;
+  } else if(riga.descr){
+    const key=ctrlNormalizzaTesto(riga.descr);
+    if(x.descrizioni[key])return x.descrizioni[key];
+  }
+  return null;
+}
+// riepilogo=aggregazione per microcategoria (totale, n.righe, fornitori coinvolti). Se si passa lottoKey,
+// limita l'aggregazione alle righe di quel solo lotto (per il recap dentro "Voci" di un singolo fabbricato);
+// senza argomento, aggrega su tutto D|Park (per la card generale nel Quadro economico).
+function ctrlRiepilogoMicroCategorie(lottoKey){
+  const righeTutte=ctrlTutteLeRigheCostiFornitori();
+  const righe=lottoKey?righeTutte.filter(r=>r.lotto===lottoKey):righeTutte;
+  const per={};
+  let nonCategorizzate=0,importoNonCategorizzato=0;
+  righe.forEach(r=>{
+    const cat=ctrlMicroCategoriaDiRiga(r);
+    if(!cat){nonCategorizzate++;importoNonCategorizzato+=r.importo;return}
+    if(!per[cat])per[cat]={totale:0,nRighe:0,fornitori:new Set()};
+    per[cat].totale+=r.importo;per[cat].nRighe++;
+    if(r.fornitore)per[cat].fornitori.add(r.fornitore);
+  });
+  const categorie=Object.entries(per).map(([nome,v])=>({nome,totale:v.totale,nRighe:v.nRighe,fornitori:[...v.fornitori].sort()})).sort((a,b)=>b.totale-a.totale);
+  return {categorie,nonCategorizzate,importoNonCategorizzato,totaleRighe:righe.length};
+}
+function ctrlSetMicroCategoriaFornitore(fornitore,categoria){
+  const x=ctrlMicroCategorieState();
+  const key=ctrlNormalizzaTesto(fornitore);
+  if(categoria)x.fornitori[key]=categoria;else delete x.fornitori[key];
+  if(categoria&&!x.elenco.includes(categoria))x.elenco.push(categoria);
+}
+function ctrlSetMicroCategoriaRiga(rigaId,categoria){
+  const x=ctrlMicroCategorieState();
+  if(categoria)x.manuali[rigaId]=categoria;else delete x.manuali[rigaId];
+  if(categoria&&!x.elenco.includes(categoria))x.elenco.push(categoria);
+}
+// Assegnazione manuale e FACOLTATIVA di una categoria per tutte le righe che condividono la stessa
+// descrizione di riga (usata per le righe senza fornitore riconoscibile, es. "rimanenze del 31.12" ricorre
+// identica su più lotti). A differenza di ctrlFornitoriDaChiedere, queste righe non vengono mai chieste in
+// automatico: restano visibili solo nel blocco facoltativo "Righe senza fornitore" (vedi
+// ctrlRigheGenericheRaggruppate), da compilare solo se e quando Noemi lo desidera.
+function ctrlSetMicroCategoriaDescrizione(descr,categoria){
+  const x=ctrlMicroCategorieState();
+  const key=ctrlNormalizzaTesto(descr);
+  if(categoria)x.descrizioni[key]=categoria;else delete x.descrizioni[key];
+  if(categoria&&!x.elenco.includes(categoria))x.elenco.push(categoria);
+}
+// Suggerimento (non ancora salvato) per un fornitore, da FORNITORI_CATEGORIA_SUGGERITE - indicato a mano
+// da Noemi, non recuperato dall'Anagrafica di commessa (Appaltatori/Professionisti generali sono vuoti).
+function ctrlSuggerimentoCategoriaFornitore(nome){
+  const key=ctrlNormalizzaTesto(nome);
+  const hit=Object.entries(FORNITORI_CATEGORIA_SUGGERITE).find(([k])=>ctrlNormalizzaTesto(k)===key);
+  return hit?hit[1]:null;
+}
+function ctrlSuggerimentoNotaFornitore(nome){
+  const key=ctrlNormalizzaTesto(nome);
+  const hit=Object.entries(FORNITORI_NOTA_SUGGERITA).find(([k])=>ctrlNormalizzaTesto(k)===key);
+  return hit?hit[1]:null;
+}
+function ctrlNotaFornitore(fornitore){
+  const x=ctrlMicroCategorieState();
+  return x.note[ctrlNormalizzaTesto(fornitore)]||'';
+}
+// Popola il <datalist> di autocompletamento categorie, condiviso tra il modale "Categorizza fornitori" e i
+// campi inline nella tabella Voci - va richiamata ogni volta che uno dei due si (ri)disegna, così i
+// suggerimenti sono sempre disponibili anche se il modale non è mai stato aperto in questa sessione.
+function ctrlPopolaDatalistCategorie(){
+  const dl=document.getElementById('cat-costi-datalist');
+  if(!dl)return;
+  const x=ctrlMicroCategorieState();
+  const categorieNote=[...new Set([...x.elenco,...Object.values(FORNITORI_CATEGORIA_SUGGERITE)])];
+  dl.innerHTML=categorieNote.map(c=>`<option value="${ctrlEsc(c)}">`).join('');
+}
+function ctrlSetNotaFornitore(fornitore,nota){
+  const x=ctrlMicroCategorieState();
+  const key=ctrlNormalizzaTesto(fornitore);
+  if(nota)x.note[key]=nota;else delete x.note[key];
+}
+// Nome fornitore con il dettaglio (nota suggerita o salvata) tra parentesi, se presente - es.
+// "Industrie Polieco-M.P.B. S.p.A (Guarnizioni Ecopal)". Solo visualizzazione, non editabile da UI.
+function ctrlFornitoreEtichetta(nome){
+  const nota=ctrlNotaFornitore(nome)||ctrlSuggerimentoNotaFornitore(nome);
+  return nota?`${nome} (${nota})`:nome;
+}
+// Fornitori la cui categoria NON è nota (né assegnata a mano, né tra i suggerimenti): sono gli UNICI casi
+// in cui l'app non riesce a identificare da sola la tipologia e deve chiederla a Noemi. Le righe senza un
+// fornitore riconoscibile (chiusure contabili, acquisto terreno, oneri di urbanizzazione, rimanenze...) non
+// entrano in questo elenco: sono voci strutturali già visibili per categoria contabile nella tabella "Voci"
+// di ogni lotto, non "materiali di un fornitore" da suddividere ulteriormente.
+function ctrlFornitoriDaChiedere(){
+  const per={};
+  ctrlTutteLeRigheCostiFornitori().forEach(r=>{
+    if(!r.fornitore||ctrlMicroCategoriaDiRiga(r))return;
+    const key=ctrlNormalizzaTesto(r.fornitore);
+    if(!per[key])per[key]={key,nome:r.fornitore,totale:0,nRighe:0,lotti:new Set()};
+    per[key].totale+=r.importo;per[key].nRighe++;per[key].lotti.add(r.lotto);
+  });
+  return Object.values(per).map(v=>({...v,lotti:[...v.lotti].sort()})).sort((a,b)=>b.totale-a.totale);
+}
+// Salva in un colpo solo tutte le categorie inserite a mano per i fornitori non riconosciuti automaticamente.
+function ctrlSalvaCategorizzazioneFornitori(){
+  if(typeof CAN_EDIT!=='undefined'&&!CAN_EDIT){openLogin();return}
+  let n=0;
+  document.querySelectorAll('.cc-fornitore-cat').forEach(input=>{
+    const val=input.value.trim();
+    if(!val)return;
+    ctrlSetMicroCategoriaFornitore(input.dataset.fornitore,val);
+    n++;
+  });
+  if(!n){ctrlNotify('Nessuna categoria inserita.');return}
+  ctrlSave();ctrlRender('ctrl_quadro');
+  ctrlNotify('✓ '+n+' fornitori categorizzati');
+}
+// Righe SENZA fornitore riconoscibile, raggruppate per descrizione (identica su più lotti, es. "rimanenze
+// del 31.12"). A differenza di ctrlFornitoriDaChiedere, questo elenco è puramente facoltativo: non compare
+// come avviso da risolvere, mostra sia le righe già categorizzate a mano sia quelle ancora libere, così
+// Noemi può aprirlo quando vuole e assegnare (o correggere) una categoria senza che l'app gliele richieda.
+function ctrlRigheGenericheRaggruppate(){
+  const per={};
+  ctrlTutteLeRigheCostiFornitori().forEach(r=>{
+    if(r.fornitore)return;
+    const key=ctrlNormalizzaTesto(r.descr);
+    if(!per[key])per[key]={key,descr:r.descr,totale:0,nRighe:0,lotti:new Set()};
+    per[key].totale+=r.importo;per[key].nRighe++;per[key].lotti.add(r.lotto);
+  });
+  const x=ctrlMicroCategorieState();
+  return Object.values(per).map(v=>({...v,lotti:[...v.lotti].sort(),categoriaAttuale:x.descrizioni[v.key]||''})).sort((a,b)=>b.totale-a.totale);
+}
+// Salva in un colpo solo le categorie inserite a mano nel blocco facoltativo "Righe senza fornitore".
+function ctrlSalvaCategorizzazioneDescrizioni(){
+  if(typeof CAN_EDIT!=='undefined'&&!CAN_EDIT){openLogin();return}
+  let n=0;
+  document.querySelectorAll('.cc-descr-cat').forEach(input=>{
+    const val=input.value.trim();
+    ctrlSetMicroCategoriaDescrizione(input.dataset.descr,val);
+    if(val)n++;
+  });
+  ctrlSave();ctrlRender('ctrl_quadro');
+  ctrlNotify(n?'✓ '+n+' righe categorizzate':'✓ Salvato');
+}
+
+// ─── ASSISTENTE D|PARK (bot a regole, nessuna AI vera) ───
+// Riconosce un set di domande frequenti (venduto/fatturato/costi/margine/unità/tipologia per lotto o su
+// tutto D|Park) e risponde calcolando dai dati già presenti in pagina - nessuna chiave API, nessun backend,
+// nessuna comprensione reale del linguaggio: solo pattern matching su parole chiave. Quando non riconosce
+// la domanda lo dice chiaramente e propone degli esempi, non inventa una risposta.
+const CTRL_BOT_ALIAS_LOTTO={
+  a1:['armonia 1','armonia1','a1'],
+  a2:['armonia 2','armonia2','a2'],
+  passione:['passione'],
+  vittoria:['vittoria'],
+  equilibrio:['equilibrio','ers'],
+  sorriso:['sorriso'],
+  audacia:['audacia'],
+};
+function ctrlBotRilevaLotto(norm){
+  for(const [key,aliases] of Object.entries(CTRL_BOT_ALIAS_LOTTO)){
+    if(aliases.some(a=>norm.includes(a)))return key;
+  }
+  return null;
+}
+// Tipologie note = elenco già usato/salvato + tutti i valori del dizionario di suggerimenti fornitori.
+function ctrlBotRilevaTipologia(norm){
+  const x=ctrlMicroCategorieState();
+  const categorie=[...new Set([...x.elenco,...Object.values(FORNITORI_CATEGORIA_SUGGERITE)])];
+  return categorie.find(c=>norm.includes(ctrlNormalizzaTesto(c)))||null;
+}
+function ctrlBotConteggiLotto(key){
+  const units=Object.values((D[key]&&D[key].units)||{});
+  const conta=s=>units.filter(u=>u.st===s).length;
+  return {disponibili:conta('disponibile'),riservate:conta('riservato'),vendute:conta('venduto'),locali:conta('locale'),totali:units.length};
+}
+function ctrlBotCostoEffettivoLotto(key){
+  return ctrlCostiLottoRecord(key).costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0);
+}
+function ctrlBotCostoPresuntoLotto(key){
+  const r=ctrlCostiLottoRecord(key);
+  return r.costoPresuntoTotale==null?r.costi.reduce((a,c)=>a+(Number(c.presunto)||0),0):(Number(r.costoPresuntoTotale)||0);
+}
+// Acconti (SAL) incassati / ancora da incassare su tutte le unità di un lotto — stessa logica di renderKPI
+// (accontiRic/accontiDaRic), soldi realmente incassati secondo lo scadenzario SAL, non stime.
+function ctrlBotAccontiLotto(key){
+  let incassato=0,daIncassare=0;
+  Object.values((D[key]&&D[key].units)||{}).forEach(u=>{
+    (u.sal||[]).forEach(r=>{
+      const imp=parseFloat(r.importo)||0;
+      if(r.incassato)incassato+=imp;else daIncassare+=imp;
+    });
+  });
+  return {incassato,daIncassare};
+}
+function ctrlBotRispondi(domanda){
+  const norm=ctrlNormalizzaTesto(domanda);
+  if(!norm)return 'Scrivi una domanda, es. "quanto abbiamo venduto a Vittoria?".';
+  if(/^(ciao|salve|buongiorno|buonasera|hey)\b/.test(norm)&&norm.split(' ').length<=2)return 'Ciao! Chiedimi pure — vedi gli esempi qui sopra.';
+  const lottoKey=ctrlBotRilevaLotto(norm);
+  const tipologia=ctrlBotRilevaTipologia(norm);
+  const nomeLotto=lottoKey?ctrlName(lottoKey):null;
+  const isConteggio=/\bquant[ei]\b/.test(norm)&&(/unit/.test(norm)||/appartament/.test(norm)||/box/.test(norm));
+
+  // 1) Tipologia (Ferro, Calcestruzzo...) - sempre prioritaria se riconosciuta, con o senza lotto.
+  if(tipologia){
+    const riep=ctrlRiepilogoMicroCategorie(lottoKey||undefined);
+    const cat=riep.categorie.find(c=>c.nome===tipologia);
+    const ambito=lottoKey?` a ${nomeLotto}`:' su tutto D|Park';
+    if(!cat)return `Non risulta ancora nessuna spesa in "${tipologia}"${ambito}.`;
+    return `Hai speso ${ctrlEuro(cat.totale)} in "${tipologia}"${ambito}, su ${cat.nRighe} righe del brogliaccio`+(cat.fornitori.length?` (fornitori: ${cat.fornitori.map(ctrlFornitoreEtichetta).join(', ')}).`:'.');
+  }
+
+  // 2) Conteggio unità (disponibili/vendute/riservate/locali) - richiede un lotto.
+  if(isConteggio||((/disponibil/.test(norm)||/riservat/.test(norm)||/\blocal/.test(norm))&&/quant/.test(norm))){
+    if(!lottoKey)return 'Per quale lotto? Specifica ad es. "quante unità disponibili ha Vittoria?".';
+    const c=ctrlBotConteggiLotto(lottoKey);
+    if(/disponibil/.test(norm))return `${nomeLotto} ha ${c.disponibili} unità disponibili su ${c.totali}.`;
+    if(/riservat/.test(norm))return `${nomeLotto} ha ${c.riservate} unità riservate su ${c.totali}.`;
+    if(/local/.test(norm))return `${nomeLotto} ha ${c.locali} locali commerciali su ${c.totali} unità.`;
+    if(/vendut/.test(norm))return `${nomeLotto} ha ${c.vendute} unità vendute su ${c.totali}.`;
+    return `${nomeLotto}: ${c.disponibili} disponibili, ${c.riservate} riservate, ${c.vendute} vendute, ${c.locali} locali, su ${c.totali} unità totali.`;
+  }
+
+  // 3) Fornitori da categorizzare.
+  if(/fornitor/.test(norm)&&/categorizz|riconosc|mancant/.test(norm)){
+    const f=ctrlFornitoriDaChiedere();
+    if(!f.length)return 'Nessun fornitore da categorizzare al momento: sono tutti riconosciuti.';
+    return `Ci sono ${f.length} fornitori da categorizzare: ${f.map(x=>x.nome).join(', ')}.`;
+  }
+
+  // 4) Acconti SAL incassati / da incassare - soldi realmente incassati, diverso dal fatturato (che è dal
+  // brogliaccio contabile). Va controllato PRIMA di "fatturato" perché altrimenti "incassato" ci finirebbe
+  // dentro per via del generico /costo|costi/ più sotto. "incassare" (infinito) = da incassare, "incassat..."
+  // (participio) = già incassato.
+  if(/incassare/.test(norm)||/incassat/.test(norm)){
+    const daIncassareQ=/incassare/.test(norm);
+    if(lottoKey){
+      const a=ctrlBotAccontiLotto(lottoKey);
+      return daIncassareQ?`A ${nomeLotto} restano da incassare ${ctrlEuro(a.daIncassare)} di SAL programmati.`:`${nomeLotto} ha incassato ${ctrlEuro(a.incassato)} di SAL (acconti effettivamente ricevuti).`;
+    }
+    const tot=CTRL_BUILDINGS.reduce((acc,[k])=>{const a=ctrlBotAccontiLotto(k);return{incassato:acc.incassato+a.incassato,daIncassare:acc.daIncassare+a.daIncassare}},{incassato:0,daIncassare:0});
+    return daIncassareQ?`Su tutto D|Park restano da incassare ${ctrlEuro(tot.daIncassare)} di SAL programmati.`:`D|Park ha incassato in totale ${ctrlEuro(tot.incassato)} di SAL.`;
+  }
+
+  // 5) Metriche economiche (per lotto se riconosciuto, altrimenti su tutto D|Park).
+  if(/da fatturare/.test(norm)){
+    if(lottoKey){const v=ctrlVendutoLotto(lottoKey),f=ctrlFatturatoLotto(lottoKey);return `A ${nomeLotto} restano da fatturare ${ctrlEuro(v-f)} (venduto ${ctrlEuro(v)}, fatturato ${ctrlEuro(f)}).`;}
+    const tot=CTRL_BUILDINGS.filter(([k])=>k!=='sorriso').reduce((a,[k])=>a+(ctrlVendutoLotto(k)-ctrlFatturatoLotto(k)),0);
+    return `Su tutto D|Park restano da fatturare ${ctrlEuro(tot)}.`;
+  }
+  if(/fatturat/.test(norm)){
+    if(lottoKey)return `${nomeLotto} ha fatturato ${ctrlEuro(ctrlFatturatoLotto(lottoKey))} secondo il brogliaccio.`;
+    const tot=CTRL_BUILDINGS.filter(([k])=>k!=='sorriso').reduce((a,[k])=>a+ctrlFatturatoLotto(k),0);
+    return `D|Park ha fatturato in totale ${ctrlEuro(tot)} secondo il brogliaccio.`;
+  }
+  if(/margine|guadagn|utile/.test(norm)){
+    if(!lottoKey)return 'Per quale lotto vuoi il margine? Specificalo, es. "margine di Vittoria".';
+    const v=ctrlVendutoLotto(lottoKey),c=ctrlBotCostoEffettivoLotto(lottoKey);
+    return `${nomeLotto}: venduto ${ctrlEuro(v)} − costo effettivo ${ctrlEuro(c)} = margine ${ctrlEuro(v-c)} (indicativo: non include i costi generali D|Park non ripartiti).`;
+  }
+  if(/costo|costi|speso|spesa|spend/.test(norm)){
+    if(lottoKey){const eff=ctrlBotCostoEffettivoLotto(lottoKey),pres=ctrlBotCostoPresuntoLotto(lottoKey);return `${nomeLotto}: costo effettivo ${ctrlEuro(eff)}`+(pres?`, presunto ${ctrlEuro(pres)}.`:'.');}
+    const generale=ctrlCostiGeneraliRecord();
+    const totEff=CTRL_BUILDINGS.reduce((a,[k])=>a+ctrlBotCostoEffettivoLotto(k),0)+generale.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0);
+    return `Il costo effettivo totale di D|Park (lotti + costi generali) è ${ctrlEuro(totEff)}.`;
+  }
+  if(/vendut/.test(norm)){
+    if(lottoKey)return `${nomeLotto} ha venduto per ${ctrlEuro(ctrlVendutoLotto(lottoKey))} (prezzo concordato, accordo Acquisto).`;
+    const tot=CTRL_BUILDINGS.reduce((a,[k])=>a+ctrlVendutoLotto(k),0);
+    return `D|Park ha venduto in totale ${ctrlEuro(tot)}.`;
+  }
+
+  return 'Non ho capito la domanda. Prova ad esempio: "quanto abbiamo venduto a Vittoria?", "quanto abbiamo speso in Ferro?", "quante unità disponibili ha Audacia?", "margine di Passione", "fornitori da categorizzare".';
+}
+function ctrlBotToggle(){
+  const p=document.getElementById('ctrl-bot-panel');
+  if(!p)return;
+  p.classList.toggle('open');
+  if(p.classList.contains('open')){const inp=document.getElementById('ctrl-bot-input');if(inp)setTimeout(()=>inp.focus(),0)}
+}
+function ctrlBotAggiungiMsg(testo,classe){
+  const wrap=document.getElementById('ctrl-bot-msgs');
+  if(!wrap)return null;
+  const div=document.createElement('div');
+  div.className='ctrl-bot-msg '+classe;
+  div.textContent=testo;
+  wrap.appendChild(div);
+  wrap.scrollTop=wrap.scrollHeight;
+  return div;
+}
+// Nome della Supabase Edge Function che fa da AI vera (proxy verso Claude, chiave tenuta lato server).
+// Finché quella funzione non è distribuita su Supabase, ogni chiamata fallisce e l'assistente ripiega
+// automaticamente sulle risposte a regole (ctrlBotRispondi) - appena la funzione è online, comincia a
+// rispondere con l'AI senza bisogno di toccare altro in questo file. Vedi le istruzioni di deploy fornite.
+const CTRL_BOT_AI_FUNZIONE='dpark-assistant';
+// Istantanea di tutti i numeri chiave, per lotto e generali - è quello che l'AI riceve come "pancia di dati"
+// per rispondere: non ha altro contesto, non naviga il resto dell'app, risponde SOLO da qui.
+function ctrlBotContestoCompleto(){
+  const lotti=CTRL_BUILDINGS.map(([key,nome])=>{
+    const venduto=ctrlVendutoLotto(key);
+    const conFatturato=key!=='sorriso'; // Sorriso: centro di costo non ancora partito, niente brogliaccio
+    const fatturato=conFatturato?ctrlFatturatoLotto(key):null;
+    const acconti=ctrlBotAccontiLotto(key);
+    const unita=ctrlBotConteggiLotto(key);
+    const microcat=ctrlRiepilogoMicroCategorie(key);
+    const costoEffettivo=ctrlBotCostoEffettivoLotto(key);
+    return {
+      lotto:nome,chiave:key,
+      venduto_eur:Math.round(venduto),
+      fatturato_eur:conFatturato?Math.round(fatturato):null,
+      da_fatturare_eur:conFatturato?Math.round(venduto-fatturato):null,
+      costo_effettivo_eur:Math.round(costoEffettivo),
+      costo_presunto_eur:Math.round(ctrlBotCostoPresuntoLotto(key)),
+      margine_eur_indicativo:Math.round(venduto-costoEffettivo),
+      incassato_sal_eur:Math.round(acconti.incassato),
+      da_incassare_sal_eur:Math.round(acconti.daIncassare),
+      unita,
+      spesa_per_tipologia:microcat.categorie.map(c=>({tipologia:c.nome,totale_eur:Math.round(c.totale)})),
+    };
+  });
+  const generale=ctrlCostiGeneraliRecord();
+  return {
+    generato_il:new Date().toISOString(),
+    lotti,
+    costi_generali_dpg_non_ripartiti:{
+      effettivo_eur:Math.round(generale.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0)),
+      presunto_eur:Math.round(generale.costi.reduce((a,c)=>a+(Number(c.presunto)||0),0)),
+    },
+    fornitori_ancora_da_categorizzare:ctrlFornitoriDaChiedere().map(f=>f.nome),
+    note:'sorriso: fatturato_eur e da_fatturare_eur sono null, il centro di costo non è ancora partito. margine_eur_indicativo non include i costi generali DPG non ripartiti su un lotto.',
+  };
+}
+async function ctrlBotChiediAI(domanda,contesto){
+  const url=SUPABASE_URL+'/functions/v1/'+CTRL_BOT_AI_FUNZIONE;
+  const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_KEY,'apikey':SUPABASE_KEY},body:JSON.stringify({domanda,contesto})});
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  const data=await res.json();
+  if(!data||typeof data.risposta!=='string')throw new Error('risposta AI non valida');
+  return data.risposta;
+}
+async function ctrlBotInvia(e){
+  e.preventDefault();
+  const inp=document.getElementById('ctrl-bot-input');
+  const domanda=(inp.value||'').trim();
+  if(!domanda)return false;
+  ctrlBotAggiungiMsg(domanda,'user');
+  inp.value='';
+  if(!CTRL_BOT_AI_FUNZIONE){
+    let risposta;
+    try{ risposta=ctrlBotRispondi(domanda); }
+    catch(err){ risposta='Non sono riuscito a calcolare la risposta ('+err.message+'). Prova a riformulare.'; }
+    ctrlBotAggiungiMsg(risposta,'bot');
+    return false;
+  }
+  const pending=ctrlBotAggiungiMsg('…',  'bot');
+  try{
+    const risposta=await ctrlBotChiediAI(domanda,ctrlBotContestoCompleto());
+    if(pending)pending.textContent=risposta;
+  }catch(err){
+    let fallback=null;
+    try{ fallback=ctrlBotRispondi(domanda); }catch(e2){ /* nessun fallback disponibile */ }
+    const nota='⚠️ Assistente AI non raggiungibile ('+err.message+').'+(fallback?' Risposta calcolata senza AI:\n'+fallback:' Riprova più tardi.');
+    if(pending)pending.textContent=nota;
+  }
+  const wrap=document.getElementById('ctrl-bot-msgs');
+  if(wrap)wrap.scrollTop=wrap.scrollHeight;
+  return false;
+}
+
 // Costi generali D|Park (centro di costo DPG), non attribuiti a un singolo lotto.
 const IMPORT_COSTI_GENERALI_BROGLIACCIO = { version:'2025_2026_v1', voci:[
   {categoria:'Materie prime', effettivo:105897.45, note:'Conto 602101 · 2025 + 2026'},
@@ -3626,15 +4228,21 @@ function ctrlImportRicaviBrogliaccio(input){
 function ctrlFatturatoDettaglioLotto(k){
   const righe=ctrlRicaviRigheCorrenti(k),units=Object.values((D[k]||{}).units||{});
   return righe.map(r=>{
-    let match=null,tok=null,permutaMatch=null;
+    let match=null,tok=null,altroMatch=null;
     for(const u of units){
       if(!u.owner)continue;
       const t=ctrlRigaRiferisceUnita(r.descr,u);
       if(!t)continue;
       if(u.accordo==='Acquisto'){match=u;tok=t;break}
-      if(!permutaMatch)permutaMatch=u;
+      if(!altroMatch)altroMatch=u;
     }
-    const motivo=match?'':(permutaMatch?('riferita a una permuta ('+(permutaMatch.owner||'')+'), non è un incasso e non va contata nel fatturato'):'nessun nominativo/codice riconosciuto nella scheda vendite');
+    let motivo='';
+    if(!match && altroMatch){
+      if(altroMatch.accordo==='Permuta') motivo='riferita a una permuta ('+(altroMatch.owner||'')+'), non è un incasso e non va contata nel fatturato';
+      else motivo='riferita a un\'unità venduta ('+(altroMatch.owner||'')+') con Tipo Accordo non impostato su "Acquisto" (attualmente: '+(altroMatch.accordo||'vuoto')+') — imposta il campo sulla scheda unità per includerla nel fatturato, se si tratta di un incasso reale';
+    } else if(!match){
+      motivo='nessun nominativo/codice riconosciuto nella scheda vendite';
+    }
     return{descr:r.descr,importo:r.importo,inclusa:!!match,unita:match?(match.owner||''):'',token:tok,motivo};
   });
 }
@@ -3654,6 +4262,22 @@ function ctrlToggleCostiDettaglio(key){
   const row=document.getElementById('costi-dett-'+key);
   if(row)row.style.display=row.style.display==='none'?'':'none';
 }
+// Il dettaglio per conto contabile (Materie prime, Immobili...) NON interessa Noemi e non è la
+// classificazione per tipologia: resta sempre chiuso finché non lo apre lei stessa da questo link separato.
+function ctrlToggleContoLotto(key){
+  const el=document.getElementById('conto-dett-'+key);
+  if(el)el.style.display=el.style.display==='none'?'':'none';
+}
+// Stesso trattamento per i costi generali D|Park: il totale è già nella tabella "per lotto" qui sopra,
+// il dettaglio per categoria (anch'esso per conto contabile) resta chiuso finché non lo apre lei.
+function ctrlToggleCostiGenerali(){
+  const el=document.getElementById('costi-generali-dett');
+  if(el)el.style.display=el.style.display==='none'?'':'none';
+}
+function ctrlToggleRigheGeneriche(){
+  const el=document.getElementById('righe-generiche-block');
+  if(el)el.style.display=el.style.display==='none'?'':'none';
+}
 function ctrlSaveCostiLotto(key){
   const scheda=ctrlCostiLottoRecord(key),container=document.getElementById('costi-dett-'+key);
   if(!container)return;
@@ -3664,7 +4288,8 @@ function ctrlSaveCostiLotto(key){
     v.effettivo=Number(row.querySelector('.cc-effettivo').value)||0;
     v.note=row.querySelector('.cc-note').value.trim();
   });
-  ctrlSave();ctrlRender('ctrl_quadro');ctrlNotify('✓ Voci di costo salvate per '+ctrlName(key));
+  ctrlSave();ctrlRender('ctrl_quadro');
+  ctrlNotify('✓ Voci di costo salvate per '+ctrlName(key));
 }
 const CTRL_FASI_MODELLO=[
  ['OPERE STRUTTURALI / PREPARAZIONE','Montaggio della gru a torre',6,'2026-07-08','2026-07-10'],
@@ -4287,15 +4912,24 @@ ctrlRenderQuadroEconomico=function(){
   // COSTI: presunto (manuale) vs effettivo (dal brogliaccio), per fabbricato + una voce a parte per i costi generali D|Park
   const riepilogo=CTRL_BUILDINGS.map(([key,nome])=>{const r=ctrlCostiLottoRecord(key),presunto=r.costoPresuntoTotale==null?r.costi.reduce((a,c)=>a+(Number(c.presunto)||0),0):(Number(r.costoPresuntoTotale)||0),effettivo=r.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0);return{key,nome,presunto,effettivo,differenza:presunto-effettivo}}),generale=ctrlCostiGeneraliRecord(),presGenerale=generale.costi.reduce((a,c)=>a+(Number(c.presunto)||0),0),effGenerale=generale.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0),totPres=riepilogo.reduce((a,r)=>a+r.presunto,0)+presGenerale,totEff=riepilogo.reduce((a,r)=>a+r.effettivo,0)+effGenerale,totDifferenza=totPres-totEff,lotto=ctrlCostiLottoRecord(CTRL_ECON_LOTTO);
   const costiLotti=riepilogo.map(r=>{const scheda=ctrlCostiLottoRecord(r.key),bloccato=scheda.costoPresuntoTotale!=null&&scheda.costoPresuntoBloccato!==false,presunto=bloccato?`<div style="display:flex;gap:9px;align-items:center;min-width:230px"><strong style="font-size:18px">${ctrlEuro(r.presunto)}</strong><span class="ctrl-chip ok">Salvato</span><button type="button" class="ctrl-btn" style="padding:7px 10px" onclick="ctrlUnlockCostoPresunto('${r.key}')">Modifica</button></div>`:`<div style="display:flex;gap:7px;align-items:center;min-width:230px"><input id="costo-presunto-${r.key}" type="number" step="0.01" value="${r.presunto||''}" placeholder="Inserisci costo presunto"><button type="button" class="ctrl-btn" onclick="ctrlSaveCostoPresunto('${r.key}')">Salva</button></div>`;const diffLabel=r.presunto?`<span class="ctrl-chip ${r.differenza>=0?'ok':'warn'}">${ctrlEuro(r.differenza)}</span>`:`<span style="color:#8796a9;font-size:11px">— (nessun presunto)</span>`;
-    const vociHtml=scheda.costi.map((v,i)=>{
-      const righeCat=ctrlCostiRigheCategoria(r.key,v.categoria);
-      const righeCatHtml=righeCat.length?righeCat.map(rg=>`<tr class="costi-riga-brogliaccio"><td></td><td colspan="2" style="font-size:11px;color:#5b6b82">${ctrlEsc(rg.descr)}</td><td style="font-size:11px;color:#5b6b82">${ctrlEuro(rg.importo)}</td><td></td></tr>`).join(''):'';
-      return `<tr data-costi-cat="${i}"><td><b>${ctrlEsc(v.categoria)}</b></td><td><input class="cc-presunto" type="number" step="0.01" value="${Number(v.presunto)||''}" placeholder="0,00"></td><td><input class="cc-effettivo" type="number" step="0.01" value="${Number(v.effettivo)||''}" placeholder="0,00"></td><td>${ctrlEuro((Number(v.presunto)||0)-(Number(v.effettivo)||0))}</td><td><input class="cc-note" value="${ctrlEsc(v.note||'')}" placeholder="Note / riferimento"></td></tr>${righeCatHtml}`;
-    }).join('');
-    return `<tr><td><b>${ctrlEsc(r.nome)}</b></td><td>${presunto}</td><td><strong style="font-size:18px">${ctrlEuro(r.effettivo)}</strong></td><td>${diffLabel}</td><td><label class="ctrl-btn" style="display:inline-block;cursor:pointer">${scheda.fileName?'Aggiorna file':'Allega file contabile'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="ctrlImportCostiFile(this,'${r.key}')"></label>${scheda.fileName?`<div style="font-size:10px;color:#0d9488;margin-top:5px">✓ ${ctrlEsc(scheda.fileName)}</div>`:''}<br><button type="button" class="ctrl-btn light" style="padding:5px 9px;font-size:11px;margin-top:6px" onclick="ctrlToggleCostiDettaglio('${r.key}')">▸ Voci (${scheda.costi.length})</button></td></tr><tr id="costi-dett-${r.key}" style="display:none"><td colspan="5" style="background:#f7f9fc"><div style="overflow-x:auto"><table class="ctrl-table" style="margin:6px 0"><thead><tr><th>Categoria</th><th>Presunto</th><th>Effettivo</th><th>Differenza</th><th>Note</th></tr></thead><tbody>${vociHtml}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:8px" onclick="ctrlSaveCostiLotto('${r.key}')">Salva voci di ${ctrlEsc(r.nome)}</button></td></tr>`;
+    const vociHtml=scheda.costi.map((v,i)=>`<tr data-costi-cat="${i}"><td><b>${ctrlEsc(v.categoria)}</b></td><td><input class="cc-presunto" type="number" step="0.01" value="${Number(v.presunto)||''}" placeholder="0,00"></td><td><input class="cc-effettivo" type="number" step="0.01" value="${Number(v.effettivo)||''}" placeholder="0,00"></td><td>${ctrlEuro((Number(v.presunto)||0)-(Number(v.effettivo)||0))}</td><td><input class="cc-note" value="${ctrlEsc(v.note||'')}" placeholder="Note / riferimento"></td></tr>`).join('');
+    // Riepilogo per microcategoria SOLO di questo lotto: sola lettura, i suggerimenti sono già applicati in
+    // automatico (ctrlMicroCategoriaDiRiga) - qui non c'è più nulla da confermare, solo da consultare.
+    const microLotto=ctrlRiepilogoMicroCategorie(r.key);
+    const microLottoHtml=microLotto.categorie.length?`<div style="margin-bottom:12px"><div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#9aa5b5;margin-bottom:6px">Totali per categoria (fornitore/materiale) — solo ${ctrlEsc(r.nome)}</div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Categoria</th><th>Totale</th><th>Fornitori</th></tr></thead><tbody>${microLotto.categorie.map(c=>`<tr><td><b>${ctrlEsc(c.nome)}</b></td><td><strong>${ctrlEuro(c.totale)}</strong></td><td style="font-size:11px;color:#5b6b82">${c.fornitori.map(ctrlFornitoreEtichetta).map(ctrlEsc).join(', ')||'—'}</td></tr>`).join('')}</tbody></table></div>${microLotto.nonCategorizzate>0?`<p style="font-size:11px;color:#8796a9;margin:8px 0 0">${microLotto.nonCategorizzate} righe di questo lotto (${ctrlEuro(microLotto.importoNonCategorizzato)}) senza microcategoria: fornitori non ancora riconosciuti (vedi "Fornitori da categorizzare" più sotto) e/o righe senza fornitore, facoltative (vedi "Righe senza fornitore").</p>`:''}</div>`:`<p style="font-size:11px;color:#8796a9;margin:0 0 12px">Nessuna riga di questo lotto ha ancora una microcategoria (nessun fornitore riconosciuto tra quelli fatturati qui).</p>`;
+    return `<tr><td><b>${ctrlEsc(r.nome)}</b></td><td>${presunto}</td><td><strong style="font-size:18px">${ctrlEuro(r.effettivo)}</strong></td><td>${diffLabel}</td><td><label class="ctrl-btn" style="display:inline-block;cursor:pointer">${scheda.fileName?'Aggiorna file':'Allega file contabile'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="ctrlImportCostiFile(this,'${r.key}')"></label>${scheda.fileName?`<div style="font-size:10px;color:#0d9488;margin-top:5px">✓ ${ctrlEsc(scheda.fileName)}</div>`:''}<br><button type="button" class="ctrl-btn light" style="padding:5px 9px;font-size:11px;margin-top:6px" onclick="ctrlToggleCostiDettaglio('${r.key}')">▸ Tipologia (fornitore/materiale)</button></td></tr><tr id="costi-dett-${r.key}" style="display:none"><td colspan="5" style="background:#f7f9fc"><div style="overflow-x:auto">${microLottoHtml}</div><div style="margin-top:14px;padding-top:10px;border-top:1px solid #e8e4da"><a href="#" onclick="ctrlToggleContoLotto('${r.key}');return false" style="font-size:10px;color:#b8bfca;text-decoration:underline">dettaglio contabile per conto (avanzato, raramente utile — non è la tipologia)</a><div id="conto-dett-${r.key}" style="display:none;margin-top:8px"><div style="overflow-x:auto"><table class="ctrl-table" style="margin:6px 0"><thead><tr><th>Categoria</th><th>Presunto</th><th>Effettivo</th><th>Differenza</th><th>Note</th></tr></thead><tbody>${vociHtml}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:8px" onclick="ctrlSaveCostiLotto('${r.key}')">Salva voci di ${ctrlEsc(r.nome)}</button></div></div></td></tr>`;
   }).join('');
   const righe=lotto.costi.map((r,i)=>`<tr data-econ-lotto-cost="${i}"><td><b>${ctrlEsc(r.categoria)}</b></td><td><input class="ec-presunto" type="number" step="0.01" value="${Number(r.presunto)||''}" placeholder="0,00"></td><td><input class="ec-effettivo" type="number" step="0.01" value="${Number(r.effettivo)||''}" placeholder="0,00"></td><td><b>${ctrlEuro(Math.max(0,(Number(r.presunto)||0)-(Number(r.effettivo)||0)))}</b></td><td><input class="ec-note" value="${ctrlEsc(r.note||'')}" placeholder="Note / riferimento"></td></tr>`).join('');
   const righeGenerale=generale.costi.map((r,i)=>`<tr data-econ-generale-cost="${i}"><td><input class="ec-categoria" value="${ctrlEsc(r.categoria)}" placeholder="Categoria"></td><td><input class="ec-presunto" type="number" step="0.01" value="${Number(r.presunto)||''}" placeholder="0,00"></td><td><input class="ec-effettivo" type="number" step="0.01" value="${Number(r.effettivo)||''}" placeholder="0,00"></td><td><input class="ec-note" value="${ctrlEsc(r.note||'')}" placeholder="Note / riferimento"></td></tr>`).join('');
+  const microRiepilogo=ctrlRiepilogoMicroCategorie();
+  const fornitoriDaChiedere=ctrlFornitoriDaChiedere();
+  const daChiedereHtml=fornitoriDaChiedere.length?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid #eee0c8"><div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:#d97706;margin-bottom:8px">⚠️ ${fornitoriDaChiedere.length} fornitori che non riesco a identificare da sola — inseriscine la tipologia</div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Fornitore</th><th>Lotti</th><th>Totale</th><th>Tipologia</th></tr></thead><tbody>${fornitoriDaChiedere.map(f=>`<tr><td><b>${ctrlEsc(f.nome)}</b></td><td style="font-size:11px;color:#8796a9">${f.lotti.map(l=>ctrlEsc(catCostiNomeLotto(l))).join(', ')}</td><td>${ctrlEuro(f.totale)}</td><td><input class="cc-fornitore-cat" list="cat-costi-datalist" data-fornitore="${ctrlEsc(f.nome)}" placeholder="es. Ferro" style="min-width:140px"></td></tr>`).join('')}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:10px" onclick="ctrlSalvaCategorizzazioneFornitori()">💾 Salva tipologie</button></div>`:'';
+  // Righe senza fornitore (terreno, oneri, chiusure contabili...): NON vengono mai chieste in automatico,
+  // restano in un blocco facoltativo e chiuso di default - Noemi lo apre solo se vuole assegnare a mano una
+  // categoria a queste voci, altrimenti restano semplicemente fuori dal riepilogo per tipologia.
+  const rigaGenerica=ctrlRigheGenericheRaggruppate();
+  const rigaGenericaHtml=rigaGenerica.length?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid #e8e4da"><button type="button" class="ctrl-btn light" style="padding:6px 10px;font-size:11px" onclick="ctrlToggleRigheGeneriche()">▸ Righe senza fornitore (${rigaGenerica.length}) — categorizzale a mano se vuoi</button><div id="righe-generiche-block" style="display:none;margin-top:10px"><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Descrizione</th><th>Lotti</th><th>Totale</th><th>Categoria</th></tr></thead><tbody>${rigaGenerica.map(g=>`<tr><td style="font-size:12px">${ctrlEsc(g.descr)}</td><td style="font-size:11px;color:#8796a9">${g.lotti.map(l=>ctrlEsc(catCostiNomeLotto(l))).join(', ')}</td><td>${ctrlEuro(g.totale)}</td><td><input class="cc-descr-cat" list="cat-costi-datalist" data-descr="${ctrlEsc(g.descr)}" value="${ctrlEsc(g.categoriaAttuale)}" placeholder="facoltativo" style="min-width:140px"></td></tr>`).join('')}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:10px" onclick="ctrlSalvaCategorizzazioneDescrizioni()">💾 Salva</button></div></div>`:'';
+  ctrlPopolaDatalistCategorie();
   return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Quadro economico D|Park</h2><p>Da un lato i ricavi (venduto vs fatturato), dall'altro i costi (presunto vs effettivo), per ciascun fabbricato.</p></div><span class="ctrl-chip ok">D|Park generale</span></div>
 
   <div class="jg-section-lbl" style="font-size:13px;margin-bottom:10px">RICAVI</div>
@@ -4305,9 +4939,13 @@ ctrlRenderQuadroEconomico=function(){
 
   <div class="jg-section-lbl" style="font-size:13px;margin-bottom:10px">COSTI</div>
   <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(totPres)}</strong><span>1. Costo presunto (budget, inserito a mano)</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totEff)}</strong><span>2. Costo effettivo secondo il brogliaccio</span></div><div class="ctrl-kpi"><strong style="color:${totPres===0?'#8796a9':(totDifferenza>=0?'#0d9488':'#d97706')}">${totPres===0?'—':ctrlEuro(totDifferenza)}</strong><span>3. Differenza (1 − 2)${totPres===0?' · nessun presunto inserito':''}</span></div></div>
-  <div class="ctrl-card" style="margin-bottom:14px"><div style="margin-bottom:12px"><h3 style="margin:0">Costi presunti ed effettivi per lotto</h3><small>Inserisci il costo presunto; per il costo effettivo allega la situazione contabile del lotto.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Costo presunto</th><th>Costo effettivo</th><th>Differenza</th><th>File contabile</th></tr></thead><tbody>${costiLotti}</tbody><tfoot><tr><td><b>Totale per lotto</b></td><td><strong style="font-size:18px">${ctrlEuro(riepilogo.reduce((a,r)=>a+r.presunto,0))}</strong></td><td><strong style="font-size:18px">${ctrlEuro(riepilogo.reduce((a,r)=>a+r.effettivo,0))}</strong></td><td>${riepilogo.reduce((a,r)=>a+r.presunto,0)===0?'<span style="color:#8796a9;font-size:11px">— (nessun presunto)</span>':`<strong style="font-size:18px">${ctrlEuro(riepilogo.reduce((a,r)=>a+r.differenza,0))}</strong>`}</td><td></td></tr></tfoot></table></div><p style="font-size:10px;color:#8796a9;margin:10px 0 0">Costo presunto = budget inserito manualmente per lotto (non deriva da una fonte dati, a differenza del Venduto nei ricavi). Costo effettivo = quanto risulta speso secondo il brogliaccio contabile o il file allegato. Differenza negativa = costo effettivo sopra il presunto.</p></div>
-  <div class="ctrl-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><div><h3 style="margin:0">Costi generali D|Park <span style="font-weight:400;color:#8796a9;font-size:11px">(non attribuiti a un lotto)</span></h3><small>Consulenze, spese di struttura e altri costi comuni a tutta l'operazione — centro di costo DPG.</small></div><button type="button" class="ctrl-btn" onclick="ctrlSaveCostiGenerali()">Salva</button></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Categoria</th><th>Costo presunto</th><th>Costo effettivo</th><th>Note</th></tr></thead><tbody>${righeGenerale}</tbody><tfoot><tr><td><b>Totale costi generali</b></td><td><strong style="font-size:18px">${ctrlEuro(presGenerale)}</strong></td><td><strong style="font-size:18px">${ctrlEuro(effGenerale)}</strong></td><td></td></tr></tfoot></table></div><button type="button" class="ctrl-btn light" style="margin-top:12px" onclick="ctrlAddCostoGenerale()">+ Aggiungi voce</button>
-  <p style="font-size:10px;color:#8796a9;margin:12px 0 0">"Totale D|Park" qui sopra include anche questi costi generali (per lotto + generali = ${ctrlEuro(totPres)} presunto, ${ctrlEuro(totEff)} effettivo).</p></div></div>`;
+  <div class="ctrl-card" style="margin-bottom:14px"><div style="margin-bottom:12px"><h3 style="margin:0">Costi presunti ed effettivi per lotto</h3><small>Inserisci il costo presunto; per il costo effettivo allega la situazione contabile del lotto. Include anche i costi generali D|Park (DPG), voce a sé nel brogliaccio non ripartita su un lotto.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Costo presunto</th><th>Costo effettivo</th><th>Differenza</th><th>File contabile</th></tr></thead><tbody>${costiLotti}<tr><td><b>Costi generali D|Park</b> <span style="font-weight:400;color:#8796a9;font-size:11px">(DPG, non ripartiti su un lotto)</span></td><td><strong style="font-size:18px">${ctrlEuro(presGenerale)}</strong></td><td><strong style="font-size:18px">${ctrlEuro(effGenerale)}</strong></td><td>${presGenerale?`<span class="ctrl-chip ${(presGenerale-effGenerale)>=0?'ok':'warn'}">${ctrlEuro(presGenerale-effGenerale)}</span>`:'<span style="color:#8796a9;font-size:11px">— (nessun presunto)</span>'}</td><td><span style="font-size:11px;color:#8796a9">Dettaglio e modifica nella scheda "Costi generali D|Park" qui sotto ↓</span></td></tr></tbody><tfoot><tr><td><b>Totale D|Park (lotti + DPG)</b></td><td><strong style="font-size:18px">${ctrlEuro(totPres)}</strong></td><td><strong style="font-size:18px">${ctrlEuro(totEff)}</strong></td><td>${totPres===0?'<span style="color:#8796a9;font-size:11px">— (nessun presunto)</span>':`<strong style="font-size:18px">${ctrlEuro(totDifferenza)}</strong>`}</td><td></td></tr></tfoot></table></div><p style="font-size:10px;color:#8796a9;margin:10px 0 0">Costo presunto = budget inserito manualmente per lotto (non deriva da una fonte dati, a differenza del Venduto nei ricavi). Costo effettivo = quanto risulta speso secondo il brogliaccio contabile o il file allegato. Differenza negativa = costo effettivo sopra il presunto.</p></div>
+  <div class="ctrl-card" style="margin-bottom:14px"><div style="margin-bottom:12px"><h3 style="margin:0">Costi per categoria <span style="font-weight:400;color:#8796a9;font-size:11px">(fornitore/materiale)</span></h3><small>Ogni riga del brogliaccio costi (tutti i lotti + DPG) con un fornitore riconoscibile viene assegnata da sola alla sua tipologia, in base al fornitore — nessuna conferma manuale richiesta. Solo i fornitori mai visti prima compaiono qui sotto da compilare.</small></div>
+    ${microRiepilogo.categorie.length?`<div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Categoria</th><th>Totale</th><th>N. righe</th><th>Fornitori</th></tr></thead><tbody>${microRiepilogo.categorie.map(c=>`<tr><td><b>${ctrlEsc(c.nome)}</b></td><td><strong>${ctrlEuro(c.totale)}</strong></td><td>${c.nRighe}</td><td style="font-size:11px;color:#5b6b82">${c.fornitori.map(ctrlFornitoreEtichetta).map(ctrlEsc).join(', ')||'—'}</td></tr>`).join('')}</tbody></table></div>`:`<p style="font-size:12px;color:#8796a9;margin:0">Ancora nessun fornitore riconosciuto tra le righe del brogliaccio.</p>`}
+    ${daChiedereHtml}
+    ${rigaGenericaHtml}
+  </div>
+  <div class="ctrl-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h3 style="margin:0">Costi generali D|Park <span style="font-weight:400;color:#8796a9;font-size:11px">(non attribuiti a un lotto)</span></h3><small>Già incluso nel totale della tabella qui sopra — ${ctrlEuro(effGenerale)} effettivo.</small></div><a href="#" onclick="ctrlToggleCostiGenerali();return false" style="font-size:10px;color:#b8bfca;text-decoration:underline;white-space:nowrap">modifica per categoria (avanzato)</a></div><div id="costi-generali-dett" style="display:none;margin-top:14px"><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Categoria</th><th>Costo presunto</th><th>Costo effettivo</th><th>Note</th></tr></thead><tbody>${righeGenerale}</tbody><tfoot><tr><td><b>Totale costi generali</b></td><td><strong style="font-size:18px">${ctrlEuro(presGenerale)}</strong></td><td><strong style="font-size:18px">${ctrlEuro(effGenerale)}</strong></td><td></td></tr></tfoot></table></div><div style="margin-top:12px;display:flex;gap:8px"><button type="button" class="ctrl-btn" onclick="ctrlSaveCostiGenerali()">Salva</button><button type="button" class="ctrl-btn light" onclick="ctrlAddCostoGenerale()">+ Aggiungi voce</button></div></div></div></div>`;
 }
 ctrlSaveQuadroEconomico=function(){const x=ctrlEconomicoRecord(),lotto=ctrlCostiLottoRecord(CTRL_ECON_LOTTO);x.ricaviPresuntiExtra=Number(document.getElementById('eq-ricavi-presunti-extra').value)||0;x.ricaviEffettiviExtra=Number(document.getElementById('eq-ricavi-effettivi-extra').value)||0;x.noteRicavi=document.getElementById('eq-note-ricavi').value.trim();document.querySelectorAll('[data-econ-lotto-cost]').forEach(row=>{const r=lotto.costi[Number(row.dataset.econLottoCost)];r.presunto=Number(row.querySelector('.ec-presunto').value)||0;r.effettivo=Number(row.querySelector('.ec-effettivo').value)||0;r.note=row.querySelector('.ec-note').value.trim()});ctrlSave();ctrlRender('ctrl_quadro');ctrlNotify('✓ Quadro economico salvato per '+((CTRL_BUILDINGS.find(([k])=>k===CTRL_ECON_LOTTO)||[])[1]||'lotto'))}
 function ctrlSaveCostoPresunto(lottoKey){const input=document.getElementById('costo-presunto-'+lottoKey);if(!input)return;const valore=Number(input.value)||0;if(valore<0){alert('Il costo presunto non può essere negativo.');return}const scheda=ctrlCostiLottoRecord(lottoKey);scheda.costoPresuntoTotale=valore;scheda.costoPresuntoBloccato=true;ctrlSave();ctrlRender('ctrl_quadro');ctrlNotify('✓ Costo presunto salvato e bloccato per '+ctrlName(lottoKey))}
@@ -4672,5 +5310,25 @@ window.addEventListener('dpark-auth-ready',async e=>{
   else ctrlSyncStatus('Accedi per sincronizzare tra dispositivi');
 });
 </script>
+
+<button type="button" class="ctrl-bot-fab" onclick="ctrlBotToggle()" title="Assistente D|Park">🤖</button>
+<div class="ctrl-bot-panel" id="ctrl-bot-panel">
+  <div class="ctrl-bot-head">
+    <div><b>Assistente D|Park</b><small>Risponde con i numeri del progetto — se l'AI non è configurata, calcola le risposte da solo</small></div>
+    <button type="button" class="ctrl-bot-close" onclick="ctrlBotToggle()">✕</button>
+  </div>
+  <div class="ctrl-bot-msgs" id="ctrl-bot-msgs">
+    <div class="ctrl-bot-msg bot">Ciao! Chiedimi ad es.:
+"quanto abbiamo venduto a Vittoria?"
+"quanto abbiamo speso in Ferro?"
+"quante unità disponibili ha Audacia?"
+"margine di Passione"
+"fornitori da categorizzare"</div>
+  </div>
+  <form class="ctrl-bot-form" id="ctrl-bot-form" onsubmit="return ctrlBotInvia(event)">
+    <input type="text" id="ctrl-bot-input" placeholder="Scrivi la tua domanda…" autocomplete="off">
+    <button type="submit">Invia</button>
+  </form>
+</div>
 </body>
 </html>
