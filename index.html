@@ -3578,8 +3578,8 @@ function ctrlEsportaSintesi(){
     'Incluso nella vista corrente':r.incluso?'Sì':'No',
     'Unità totali':r.unitTot,'Vendute':r.unitV,'Riservate':r.unitR,'Disponibili':r.unitD,
     'Ricavo previsionale (€)':Math.round(r.previsionale),
-    'Venduto (€)':Math.round(r.venduto),
-    'Fatturato brogliaccio (€)':r.haBrogliaccio?Math.round(r.fatturato):'n/d (nessun centro di costo)',
+    'Venduto imponibile (€)':Math.round(r.venduto),
+    'Fatturato imponibile brogliaccio (€)':r.haBrogliaccio?Math.round(r.fatturato):'n/d (nessun centro di costo)',
     'Costo effettivo brogliaccio (€)':r.haBrogliaccio?Math.round(r.costoEffettivo):(r.costoEffettivo?Math.round(r.costoEffettivo)+' (manuale, escluso dal margine)':'—'),
     'Margine (€)':r.haBrogliaccio?(r.margine!=null?Math.round(r.margine):''):'n/d',
     'Invenduto - valore previsionale (€)':Math.round(r.invenduto)
@@ -3597,13 +3597,13 @@ function ctrlEsportaSintesi(){
     'Riservate':selezionati.reduce((a,r)=>a+r.unitR,0),
     'Disponibili':selezionati.reduce((a,r)=>a+r.unitD,0),
     'Ricavo previsionale (€)':Math.round(selezionati.reduce((a,r)=>a+r.previsionale,0)),
-    'Venduto (€)':Math.round(selezionati.reduce((a,r)=>a+r.venduto,0)),
-    'Fatturato brogliaccio (€)':Math.round(fatturatoSel),
+    'Venduto imponibile (€)':Math.round(selezionati.reduce((a,r)=>a+r.venduto,0)),
+    'Fatturato imponibile brogliaccio (€)':Math.round(fatturatoSel),
     'Costo effettivo brogliaccio (€)':Math.round(costoLottiSel),
     'Margine (€)':margineValore===''?'':Math.round(margineValore)+(tuttiIBrogliaccioSelezionati?' (include costi generali DPG)':' (esclusi costi generali DPG)'),
     'Invenduto - valore previsionale (€)':Math.round(selezionati.reduce((a,r)=>a+r.invenduto,0))
   });
-  righe.push({'Lotto':'Costi generali D|Park (DPG, intera operazione, non ripartiti per lotto)','Incluso nella vista corrente':'','Unità totali':'','Vendute':'','Riservate':'','Disponibili':'','Ricavo previsionale (€)':'','Venduto (€)':'','Fatturato brogliaccio (€)':'','Costo effettivo brogliaccio (€)':Math.round(effGenerale),'Margine (€)':'','Invenduto - valore previsionale (€)':''});
+  righe.push({'Lotto':'Costi generali D|Park (DPG, intera operazione, non ripartiti per lotto)','Incluso nella vista corrente':'','Unità totali':'','Vendute':'','Riservate':'','Disponibili':'','Ricavo previsionale (€)':'','Venduto imponibile (€)':'','Fatturato imponibile brogliaccio (€)':'','Costo effettivo brogliaccio (€)':Math.round(effGenerale),'Margine (€)':'','Invenduto - valore previsionale (€)':''});
   const ws=XLSX.utils.json_to_sheet(righe),wb=XLSX.utils.book_new();
   ws['!cols']=[{wch:32},{wch:12},{wch:10},{wch:9},{wch:10},{wch:11},{wch:18},{wch:14},{wch:20},{wch:22},{wch:26},{wch:22}];
   XLSX.utils.book_append_sheet(wb,ws,'Sintesi progetto');
@@ -4151,9 +4151,9 @@ function ctrlBotRispondi(domanda){
     return `Su tutto D|Park restano da fatturare ${ctrlEuro(tot)}.`;
   }
   if(/fatturat/.test(norm)){
-    if(lottoKey)return `${nomeLotto} ha fatturato ${ctrlEuro(ctrlFatturatoLotto(lottoKey))} secondo il brogliaccio.`;
+    if(lottoKey)return `${nomeLotto} ha un fatturato imponibile di ${ctrlEuro(ctrlFatturatoLotto(lottoKey))} secondo il brogliaccio (IVA esclusa).`;
     const tot=CTRL_BUILDINGS.filter(([k])=>k!=='sorriso').reduce((a,[k])=>a+ctrlFatturatoLotto(k),0);
-    return `D|Park ha fatturato in totale ${ctrlEuro(tot)} secondo il brogliaccio.`;
+    return `D|Park ha un fatturato imponibile totale di ${ctrlEuro(tot)} secondo il brogliaccio (IVA esclusa).`;
   }
   if(/margine|guadagn|utile/.test(norm)){
     if(!lottoKey)return 'Per quale lotto vuoi il margine? Specificalo, es. "margine di Vittoria".';
@@ -4167,9 +4167,9 @@ function ctrlBotRispondi(domanda){
     return `Il costo effettivo totale di D|Park (lotti + costi generali) è ${ctrlEuro(totEff)}.`;
   }
   if(/vendut/.test(norm)){
-    if(lottoKey)return `${nomeLotto} ha venduto per ${ctrlEuro(ctrlVendutoLotto(lottoKey))} (prezzo concordato, accordo Acquisto).`;
+    if(lottoKey)return `${nomeLotto} ha un venduto imponibile di ${ctrlEuro(ctrlVendutoLotto(lottoKey))} (prezzo concordato, IVA esclusa, accordo Acquisto).`;
     const tot=CTRL_BUILDINGS.reduce((a,[k])=>a+ctrlVendutoLotto(k),0);
-    return `D|Park ha venduto in totale ${ctrlEuro(tot)}.`;
+    return `D|Park ha un venduto imponibile totale di ${ctrlEuro(tot)}.`;
   }
 
   return 'Non ho capito la domanda. Prova ad esempio: "quanto abbiamo venduto a Vittoria?", "quanto abbiamo speso in Ferro?", "quante unità disponibili ha Audacia?", "margine di Passione", "fornitori da categorizzare".';
@@ -4364,18 +4364,18 @@ function ctrlImportRicaviBrogliaccio(input){
 function ctrlFatturatoDettaglioLotto(k){
   const righe=ctrlRicaviRigheCorrenti(k),units=Object.values((D[k]||{}).units||{});
   return righe.map(r=>{
-    let match=null,tok=null,altroMatch=null;
+    let match=null,tok=null,altroMatch=null,altroTok=null;
     for(const u of units){
       if(!u.owner)continue;
       const t=ctrlRigaRiferisceUnita(r.descr,u);
       if(!t)continue;
       if(u.accordo==='Acquisto'){match=u;tok=t;break}
-      if(!altroMatch)altroMatch=u;
+      if(!altroMatch){altroMatch=u;altroTok=t}
     }
     let motivo='';
     if(!match && altroMatch){
-      if(altroMatch.accordo==='Permuta') motivo='riferita a una permuta ('+(altroMatch.owner||'')+'), non è un incasso e non va contata nel fatturato';
-      else motivo='riferita a un\'unità venduta ('+(altroMatch.owner||'')+') con Tipo Accordo non impostato su "Acquisto" (attualmente: '+(altroMatch.accordo||'vuoto')+') — imposta il campo sulla scheda unità per includerla nel fatturato, se si tratta di un incasso reale';
+      if(altroMatch.accordo==='Permuta') motivo='riferita a una permuta ('+(altroMatch.owner||'')+', riconosciuta da: "'+altroTok+'"), non è un incasso e non va contata nel fatturato';
+      else motivo='riferita a un\'unità venduta ('+(altroMatch.owner||'')+', riconosciuta da: "'+altroTok+'") con Tipo Accordo non impostato su "Acquisto" (attualmente: '+(altroMatch.accordo||'vuoto')+') — imposta il campo sulla scheda unità per includerla nel fatturato, se si tratta di un incasso reale';
     } else if(!match){
       motivo='nessun nominativo/codice riconosciuto nella scheda vendite';
     }
@@ -5043,7 +5043,7 @@ ctrlRenderQuadroEconomico=function(){
   const ricaviLottoDati=CTRL_BUILDINGS.filter(([key])=>key!=='sorriso').map(([key,nome])=>{const venduto=ctrlVendutoLotto(key),fatturato=ctrlFatturatoLotto(key),daFatturare=venduto-fatturato;return{key,nome,venduto,fatturato,daFatturare}}),
         totVenduto=ricaviLottoDati.reduce((a,r)=>a+r.venduto,0),totFatturato=ricaviLottoDati.reduce((a,r)=>a+r.fatturato,0),totDaFatturare=totVenduto-totFatturato;
   const ricaviLotti=ricaviLottoDati.map(r=>{
-    const dett=ctrlFatturatoDettaglioLotto(r.key),righeHtml=dett.map(d=>`<tr><td style="width:22px">${d.inclusa?'<span style="color:#0d9488">✓</span>':'<span style="color:#c93b3b">✕</span>'}</td><td>${ctrlEsc(d.descr)}</td><td>${ctrlEuro(d.importo)}</td><td style="font-size:10px;color:#8796a9">${d.inclusa?('unità: '+ctrlEsc(d.unita)):ctrlEsc(d.motivo)}</td></tr>`).join('');
+    const dett=ctrlFatturatoDettaglioLotto(r.key),righeHtml=dett.map(d=>`<tr><td style="width:22px">${d.inclusa?'<span style="color:#0d9488">✓</span>':'<span style="color:#c93b3b">✕</span>'}</td><td>${ctrlEsc(d.descr)}</td><td>${ctrlEuro(d.importo)}</td><td style="font-size:10px;color:#8796a9">${d.inclusa?('unità: '+ctrlEsc(d.unita)+' — riconosciuta da: "'+ctrlEsc(d.token)+'"'):ctrlEsc(d.motivo)}</td></tr>`).join('');
     return `<tr><td><b>${ctrlEsc(r.nome)}</b></td><td>${ctrlEuro(r.venduto)}</td><td>${ctrlEuro(r.fatturato)}</td><td><span class="ctrl-chip ${r.daFatturare<=0?'ok':'warn'}">${ctrlEuro(r.daFatturare)}</span></td><td><button type="button" class="ctrl-btn light" style="padding:5px 9px;font-size:11px" onclick="ctrlToggleFatturatoDettaglio('${r.key}')">▸ Righe (${dett.length})</button></td></tr><tr id="fatt-dett-${r.key}" style="display:none"><td colspan="5" style="background:#f7f9fc"><div style="overflow-x:auto"><table class="ctrl-table" style="margin:6px 0"><thead><tr><th></th><th>Descrizione di riga (brogliaccio)</th><th>Importo</th><th>Esito</th></tr></thead><tbody>${righeHtml}</tbody></table></div></td></tr>`;
   }).join('');
   // COSTI: presunto (manuale) vs effettivo (dal brogliaccio), per fabbricato + una voce a parte per i costi generali D|Park
@@ -5068,11 +5068,11 @@ ctrlRenderQuadroEconomico=function(){
   const rigaGenerica=ctrlRigheGenericheRaggruppate();
   const rigaGenericaHtml=rigaGenerica.length?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid #e8e4da"><button type="button" class="ctrl-btn light" style="padding:6px 10px;font-size:11px" onclick="ctrlToggleRigheGeneriche()">▸ Righe senza fornitore (${rigaGenerica.length}) — categorizzale a mano se vuoi</button><div id="righe-generiche-block" style="display:none;margin-top:10px"><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Descrizione</th><th>Lotti</th><th>Totale</th><th>Categoria</th></tr></thead><tbody>${rigaGenerica.map(g=>`<tr><td style="font-size:12px">${ctrlEsc(g.descr)}</td><td style="font-size:11px;color:#8796a9">${g.lotti.map(l=>ctrlEsc(catCostiNomeLotto(l))).join(', ')}</td><td>${ctrlEuro(g.totale)}</td><td><input class="cc-descr-cat" list="cat-costi-datalist" data-descr="${ctrlEsc(g.descr)}" value="${ctrlEsc(g.categoriaAttuale)}" placeholder="facoltativo" style="min-width:140px"></td></tr>`).join('')}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:10px" onclick="ctrlSalvaCategorizzazioneDescrizioni()">💾 Salva</button></div></div>`:'';
   ctrlPopolaDatalistCategorie();
-  return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Quadro economico D|Park</h2><p>Da un lato i ricavi (venduto vs fatturato), dall'altro i costi (presunto vs effettivo), per ciascun fabbricato.</p></div><div style="display:flex;gap:8px;align-items:center"><button type="button" class="ctrl-btn light" onclick="ctrlStampaQuadroEconomico()">📄 Esporta PDF</button><span class="ctrl-chip ok">D|Park generale</span></div></div>
+  return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Quadro economico D|Park</h2><p>Da un lato i ricavi (venduto vs fatturato imponibile), dall'altro i costi (presunto vs effettivo), per ciascun fabbricato.</p></div><div style="display:flex;gap:8px;align-items:center"><button type="button" class="ctrl-btn light" onclick="ctrlStampaQuadroEconomico()">📄 Esporta PDF</button><span class="ctrl-chip ok">D|Park generale</span></div></div>
 
   <div class="jg-section-lbl" style="font-size:13px;margin-bottom:10px">RICAVI</div>
-  <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(totVenduto)}</strong><span>1. Venduto (prezzo concordato, accordo Acquisto)</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totFatturato)}</strong><span>2. Fatturato secondo il brogliaccio</span></div><div class="ctrl-kpi"><strong style="color:${totDaFatturare<=0?'#0d9488':'#d97706'}">${ctrlEuro(totDaFatturare)}</strong><span>3. Da fatturare (1 − 2)</span></div></div>
-  <div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap"><div><h3 style="margin:0">Ricavi per fabbricato</h3>${ricaviImport?`<small style="color:#0d9488">✓ Brogliaccio: ${ctrlEsc(ricaviImport.fileName||'')} · ${ricaviImport.importedAt?new Date(ricaviImport.importedAt).toLocaleDateString('it-IT'):''}</small>`:`<small style="color:#8796a9">Nessun brogliaccio caricato: valori dell'ultimo import manuale</small>`}</div><label class="ctrl-btn" style="display:inline-block;cursor:pointer;white-space:nowrap">${ricaviImport?'Aggiorna brogliaccio':'Carica brogliaccio'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="ctrlImportRicaviBrogliaccio(this)"></label></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Fabbricato</th><th>Venduto</th><th>Fatturato</th><th>Da fatturare</th><th></th></tr></thead><tbody>${ricaviLotti}</tbody><tfoot><tr><td><b>Totale D|Park</b></td><td><b>${ctrlEuro(totVenduto)}</b></td><td><b>${ctrlEuro(totFatturato)}</b></td><td><b>${ctrlEuro(totDaFatturare)}</b></td><td></td></tr></tfoot></table></div><p style="font-size:10px;color:#8796a9;margin-bottom:0">Venduto = prezzo concordato delle unità vendute con accordo Acquisto (esclude le Permute, come nel resto dell'app). Fatturato = solo le righe del brogliaccio la cui Descrizione di riga cita un nominativo o un codice presente nella scheda vendite del lotto (le righe generiche, senza nominativo, sono escluse - apri "Righe" per il dettaglio riga per riga). Sorriso non è ancora incluso: il centro di costo non è ancora partito.</p></div>
+  <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(totVenduto)}</strong><span>1. Venduto imponibile (prezzo concordato, IVA esclusa, accordo Acquisto)</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totFatturato)}</strong><span>2. Fatturato imponibile secondo il brogliaccio (IVA esclusa)</span></div><div class="ctrl-kpi"><strong style="color:${totDaFatturare<=0?'#0d9488':'#d97706'}">${ctrlEuro(totDaFatturare)}</strong><span>3. Da fatturare (1 − 2)</span></div></div>
+  <div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap"><div><h3 style="margin:0">Ricavi per fabbricato</h3>${ricaviImport?`<small style="color:#0d9488">✓ Brogliaccio: ${ctrlEsc(ricaviImport.fileName||'')} · ${ricaviImport.importedAt?new Date(ricaviImport.importedAt).toLocaleDateString('it-IT'):''}</small>`:`<small style="color:#8796a9">Nessun brogliaccio caricato: valori dell'ultimo import manuale</small>`}</div><label class="ctrl-btn" style="display:inline-block;cursor:pointer;white-space:nowrap">${ricaviImport?'Aggiorna brogliaccio':'Carica brogliaccio'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="ctrlImportRicaviBrogliaccio(this)"></label></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Fabbricato</th><th>Venduto imponibile</th><th>Fatturato imponibile</th><th>Da fatturare</th><th></th></tr></thead><tbody>${ricaviLotti}</tbody><tfoot><tr><td><b>Totale D|Park</b></td><td><b>${ctrlEuro(totVenduto)}</b></td><td><b>${ctrlEuro(totFatturato)}</b></td><td><b>${ctrlEuro(totDaFatturare)}</b></td><td></td></tr></tfoot></table></div><p style="font-size:10px;color:#8796a9;margin-bottom:0">Venduto imponibile = prezzo concordato (IVA esclusa) delle unità vendute con accordo Acquisto (esclude le Permute, come nel resto dell'app). Fatturato imponibile = solo le righe del brogliaccio la cui Descrizione di riga cita un nominativo o un codice presente nella scheda vendite del lotto (le righe generiche, senza nominativo, sono escluse - apri "Righe" per il dettaglio riga per riga); è l'importo registrato sul conto ricavi (502101/50210101), <b>IVA esclusa</b> — l'IVA in contabilità è su un conto separato, non compreso in questo dato. Sorriso non è ancora incluso: il centro di costo non è ancora partito.</p></div>
   <div class="ctrl-card" style="margin-bottom:22px"><h3>Altri ricavi dell'operazione</h3><div class="ctrl-form"><input id="eq-ricavi-presunti-extra" type="number" step="0.01" value="${Number(x.ricaviPresuntiExtra)||''}" placeholder="Ricavi presunti extra"><input id="eq-ricavi-effettivi-extra" type="number" step="0.01" value="${Number(x.ricaviEffettiviExtra)||''}" placeholder="Ricavi effettivi extra"><input id="eq-note-ricavi" class="wide" value="${ctrlEsc(x.noteRicavi||'')}" placeholder="Descrizione / note"></div></div>
 
   <div class="jg-section-lbl" style="font-size:13px;margin-bottom:10px">COSTI</div>
@@ -5142,9 +5142,9 @@ function ctrlStampaQuadroEconomico(){
   <p class="pdf-meta">Esportato il ${ctrlEsc(oggi)} — istantanea dei dati al momento dell'export, non si aggiorna da sola.</p>
 
   <h2>Ricavi</h2>
-  <div class="pdf-kpis"><div class="pdf-kpi"><b>${ctrlEuro(totVenduto)}</b><span>1. Venduto (prezzo concordato, accordo Acquisto)</span></div><div class="pdf-kpi"><b>${ctrlEuro(totFatturato)}</b><span>2. Fatturato secondo il brogliaccio</span></div><div class="pdf-kpi"><b>${ctrlEuro(totDaFatturare)}</b><span>3. Da fatturare (1 − 2)</span></div></div>
-  <table class="pdf-table"><thead><tr><th>Fabbricato</th><th>Venduto</th><th>Fatturato</th><th>Da fatturare</th></tr></thead><tbody>${ricaviRigheHtml}</tbody><tfoot><tr><td><b>Totale D|Park</b></td><td><b>${ctrlEuro(totVenduto)}</b></td><td><b>${ctrlEuro(totFatturato)}</b></td><td><b>${ctrlEuro(totDaFatturare)}</b></td></tr></tfoot></table>
-  <p class="pdf-note">Venduto = prezzo concordato delle unità vendute con accordo Acquisto (esclude le Permute). Fatturato = solo le righe del brogliaccio riconducibili a un nominativo/codice della scheda vendite. Sorriso non è incluso: il centro di costo non è ancora partito.</p>
+  <div class="pdf-kpis"><div class="pdf-kpi"><b>${ctrlEuro(totVenduto)}</b><span>1. Venduto imponibile (prezzo concordato, IVA esclusa, accordo Acquisto)</span></div><div class="pdf-kpi"><b>${ctrlEuro(totFatturato)}</b><span>2. Fatturato imponibile secondo il brogliaccio (IVA esclusa)</span></div><div class="pdf-kpi"><b>${ctrlEuro(totDaFatturare)}</b><span>3. Da fatturare (1 − 2)</span></div></div>
+  <table class="pdf-table"><thead><tr><th>Fabbricato</th><th>Venduto imponibile</th><th>Fatturato imponibile</th><th>Da fatturare</th></tr></thead><tbody>${ricaviRigheHtml}</tbody><tfoot><tr><td><b>Totale D|Park</b></td><td><b>${ctrlEuro(totVenduto)}</b></td><td><b>${ctrlEuro(totFatturato)}</b></td><td><b>${ctrlEuro(totDaFatturare)}</b></td></tr></tfoot></table>
+  <p class="pdf-note">Venduto imponibile = prezzo concordato (IVA esclusa) delle unità vendute con accordo Acquisto (esclude le Permute). Fatturato imponibile = solo le righe del brogliaccio riconducibili a un nominativo/codice della scheda vendite; importo del conto ricavi (502101/50210101), <b>IVA esclusa</b>. Sorriso non è incluso: il centro di costo non è ancora partito.</p>
 
   <h2>Costi</h2>
   <div class="pdf-kpis"><div class="pdf-kpi"><b>${ctrlEuro(totPres)}</b><span>1. Costo presunto (budget, inserito a mano)</span></div><div class="pdf-kpi"><b>${ctrlEuro(totEff)}</b><span>2. Costo effettivo secondo il brogliaccio</span></div><div class="pdf-kpi"><b>${totPres===0?'—':ctrlEuro(totDifferenza)}</b><span>3. Differenza (1 − 2)</span></div></div>
@@ -5264,8 +5264,8 @@ function ctrlSintesiGenerale(){
     </div>
     <div class="ctrl-kpis" style="margin-top:16px">
       <div class="ctrl-kpi" style="background:rgba(255,255,255,.06)"><strong style="color:white">${ctrlEuro(previsionaleSel)}</strong><span style="color:#b9c8da">Ricavo previsionale (lotti selezionati)</span></div>
-      <div class="ctrl-kpi" style="background:rgba(255,255,255,.06)"><strong style="color:white">${ctrlEuro(vendutoSel)}</strong><span style="color:#b9c8da">Venduto (accordo Acquisto)</span></div>
-      <div class="ctrl-kpi" style="background:rgba(255,255,255,.06)"><strong style="color:white">${ctrlEuro(fatturatoSel)}</strong><span style="color:#b9c8da">Fatturato secondo il brogliaccio</span></div>
+      <div class="ctrl-kpi" style="background:rgba(255,255,255,.06)"><strong style="color:white">${ctrlEuro(vendutoSel)}</strong><span style="color:#b9c8da">Venduto imponibile (accordo Acquisto, IVA esclusa)</span></div>
+      <div class="ctrl-kpi" style="background:rgba(255,255,255,.06)"><strong style="color:white">${ctrlEuro(fatturatoSel)}</strong><span style="color:#b9c8da">Fatturato imponibile secondo il brogliaccio (IVA esclusa)</span></div>
       <div class="ctrl-kpi" style="background:rgba(255,255,255,.06)"><strong style="color:white">${ctrlEuro(costoLottiSel)}</strong><span style="color:#b9c8da">Costo effettivo lotti (brogliaccio)</span></div>
       <div class="ctrl-kpi" style="background:rgba(255,255,255,.06)"><strong style="color:${margineValore>=0?'#4ade80':'#f87171'}">${nessunoSelezionato?'—':ctrlEuro(margineValore)}</strong><span style="color:#b9c8da">${margineLabel}</span></div>
       <div class="ctrl-kpi" style="background:rgba(255,255,255,.06)"><strong style="color:white">${ctrlEuro(invendutoSel)}</strong><span style="color:#b9c8da">Invenduto (valore previsionale)</span></div>
@@ -5274,9 +5274,9 @@ function ctrlSintesiGenerale(){
       <span>📦 ${unitTotSel} unità totali</span><span>🔴 ${unitVSel} vendute</span><span>🟠 ${unitRSel} riservate</span><span>🟢 ${unitDSel} disponibili</span>
       <span style="margin-left:auto;color:#b9c8da">Costi generali D|Park (DPG, intera operazione, non ripartiti per lotto): <b style="color:white">${ctrlEuro(effGenerale)}</b>${tuttiIBrogliaccioSelezionati?' — già incluso nel margine qui sopra':' — non incluso nel margine qui sopra'}</span>
     </div>
-    <div style="overflow-x:auto;margin-top:16px"><table class="ctrl-table" style="background:white;border-radius:8px;overflow:hidden;min-width:980px"><thead><tr><th>Lotto (incluso nei totali?)</th><th>Unità</th><th>Previsionale</th><th>Venduto</th><th>Fatturato</th><th>Costo effettivo</th><th>Margine</th><th>Invenduto</th></tr></thead><tbody>${righeLotti}</tbody><tfoot><tr><td><b>Totale lotti selezionati</b></td><td><b>${unitTotSel}</b></td><td><b>${ctrlEuro(previsionaleSel)}</b></td><td><b>${ctrlEuro(vendutoSel)}</b></td><td><b>${ctrlEuro(fatturatoSel)}</b></td><td><b>${ctrlEuro(costoLottiSel)}</b></td><td><strong style="font-size:14px">${nessunoSelezionato?'—':ctrlEuro(margineValore)}</strong></td><td><b>${ctrlEuro(invendutoSel)}</b></td></tr></tfoot></table></div>
+    <div style="overflow-x:auto;margin-top:16px"><table class="ctrl-table" style="background:white;border-radius:8px;overflow:hidden;min-width:980px"><thead><tr><th>Lotto (incluso nei totali?)</th><th>Unità</th><th>Previsionale</th><th>Venduto imponibile</th><th>Fatturato imponibile</th><th>Costo effettivo</th><th>Margine</th><th>Invenduto</th></tr></thead><tbody>${righeLotti}</tbody><tfoot><tr><td><b>Totale lotti selezionati</b></td><td><b>${unitTotSel}</b></td><td><b>${ctrlEuro(previsionaleSel)}</b></td><td><b>${ctrlEuro(vendutoSel)}</b></td><td><b>${ctrlEuro(fatturatoSel)}</b></td><td><b>${ctrlEuro(costoLottiSel)}</b></td><td><strong style="font-size:14px">${nessunoSelezionato?'—':ctrlEuro(margineValore)}</strong></td><td><b>${ctrlEuro(invendutoSel)}</b></td></tr></tfoot></table></div>
     ${sorrisoCostiManuali?`<p style="font-size:10px;color:#fbbf24;margin:10px 0 0">* Sorriso ha un costo inserito manualmente (${ctrlEuro(sorrisoCostiManuali)}) escluso dal margine, perché il suo fatturato non è ancora verificabile dal brogliaccio (nessun centro di costo attivo).</p>`:''}
-    <p style="font-size:10px;color:#b9c8da;margin:10px 0 0">Fatturato/Costo effettivo/Margine per lotto = solo i 6 lotti con centro di costo attivo (Sorriso esclusa: "n/d"). Il margine sopra include i costi generali D|Park (DPG) solo quando tutti e 6 questi lotti sono selezionati insieme — altrimenti i costi generali non sono ripartibili in modo attendibile su un sottoinsieme e restano indicati a parte. Ricavo previsionale = valore a listino/mq (teorico, non realizzato). Invenduto = valore previsionale delle unità disponibili + riservate. Per il dettaglio riga per riga vai al Quadro economico.</p>
+    <p style="font-size:10px;color:#b9c8da;margin:10px 0 0">Venduto imponibile/Fatturato imponibile/Costo effettivo/Margine per lotto = solo i 6 lotti con centro di costo attivo (Sorriso esclusa: "n/d"). "Venduto imponibile" è il prezzo concordato inserito in scheda unità, IVA esclusa; "Fatturato imponibile" è l'importo del conto ricavi (502101/50210101), <b>IVA esclusa</b> — nessuno dei due è il totale fattura. Il margine sopra include i costi generali D|Park (DPG) solo quando tutti e 6 questi lotti sono selezionati insieme — altrimenti i costi generali non sono ripartibili in modo attendibile su un sottoinsieme e restano indicati a parte. Ricavo previsionale = valore a listino/mq (teorico, non realizzato). Invenduto = valore previsionale delle unità disponibili + riservate. Per il dettaglio riga per riga vai al Quadro economico.</p>
   </div>`;
 }
 function ctrlRenderRiepilogo(){
