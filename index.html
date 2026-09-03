@@ -3786,19 +3786,23 @@ function ctrlImportCostiBrogliaccio(input){
   reader.onload=e=>{try{
     const wb=XLSX.read(e.target.result,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
     const txt=v=>v==null?'':String(v).trim();
-    let headerRow=-1,colConto=-1,colDescrConto=-1,colDescr=-1,colDare=-1,colCdc=-1;
+    let headerRow=-1,colConto=-1,colDescrConto=-1,colDescr=-1,colDare=-1,colAvere=-1,colCdc=-1;
     for(let i=0;i<rows.length&&headerRow<0;i++){
       const r=rows[i]||[];
       const idxConto=r.findIndex(c=>txt(c).toLowerCase()==='conto');
       const idxDescrConto=r.findIndex(c=>txt(c).toLowerCase().includes('descrizione conto'));
       const idxDescr=r.findIndex(c=>txt(c).toLowerCase().includes('descrizione di riga'));
       const idxDare=r.findIndex(c=>txt(c).toLowerCase().includes('dare'));
+      const idxAvere=r.findIndex(c=>txt(c).toLowerCase().includes('avere'));
       const idxCdc=r.findIndex(c=>txt(c).toLowerCase().includes('centri di costo'));
-      if(idxConto>=0&&idxDescrConto>=0&&idxDescr>=0&&idxDare>=0&&idxCdc>=0){headerRow=i;colConto=idxConto;colDescrConto=idxDescrConto;colDescr=idxDescr;colDare=idxDare;colCdc=idxCdc}
+      if(idxConto>=0&&idxDescrConto>=0&&idxDescr>=0&&idxDare>=0&&idxAvere>=0&&idxCdc>=0){headerRow=i;colConto=idxConto;colDescrConto=idxDescrConto;colDescr=idxDescr;colDare=idxDare;colAvere=idxAvere;colCdc=idxCdc}
     }
-    if(headerRow<0)throw Error('non trovo le colonne attese (Conto, Descrizione Conto, Descrizione di riga, Dare €, Centri di Costo)');
-    // Conti da escludere: controparte/fornitore (la riga di "Dare" sul conto di costo è quella che conta, non
-    // quella di "Avere" sul conto fornitore), IVA, e conti ricavo (quelli li prende il brogliaccio ricavi).
+    if(headerRow<0)throw Error('non trovo le colonne attese (Conto, Descrizione Conto, Descrizione di riga, Dare €, Avere €, Centri di Costo)');
+    // Conti da escludere: controparte/fornitore, IVA, e conti ricavo (quelli li prende il brogliaccio ricavi).
+    // Importo = Dare − Avere: un acquisto normale ha solo Dare (importo positivo, un costo); una nota di
+    // credito RICEVUTA da un fornitore registra lo storno in Avere sullo stesso conto di costo, quindi qui
+    // diventa un importo negativo che riduce il costo invece di sparire — prima veniva scartata perché la riga
+    // aveva Dare=0 (succedeva già nei dati reali, es. "Nc numero FPR 71/26" su Salvarezza).
     const CONTI_ESCLUSI=new Set(['214101','214601','442301','452101','452501','458201','240501','502101','50210101']);
     const CDC_MAP=[['DPA1','a1'],['DPA2','a2'],['DPV','vittoria'],['DPP','passione'],['DPEQ','equilibrio'],['DPA','audacia']];
     function lottoDiCdc(cdc){const c=txt(cdc);if(!c)return null;for(const[pref,lot]of CDC_MAP)if(c===pref||c.startsWith(pref+' '))return lot;return null}
@@ -3808,10 +3812,11 @@ function ctrlImportCostiBrogliaccio(input){
       const r=rows[i]||[],conto=txt(r[colConto]);
       if(!conto||CONTI_ESCLUSI.has(conto))continue;
       const lotto=lottoDiCdc(r[colCdc]);if(!lotto)continue;
-      const dare=Number(r[colDare])||0;if(!dare)continue;
+      const dare=Number(r[colDare])||0,avere=Number(r[colAvere])||0,importo=dare-avere;
+      if(!importo)continue;
       const categoria=txt(r[colDescrConto])||'Altro';
       if(!righe[lotto][categoria])righe[lotto][categoria]=[];
-      righe[lotto][categoria].push({descr:txt(r[colDescr]),importo:Math.round(dare*100)/100});
+      righe[lotto][categoria].push({descr:txt(r[colDescr]),importo:Math.round(importo*100)/100});
       tot++;
     }
     if(!tot)throw Error('nessuna riga di costo riconosciuta per i centri di costo D|Park (attesi: DPA1, DPA2, DPV, DPP, DPEQ, DPA)');
@@ -4322,8 +4327,11 @@ function ctrlRicaviRigheCorrenti(k){
   return RICAVI_RIGHE_BROGLIACCIO.righe[k]||[];
 }
 // Parsing del file "Elenco movimenti prima nota con indicazione centri di costo": individua la riga di
-// intestazione cercando le colonne Conto / Descrizione di riga / Avere € / Centri di Costo, poi tiene solo
+// intestazione cercando le colonne Conto / Descrizione di riga / Dare € / Avere € / Centri di Costo, poi tiene
 // le righe sui conti ricavo (502101, 50210101) i cui centri di costo iniziano con un prefisso D|Park noto.
+// Importo = Avere − Dare: una fattura normale ha solo Avere (importo positivo); una nota di credito emessa a
+// un cliente registra l'estorno in Dare sullo stesso conto ricavo, quindi qui diventa un importo negativo che
+// riduce il fatturato invece di sparire — prima veniva scartata perché la riga aveva Avere=0.
 function ctrlImportRicaviBrogliaccio(input){
   const file=input.files&&input.files[0];if(!file)return;
   if(typeof XLSX==='undefined'){alert('Il lettore Excel non è disponibile. Controlla la connessione e riapri la pagina.');input.value='';return}
@@ -4331,16 +4339,17 @@ function ctrlImportRicaviBrogliaccio(input){
   reader.onload=e=>{try{
     const wb=XLSX.read(e.target.result,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
     const txt=v=>v==null?'':String(v).trim();
-    let headerRow=-1,colConto=-1,colDescr=-1,colAvere=-1,colCdc=-1;
+    let headerRow=-1,colConto=-1,colDescr=-1,colDare=-1,colAvere=-1,colCdc=-1;
     for(let i=0;i<rows.length&&headerRow<0;i++){
       const r=rows[i]||[];
       const idxConto=r.findIndex(c=>txt(c).toLowerCase()==='conto');
       const idxDescr=r.findIndex(c=>txt(c).toLowerCase().includes('descrizione di riga'));
+      const idxDare=r.findIndex(c=>txt(c).toLowerCase().includes('dare'));
       const idxAvere=r.findIndex(c=>txt(c).toLowerCase().includes('avere'));
       const idxCdc=r.findIndex(c=>txt(c).toLowerCase().includes('centri di costo'));
-      if(idxConto>=0&&idxDescr>=0&&idxAvere>=0&&idxCdc>=0){headerRow=i;colConto=idxConto;colDescr=idxDescr;colAvere=idxAvere;colCdc=idxCdc}
+      if(idxConto>=0&&idxDescr>=0&&idxDare>=0&&idxAvere>=0&&idxCdc>=0){headerRow=i;colConto=idxConto;colDescr=idxDescr;colDare=idxDare;colAvere=idxAvere;colCdc=idxCdc}
     }
-    if(headerRow<0)throw Error('non trovo le colonne attese (Conto, Descrizione di riga, Avere €, Centri di Costo)');
+    if(headerRow<0)throw Error('non trovo le colonne attese (Conto, Descrizione di riga, Dare €, Avere €, Centri di Costo)');
     const CONTI_RICAVO=new Set(['502101','50210101']);
     const CDC_MAP=[['DPA1','a1'],['DPA2','a2'],['DPV','vittoria'],['DPP','passione'],['DPEQ','equilibrio'],['DPA','audacia']];
     function lottoDiCdc(cdc){const c=txt(cdc);if(!c)return null;for(const[pref,lot]of CDC_MAP)if(c===pref||c.startsWith(pref+' '))return lot;return null}
@@ -4349,8 +4358,9 @@ function ctrlImportRicaviBrogliaccio(input){
       const r=rows[i]||[],conto=txt(r[colConto]);
       if(!CONTI_RICAVO.has(conto))continue;
       const lotto=lottoDiCdc(r[colCdc]);if(!lotto)continue;
-      const avere=Number(r[colAvere])||0;if(!avere)continue;
-      righe[lotto].push({descr:txt(r[colDescr]),importo:Math.round(avere*100)/100});
+      const avere=Number(r[colAvere])||0,dare=Number(r[colDare])||0,importo=avere-dare;
+      if(!importo)continue;
+      righe[lotto].push({descr:txt(r[colDescr]),importo:Math.round(importo*100)/100});
     }
     const tot=Object.values(righe).reduce((s,arr)=>s+arr.length,0);
     if(!tot)throw Error('nessuna riga di ricavo riconosciuta per i centri di costo D|Park (attesi: DPA1, DPA2, DPV, DPP, DPEQ, DPA)');
