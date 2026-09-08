@@ -3966,7 +3966,17 @@ function ctrlSetMicroCategoriaDescrizione(descr,categoria){
 function ctrlSuggerimentoCategoriaFornitore(nome){
   const key=ctrlNormalizzaTesto(nome);
   const hit=Object.entries(FORNITORI_CATEGORIA_SUGGERITE).find(([k])=>ctrlNormalizzaTesto(k)===key);
-  return hit?hit[1]:null;
+  if(hit)return hit[1];
+  // Corrispondenza esatta non trovata: alcune fatture riportano il fornitore in forma abbreviata
+  // (es. "SALVAREZZA" invece di "SALVAREZZA SRL") - senza questo fallback la riga restava senza
+  // categoria e spariva dai totali per categoria (bug segnalato da Noemi il 08/09/2026, verificato
+  // su Armonia1 e Armonia2, fatture "FPR 26/26"). Match parziale bidirezionale, si tiene il nome
+  // più lungo/specifico se ce ne fosse più di uno per evitare ambiguità.
+  const parziali=Object.entries(FORNITORI_CATEGORIA_SUGGERITE)
+    .map(([k,v])=>({v,kn:ctrlNormalizzaTesto(k)}))
+    .filter(({kn})=>kn.includes(key)||key.includes(kn))
+    .sort((a,b)=>b.kn.length-a.kn.length);
+  return parziali.length?parziali[0].v:null;
 }
 function ctrlSuggerimentoNotaFornitore(nome){
   const key=ctrlNormalizzaTesto(nome);
