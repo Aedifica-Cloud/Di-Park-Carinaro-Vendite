@@ -5375,7 +5375,12 @@ function ctrlBudgetEstraiFasiDaFoglio(ws){
   let righeConEtichetta=0,righeMaiuscole=0,righeVoceSenzaFase=0,importiTotaliTrovati=0,rigaStop=null;
   const etichetteEsempio=[];
   for(let i=headerRowIdx+1;i<rows.length;i++){
-    const r=rows[i]||[],label=r[1];
+    const r=rows[i]||[];
+    // La colonna con l'etichetta (fase/voce) non è sempre la B: sul file reale di Noemi (ARMONIA12/
+    // VITTORIA/PASSIONE, verificato sui dati indicizzati da Drive il 12/09/2026) l'etichetta sta in
+    // colonna A, con la B quasi sempre vuota. Prendiamo la prima delle due che ha testo, così funziona
+    // sia con file strutturati su A sia su B.
+    const label=(r[0]!=null&&String(r[0]).trim()!=='')?r[0]:r[1];
     if(label==null||String(label).trim()==='')continue;
     const labelTxt=String(label).trim();
     righeConEtichetta++;
@@ -5393,12 +5398,12 @@ function ctrlBudgetEstraiFasiDaFoglio(ws){
   if(!risultato.length){
     const dettagli=[
       'riga di intestazione trovata: #'+(headerRowIdx+1)+' ('+colonne.length+' colonne fornitore riconosciute)',
-      'righe con testo in colonna B lette dopo l\'intestazione: '+righeConEtichetta,
+      'righe con testo in colonna A o B lette dopo l\'intestazione: '+righeConEtichetta,
       'di cui riconosciute come FASE (tutto maiuscolo, es. "SCAVI"): '+righeMaiuscole,
       'di cui scartate perché nessuna fase era ancora aperta sopra di loro: '+righeVoceSenzaFase,
       'importi numerici trovati in totale: '+importiTotaliTrovati,
       rigaStop?('lettura interrotta alla riga #'+rigaStop.riga+' perché il testo inizia con "somma/totale": "'+rigaStop.testo+'"'):'nessuna riga "somma/totale" incontrata (letto fino alla fine del foglio)',
-      etichetteEsempio.length?('prime etichette lette in colonna B: '+etichetteEsempio.join(', ')):'nessun testo trovato in colonna B su nessuna riga'
+      etichetteEsempio.length?('prime etichette lette (colonna A o B): '+etichetteEsempio.join(', ')):'nessun testo trovato in colonna A o B su nessuna riga'
     ];
     throw new Error('nessuna voce valida trovata nel foglio.\n\n'+dettagli.join('\n'));
   }
