@@ -5323,7 +5323,37 @@ let CTRL_BUDGET_TOKEN_CLIENT=null;
 //    (es. "- Realizzazione scala in c.a." a zero). Usare "nessun importo = nuova fase" come unico criterio
 //    è quello che ha rotto la prima versione di questa funzione: una voce ancora a zero veniva scambiata
 //    per l'inizio di una nuova fase e la fase vera (es. SCALE-PILASTRI) spariva.
+// Alcuni file dichiarano nel proprio XML un intervallo di celle (!ref) più piccolo del contenuto
+// reale — capita tipicamente dopo un "duplica foglio" in Excel/Google Sheets (visto sul file di
+// Noemi dell'11-12/09/2026, dove il foglio ARMONIA12 dichiarava un intervallo di sole 2 righe pur
+// contenendo decine di righe di fasi/voci). XLSX.utils.sheet_to_json si ferma all'intervallo
+// dichiarato, quindi legge solo l'intestazione e poi si ferma subito. Qui lo ricalcoliamo scandendo
+// le celle effettivamente presenti nel foglio, senza mai restringerlo rispetto a quello dichiarato
+// (così un foglio già corretto non viene toccato).
+function ctrlBudgetRicalcolaRangeFoglio(ws){
+  if(!ws)return ws;
+  let range;
+  try{range=ws['!ref']?XLSX.utils.decode_range(ws['!ref']):{s:{r:0,c:0},e:{r:0,c:0}}}
+  catch(e){range={s:{r:0,c:0},e:{r:0,c:0}}}
+  let minR=range.s.r,minC=range.s.c,maxR=range.e.r,maxC=range.e.c,trovata=false;
+  Object.keys(ws).forEach(k=>{
+    if(k[0]==='!')return;
+    let cell;
+    try{cell=XLSX.utils.decode_cell(k)}catch(e){return}
+    trovata=true;
+    if(cell.r<minR)minR=cell.r;
+    if(cell.c<minC)minC=cell.c;
+    if(cell.r>maxR)maxR=cell.r;
+    if(cell.c>maxC)maxC=cell.c;
+  });
+  if(trovata){
+    const nuovoRef=XLSX.utils.encode_range({s:{r:minR,c:minC},e:{r:maxR,c:maxC}});
+    if(nuovoRef!==ws['!ref'])ws['!ref']=nuovoRef;
+  }
+  return ws;
+}
 function ctrlBudgetEstraiFasiDaFoglio(ws){
+  ws=ctrlBudgetRicalcolaRangeFoglio(ws);
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
   let headerRowIdx=-1;
   for(let i=0;i<rows.length;i++){
