@@ -5352,6 +5352,28 @@ function ctrlBudgetRicalcolaRangeFoglio(ws){
   }
   return ws;
 }
+// Converte in numero un importo che può essere già numerico, oppure testo con simbolo di valuta e/o
+// separatori delle migliaia (es. "340,000.00 €" o "30.000,00 €" — visto sul file reale di Noemi, dove
+// alcuni importi incollati a mano nei fogli duplicati sono testo formattato e non numeri puri: con
+// Number() semplice restano invisibili senza errore, la voce risultava presente ma senza importi).
+function ctrlBudgetParseImporto(v){
+  if(v==null)return 0;
+  if(typeof v==='number')return isFinite(v)?v:0;
+  let s=String(v).trim();
+  if(s==='')return 0;
+  s=s.replace(/[€$\s]/g,'');
+  if(s===''||s==='-')return 0;
+  const ultimaVirgola=s.lastIndexOf(','),ultimoPunto=s.lastIndexOf('.');
+  if(ultimaVirgola>-1&&ultimoPunto>-1){
+    if(ultimaVirgola>ultimoPunto)s=s.replace(/\./g,'').replace(',','.');
+    else s=s.replace(/,/g,'');
+  }else if(ultimaVirgola>-1){
+    const decimali=s.length-ultimaVirgola-1;
+    s=decimali===2?s.replace(',','.'):s.replace(/,/g,'');
+  }
+  const n=Number(s);
+  return isFinite(n)?n:0;
+}
 function ctrlBudgetEstraiFasiDaFoglio(ws){
   ws=ctrlBudgetRicalcolaRangeFoglio(ws);
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
@@ -5390,7 +5412,7 @@ function ctrlBudgetEstraiFasiDaFoglio(ws){
     if(soloMaiuscole){righeMaiuscole++;corrente={fase:labelTxt,voci:[]};fasi.push(corrente);continue}
     if(!corrente){righeVoceSenzaFase++;continue}
     const righe=[];
-    colonne.forEach(c=>{const v=Number(r[c]);if(v)righe.push({fornitore:headers[c],importo:Math.round(v*100)/100})});
+    colonne.forEach(c=>{const v=ctrlBudgetParseImporto(r[c]);if(v)righe.push({fornitore:headers[c],importo:Math.round(v*100)/100})});
     importiTotaliTrovati+=righe.length;
     corrente.voci.push({voce:labelTxt,righe});
   }
@@ -5457,7 +5479,12 @@ function ctrlRenderBudgetCosti(){
     const fasiHtml=dati.fasi.map(fase=>{
       let subtotaleFase=0;
       const righeVisibili=fase.voci.flatMap(v=>v.righe.map(r=>({v,r,info:ctrlBudgetFornitoreInfo(r.fornitore)})).filter(({info})=>!CTRL_BUDGET_FORNITORE||info.label===CTRL_BUDGET_FORNITORE));
-      if(!righeVisibili.length)return '';
+      // Voci presenti nel computo ma senza nessun importo riconosciuto (es. non ancora prezzate, oppure
+      // un formato di cella che il parser non ha saputo leggere): prima sparivano del tutto dalla vista.
+      // Le mostriamo comunque, con importo "da definire", così ogni voce del foglio Excel resta visibile
+      // in app — se manca un importo si vede subito, invece di scoprirlo solo confrontando con Excel.
+      const vociSenzaImporto=CTRL_BUDGET_FORNITORE?[]:fase.voci.filter(v=>!v.righe.length);
+      if(!righeVisibili.length&&!vociSenzaImporto.length)return '';
       const righeHtml=righeVisibili.map(({v,r,info})=>{
         const importo=r.importo/2;
         subtotaleFase+=importo;nRigheMostrate++;
@@ -5465,8 +5492,9 @@ function ctrlRenderBudgetCosti(){
         const chip=info.tipo!=='fornitore'?`<span class="ctrl-chip ${ctrlBudgetChipClasse(info.tipo)}" style="margin-left:6px">${info.tipo==='daDefinire'?'da definire':info.tipo==='interno'?'interno':'categoria'}</span>`:'';
         return `<tr><td>${ctrlEsc(v.voce)}</td><td>${ctrlEsc(info.label)}${chip}</td><td>${ctrlEuro(importo)}</td></tr>`;
       }).join('');
+      const vociSenzaImportoHtml=vociSenzaImporto.map(v=>`<tr><td>${ctrlEsc(v.voce)}</td><td style="color:#8796a9">— <span class="ctrl-chip" style="margin-left:2px">da definire</span></td><td style="color:#8796a9">—</td></tr>`).join('');
       totaleEdificio+=subtotaleFase;
-      return `<tr style="background:#f7f9fc"><td colspan="3"><b>${ctrlEsc(fase.fase)}</b> <span style="font-weight:400;color:#8796a9;font-size:11px">— ${ctrlEuro(subtotaleFase)}</span></td></tr>${righeHtml}`;
+      return `<tr style="background:#f7f9fc"><td colspan="3"><b>${ctrlEsc(fase.fase)}</b> <span style="font-weight:400;color:#8796a9;font-size:11px">— ${ctrlEuro(subtotaleFase)}</span></td></tr>${righeHtml}${vociSenzaImportoHtml}`;
     }).join('');
     if(!nRigheMostrate)return `<div class="ctrl-card" style="margin-bottom:14px"><h3 style="margin:0 0 6px">${ctrlEsc(nome)}</h3><p style="font-size:12px;color:#8796a9;margin:0">Nessuna voce per il fornitore selezionato.</p></div>`;
     return `<div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap"><h3 style="margin:0">${ctrlEsc(nome)}</h3><strong style="font-size:18px">${ctrlEuro(totaleEdificio)}</strong></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Voce di lavorazione</th><th>Fornitore</th><th>Importo</th></tr></thead><tbody>${fasiHtml}</tbody></table></div></div>`;
