@@ -3672,7 +3672,12 @@ const IMPORT_COSTI_BROGLIACCIO = {
 const FORNITORI_CATEGORIA_SUGGERITE = {
   'BETONPAV S.R.L.': 'Calcestruzzo',
   'COMMERCIO EDILE S.R.L.': 'Ferro',
-  'EDILFLAGIELLO DUE S.r.l.': 'Materiale per solaio',
+  // "EDILFLAGIELLO DUE S.r.l." (grafia del brogliaccio contabile) e "EDIL FLAGIELLO SRL" (grafia del
+  // computo metrico/Budget Costi) sono la stessa azienda, confermato da Noemi il 15/09/2026: usiamo qui la
+  // grafia del Budget Costi, che ha sempre priorità (vedi ctrlConsuntivoCanonMap) - così il riconoscimento
+  // testuale del consuntivo (scritto "EDILFLAGIELLO DUE", una sola parola, tokenizzata diversamente da
+  // "EDIL FLAGIELLO") si allinea alla riga di budget invece di restare un fornitore separato non a budget.
+  'EDIL FLAGIELLO SRL': 'Materiale per solaio',
   'STEEL METAL PRO SRL': 'Ferro',
   'Movisid  S.P.A.': 'Ferro',
   'INDUSTRIE RIUNITE ODOLESI I.R.O. S.P.A.': 'Ferro',
@@ -3680,10 +3685,11 @@ const FORNITORI_CATEGORIA_SUGGERITE = {
   'Francesca Coppola': 'Architetto',
   'Coppola Nicola': 'Architetto',
   'ANSA SRL': 'Calcestruzzo',
-  'ANNALISA CASTALDO': 'Architetto',
+  // Spostati da 'Architetto' a 'PROFESSIONISTI' su richiesta di Noemi il 15/09/2026.
+  'ANNALISA CASTALDO': 'PROFESSIONISTI',
   'Industrie Polieco-M.P.B. S.p.A': 'Strade',
   'IDROSISTEMI SRL': 'Impiantistica',
-  'Antonio Falco': 'Architetto',
+  'Antonio Falco': 'PROFESSIONISTI',
   'REAL ESTATE SRLS': 'Consulente immobiliare',
   'NUOVA EDILIA S.R.L': 'Materiali edili',
   'SAN PIO PAVIMENTAZIONI SRL': 'Levigature calcestruzzo',
@@ -3717,6 +3723,24 @@ const FORNITORI_NOTA_SUGGERITA = {
 const DESCRIZIONI_CATEGORIA_SUGGERITE = {
   'polizza fideussoria': 'Oneri di Urbanizzazione',
   'varianti a.p.p genio civile armonia 1 e 2': 'Oneri di Urbanizzazione',
+};
+// Descrizioni di riga SENZA alcun nome di fornitore riconoscibile che vanno comunque attribuite a un
+// fornitore preciso nel confronto Budget vs Consuntivo (richiesto da Noemi il 15/09/2026): PDC, polizza
+// fideussoria, oneri concessori, permesso a costruire, annullamento pratica audacia e varianti A.p.p genio
+// civile sono tutte pratiche/oneri versati al Comune di Carinaro, anche quando la riga non lo cita per esteso
+// (es. "polizza fideussoria" da sola, senza alcun fornitore in descrizione). A differenza di
+// DESCRIZIONI_CATEGORIA_SUGGERITE qui sopra (che assegna una CATEGORIA contabile), questa assegna un vero
+// FORNITORE: usata come ultima risorsa in ctrlConsuntivoRiconosciFornitore, solo quando il riconoscimento per
+// nome azienda/fornitore noto non ha già trovato nulla - non scavalca mai un fornitore già riconosciuto (una
+// riga che cita esplicitamente "COMUNE DI CARINARO", o qualunque altro fornitore noto, passa dal matching
+// normale come prima, invariato).
+const DESCRIZIONI_FORNITORE_SUGGERITO = {
+  'pdc': 'COMUNE DI CARINARO',
+  'polizza fideussoria': 'COMUNE DI CARINARO',
+  'oneri concessori': 'COMUNE DI CARINARO',
+  'permesso a costruire': 'COMUNE DI CARINARO',
+  'annullamento pratica audacia': 'COMUNE DI CARINARO',
+  'varianti a.p.p genio civile': 'COMUNE DI CARINARO',
 };
 // Alias espliciti tra categorie: refusi di battitura noti che vanno uniti alla categoria corretta, indicati
 // a mano da Noemi quando li nota (NON e' correzione automatica generica per non rischiare di unire per errore
@@ -3895,16 +3919,23 @@ function ctrlMicroCategorieState(){
   return x;
 }
 // Categoria assegnata a una riga, in ordine: 1) un'eventuale correzione manuale su quella riga precisa,
-// 2) un'assegnazione per fornitore salvata da Noemi (si applica automaticamente a tutte le righe dello
-// stesso fornitore, su tutti i lotti), 3) il suggerimento noto per quel fornitore (FORNITORI_CATEGORIA_
-// SUGGERITE) - applicato SUBITO, senza bisogno di nessuna conferma manuale: è questo il meccanismo che
-// "canalizza in automatico" le righe. 4) per le righe SENZA fornitore riconoscibile (chiusure contabili,
-// terreno, oneri...), un'eventuale categoria assegnata a mano per quella descrizione (ctrlSetMicroCategoria
-// Descrizione) - facoltativa, mai chiesta in automatico: Noemi la usa solo se e quando vuole (vedi
-// ctrlRigheGenericheRaggruppate). Se nessuno dei quattro casi si applica, la riga resta senza categoria.
+// 2) un'eccezione statica per quella descrizione ESATTA (DESCRIZIONI_ESATTE_CATEGORIA_SUGGERITA) - per una
+// singola fattura che va fuori dalla categoria normale del suo fornitore, es. una fattura di un architetto
+// che è in realtà un onere di urbanizzazione, 3) un'assegnazione per fornitore salvata da Noemi (si applica
+// automaticamente a tutte le righe dello stesso fornitore, su tutti i lotti), 4) il suggerimento noto per
+// quel fornitore (FORNITORI_CATEGORIA_SUGGERITE) - applicato SUBITO, senza bisogno di nessuna conferma
+// manuale: è questo il meccanismo che "canalizza in automatico" le righe. 5) per le righe SENZA fornitore
+// riconoscibile (chiusure contabili, terreno, oneri...), un'eventuale categoria assegnata a mano per quella
+// descrizione (ctrlSetMicroCategoriaDescrizione) - facoltativa, mai chiesta in automatico: Noemi la usa solo
+// se e quando vuole (vedi ctrlRigheGenericheRaggruppate). Se nessuno dei cinque casi si applica, la riga
+// resta senza categoria.
 function ctrlMicroCategoriaDiRiga(riga){
   const x=ctrlMicroCategorieState();
   if(x.manuali[riga.rigaId])return x.manuali[riga.rigaId];
+  if(riga.descr){
+    const eccezione=ctrlSuggerimentoCategoriaDescrizioneEsatta(riga.descr);
+    if(eccezione)return eccezione;
+  }
   if(riga.fornitore){
     const key=ctrlNormalizzaTesto(riga.fornitore);
     if(x.fornitori[key])return x.fornitori[key];
@@ -3990,6 +4021,21 @@ function ctrlSuggerimentoNotaFornitore(nome){
 function ctrlSuggerimentoCategoriaDescrizione(descr){
   const key=ctrlNormalizzaTesto(descr);
   const hit=Object.entries(DESCRIZIONI_CATEGORIA_SUGGERITE).find(([k])=>ctrlNormalizzaTesto(k)===key);
+  return hit?hit[1]:null;
+}
+// Eccezioni per riga ESATTA (indicate da Noemi il 15/09/2026): alcune fatture di un fornitore già
+// categorizzato altrove (es. Coppola Nicola = "Architetto") riguardano in realtà un servizio diverso e vanno
+// in una categoria diversa SOLO per quella riga precisa - a differenza di FORNITORI_CATEGORIA_SUGGERITE, che
+// sposterebbe TUTTE le fatture di quel fornitore. Applicata SUBITO come gli altri suggerimenti (non richiede
+// salvataggio), ma con priorità più alta del suggerimento per fornitore in ctrlMicroCategoriaDiRiga - quindi
+// funziona anche quando la riga ha un fornitore riconoscibile in descrizione (a differenza di
+// DESCRIZIONI_CATEGORIA_SUGGERITE, che si applica solo alle righe SENZA fornitore).
+const DESCRIZIONI_ESATTE_CATEGORIA_SUGGERITA = {
+  "Ft. numero Acconto n. 1, relativo alla direzione per le attivitàburocratiche, e progettazione e redazione P.U.A - Coppola Nicola": 'Oneri di Urbanizzazione',
+};
+function ctrlSuggerimentoCategoriaDescrizioneEsatta(descr){
+  const key=ctrlNormalizzaTesto(descr);
+  const hit=Object.entries(DESCRIZIONI_ESATTE_CATEGORIA_SUGGERITA).find(([k])=>ctrlNormalizzaTesto(k)===key);
   return hit?hit[1]:null;
 }
 function ctrlNotaFornitore(fornitore){
@@ -5279,8 +5325,13 @@ function ctrlRenderFinanziario(){
 //  - "AEDIFICA SRL" -> manodopera interna (operai propri), non un subappaltatore
 const BUDGET_FORNITORE_INFO={
   "AEDIFICA SRL":{label:"Aedifica Srl — manodopera interna",tipo:"interno"},
-  "FERRO":{label:"Ferro — fornitore da specificare",tipo:"categoria"},
-  "CEMENTO":{label:"Cemento — fornitore da specificare",tipo:"categoria"},
+  // "da specificare" non è più letterale dal 15/09/2026: Noemi ha indicato i fornitori reali (Movisid,
+  // Commercio Edile, Industrie Riunite Odolesi I.R.O. per il ferro; Ansa, Betonpav per il cemento) — restano
+  // però categorie nel Budget Costi (il computo non dice quale dei fornitori reali ha fatto cosa), per
+  // questo l'etichetta resta "categoria". Il confronto con il consuntivo li riconosce comunque uno per uno,
+  // vedi ctrlConsuntivoBucketMateriale.
+  "FERRO":{label:"Ferro (Movisid, Commercio Edile, I.R.O.)",tipo:"categoria"},
+  "CEMENTO":{label:"Cemento (Ansa, Betonpav)",tipo:"categoria"},
   "__DA_DEFINIRE__":{label:"Fornitore da definire",tipo:"daDefinire"}
 };
 function ctrlBudgetFornitoreInfo(nome){return BUDGET_FORNITORE_INFO[nome]||{label:nome,tipo:'fornitore'}}
@@ -5549,7 +5600,27 @@ function ctrlConsuntivoTokenKey(nome){
 // Lotti per cui il Budget Costi ha dati oggi (stessa lista di ctrlRenderBudgetCosti - tenerle allineate).
 const CONSUNTIVO_LOTTI_CON_BUDGET=['a1','a2'];
 // Fornitori "segnaposto" nel Budget Costi che non sono un vero nome di fornitore da cercare nel brogliaccio.
+// FERRO/CEMENTO restano esclusi qui (dal dizionario di riconoscimento testo libero): sono parole troppo
+// generiche per fare da "fornitore noto" nel motore di matching a singola parola (qualunque riga che citi
+// "ferro" per un motivo qualsiasi finirebbe assegnata lì). Il confronto Budget vs Consuntivo per queste due
+// categorie usa invece ctrlConsuntivoBucketMateriale, più sotto: aggrega i fornitori reali di ferro/cemento
+// (indicati da Noemi il 15/09/2026) sulla riga di categoria, senza toccare il matching a testo libero.
 const CONSUNTIVO_NON_FORNITORE=new Set(['__DA_DEFINIRE__','AEDIFICA SRL','FERRO','CEMENTO']);
+// Sottoinsieme usato SOLO nel confronto Budget vs Consuntivo (ctrlConsuntivoConfrontoLotto): a differenza di
+// CONSUNTIVO_NON_FORNITORE qui sopra, FERRO/CEMENTO NON sono esclusi — vogliamo che la loro riga di budget
+// compaia nel confronto, aggregata per categoria di materiale (vedi CATEGORIA_MATERIALE_A_BUDGET sotto).
+const CONSUNTIVO_NON_FORNITORE_CONFRONTO=new Set(['__DA_DEFINIRE__','AEDIFICA SRL']);
+// Fornitori reali di Ferro/Calcestruzzo indicati da Noemi il 15/09/2026 (già presenti in
+// FORNITORI_CATEGORIA_SUGGERITE con questa categoria): quando una riga di consuntivo viene riconosciuta come
+// uno di questi, la contiamo sulla riga di budget "FERRO"/"CEMENTO" invece che su una riga per azienda — il
+// computo metrico non specifica quale dei fornitori reali ha fornito quale importo, solo il totale per
+// materiale. "Calcestruzzo" nel dizionario e "CEMENTO" nel Budget Costi sono lo stesso materiale.
+const CATEGORIA_MATERIALE_A_BUDGET={'Ferro':'FERRO','Calcestruzzo':'CEMENTO'};
+function ctrlConsuntivoBucketMateriale(nome){
+  const k=ctrlConsuntivoTokenKey(nome);
+  const voce=Object.entries(FORNITORI_CATEGORIA_SUGGERITE).find(([n])=>ctrlConsuntivoTokenKey(n)===k);
+  return(voce&&CATEGORIA_MATERIALE_A_BUDGET[voce[1]])||null;
+}
 function ctrlBudgetFornitoriRawElenco(){
   const set=new Set();
   ctrlBudgetCostiCorrenti().fasi.forEach(f=>f.voci.forEach(v=>v.righe.forEach(r=>{if(!CONSUNTIVO_NON_FORNITORE.has(r.fornitore))set.add(r.fornitore)})));
@@ -5579,10 +5650,23 @@ function ctrlConsuntivoFornitoriConosciuti(){
   list.sort((a,b)=>b.tokens.length-a.tokens.length||b.tokenKey.length-a.tokenKey.length);
   return{canon,list};
 }
+// Ultima risorsa di ctrlConsuntivoRiconosciFornitore: righe SENZA alcun nome di fornitore in descrizione ma
+// che riguardano pratiche/oneri comunali note (vedi DESCRIZIONI_FORNITORE_SUGGERITO). Confronto per
+// sottostringa sul testo normalizzato, stessa logica di tolleranza già usata per i nomi fornitore.
+function ctrlConsuntivoFornitoreDaDescrizioneNota(nd){
+  const hit=Object.entries(DESCRIZIONI_FORNITORE_SUGGERITO).find(([k])=>nd.indexOf(ctrlConsuntivoNormalizza(k))>=0);
+  return hit?hit[1]:null;
+}
 function ctrlConsuntivoRiconosciFornitore(descr,conosciuti){
   const nd=ctrlConsuntivoNormalizza(descr);
   if(!nd)return null;
   for(const{tokenKey,tokens}of conosciuti.list)if(tokens.every(t=>nd.indexOf(t)>=0))return conosciuti.canon[tokenKey];
+  const suggerito=ctrlConsuntivoFornitoreDaDescrizioneNota(nd);
+  if(suggerito){
+    // Passa dal canon map: se il Budget Costi usa una grafia diversa per lo stesso fornitore, ci si allinea a quella.
+    const k=ctrlConsuntivoTokenKey(suggerito);
+    return conosciuti.canon[k]||suggerito;
+  }
   return null;
 }
 // Assegnazioni manuali fornitore->riga (quando il riconoscimento automatico non basta): CTRL_DATA.economico.
@@ -5598,8 +5682,12 @@ function ctrlSalvaFornitoriNonIdentificati(){
   const appresi=ctrlFornitoriAppresiState();
   const appresiKeys=new Set(appresi.map(n=>ctrlConsuntivoTokenKey(n)));
   let n=0;
-  document.querySelectorAll('.cc-fornitore-riga-manuale').forEach(input=>{
-    const rigaId=input.dataset.rigaId,val=input.value.trim();
+  document.querySelectorAll('.cc-fornitore-riga-manuale').forEach(select=>{
+    const rigaId=select.dataset.rigaId;
+    // Menu a tendina (richiesto da Noemi il 15/09/2026): il valore normale è il nome scelto dalla lista; se ha
+    // scelto "+ Nuovo fornitore…" il nome vero sta nel campo di testo accanto (mostrato solo in quel caso).
+    let val=select.value.trim();
+    if(val==='__NUOVO__')val=(select.nextElementSibling&&select.nextElementSibling.value||'').trim();
     if(val){
       x[rigaId]=val;n++;
       // Insegna il nome al motore di riconoscimento (una volta sola per fornitore, deduplicato per token):
@@ -5618,7 +5706,7 @@ function ctrlConsuntivoConfrontoLotto(lottoKey,conosciuti){
   const budgetPerFornitore={};
   if(CONSUNTIVO_LOTTI_CON_BUDGET.includes(lottoKey)){
     ctrlBudgetCostiCorrenti().fasi.forEach(f=>f.voci.forEach(v=>v.righe.forEach(r=>{
-      if(CONSUNTIVO_NON_FORNITORE.has(r.fornitore))return;
+      if(CONSUNTIVO_NON_FORNITORE_CONFRONTO.has(r.fornitore))return;
       const nome=conosciuti.canon[ctrlConsuntivoTokenKey(r.fornitore)]||r.fornitore;
       budgetPerFornitore[nome]=(budgetPerFornitore[nome]||0)+r.importo/2;
     })));
@@ -5626,8 +5714,13 @@ function ctrlConsuntivoConfrontoLotto(lottoKey,conosciuti){
   const consuntivoPerFornitore={},nonIdentificate=[];
   ctrlTutteLeRigheCostiFornitori().filter(r=>r.lotto===lottoKey).forEach(r=>{
     const nome=manuali[r.rigaId]||ctrlConsuntivoRiconosciFornitore(r.descr,conosciuti);
-    if(nome)consuntivoPerFornitore[nome]=(consuntivoPerFornitore[nome]||0)+r.importo;
-    else nonIdentificate.push(r);
+    if(nome){
+      // Se il fornitore riconosciuto è uno di quelli che riforniscono Ferro o Calcestruzzo/Cemento (vedi
+      // CATEGORIA_MATERIALE_A_BUDGET), lo confrontiamo sulla riga di categoria: nel Budget Costi non esiste
+      // una riga per la singola azienda, solo il totale per materiale.
+      const bucket=ctrlConsuntivoBucketMateriale(nome)||nome;
+      consuntivoPerFornitore[bucket]=(consuntivoPerFornitore[bucket]||0)+r.importo;
+    }else nonIdentificate.push(r);
   });
   const tuttiIFornitori=new Set([...Object.keys(budgetPerFornitore),...Object.keys(consuntivoPerFornitore)]);
   const righe=[...tuttiIFornitori].map(nome=>{
@@ -5667,6 +5760,9 @@ function ctrlConsuntivoFornitoriElenco(confronti){
 function ctrlRenderConsuntivoCosti(){
   const costiImport=(CTRL_DATA.economico&&CTRL_DATA.economico.costiRighe)||null;
   const conosciuti=ctrlConsuntivoFornitoriConosciuti();
+  // Elenco fornitori noti per il menu a tendina delle righe non identificate (richiesto da Noemi il
+  // 15/09/2026, al posto del campo libero con solo suggerimento): stessa lista che popolava il datalist.
+  const fornitoriNotiOrdinati=[...new Set(Object.values(conosciuti.canon))].sort((a,b)=>a.localeCompare(b,'it'));
   const LOTTI=[...CTRL_BUILDINGS,['generale','Costi generali D|Park (DPG)']];
   const confronti=LOTTI.map(([key,nome])=>({key,nome,...ctrlConsuntivoConfrontoLotto(key,conosciuti)}));
   const fornitoriOpzioni=ctrlConsuntivoFornitoriElenco(confronti);
@@ -5710,7 +5806,7 @@ function ctrlRenderConsuntivoCosti(){
   <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(totBudget)}</strong><span>Totale a budget${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''}</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totConsuntivo)}</strong><span>Totale a consuntivo${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''}</span></div><div class="ctrl-kpi"><strong style="color:#c62828">${contaStato('rosso')}</strong><span>🔴 Fornitori sopra budget</span></div><div class="ctrl-kpi"><strong style="color:${totNonIdentificato?'#d97706':'#0d9488'}">${ctrlEuro(totNonIdentificato)}</strong><span>Fatturato di cui non riconosco il fornitore (${nonIdentificateMostrate.length} righe)</span></div></div>
   <p style="font-size:10px;color:#8796a9;margin:-6px 0 16px">🟢 In linea = consuntivo entro €3.000 o il 20% del budget (quale dei due sia maggiore). ⚪ Da alimentare = consuntivo sotto budget oltre quella soglia, il fornitore deve ancora fatturare il resto. 🔴 Sopra budget = consuntivo superiore al budget previsto. 🟡 Da verificare = un lato è a zero (fatturato senza budget, o a budget e mai fatturato). Il Budget Costi copre oggi solo Armonia 1 e 2: negli altri fabbricati si vede solo il consuntivo, senza confronto.</p>
   ${lottiHtml}
-  ${nonIdentificateMostrate.length?`<div class="ctrl-card"><div style="margin-bottom:10px"><h3 style="margin:0">${CTRL_CONSUNTIVO_FABBRICATO==='all'?'Tutte le righe non identificate':'Righe non identificate — '+ctrlEsc(nomeFiltroLotto)} <span style="font-weight:400;color:#8796a9;font-size:11px">(${nonIdentificateMostrate.length} righe, ${ctrlEuro(totNonIdentificato)})</span></h3><small>Scrivi il nome del fornitore per ogni riga (o scegli tra quelli già noti): da qui in poi verrà riconosciuto automaticamente ovunque compaia con lo stesso testo.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Descrizione (brogliaccio)</th><th>Importo</th><th>Fornitore</th></tr></thead><tbody>${nonIdentificateMostrate.map(r=>`<tr><td style="font-size:11px;color:#8796a9">${ctrlEsc(r.lottoNome)}</td><td style="font-size:12px">${ctrlEsc(r.descr)}</td><td>${ctrlEuro(r.importo)}</td><td><input class="cc-fornitore-riga-manuale" list="fornitori-noti-datalist" data-riga-id="${ctrlEsc(r.rigaId)}" placeholder="chi ha fatturato?" style="min-width:160px"></td></tr>`).join('')}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:10px" onclick="ctrlSalvaFornitoriNonIdentificati()">💾 Salva fornitori</button></div>`:''}
+  ${nonIdentificateMostrate.length?`<div class="ctrl-card"><div style="margin-bottom:10px"><h3 style="margin:0">${CTRL_CONSUNTIVO_FABBRICATO==='all'?'Tutte le righe non identificate':'Righe non identificate — '+ctrlEsc(nomeFiltroLotto)} <span style="font-weight:400;color:#8796a9;font-size:11px">(${nonIdentificateMostrate.length} righe, ${ctrlEuro(totNonIdentificato)})</span></h3><small>Scegli il fornitore dal menu per ogni riga (o "+ Nuovo fornitore…" se non è ancora in elenco): da qui in poi verrà riconosciuto automaticamente ovunque compaia con lo stesso testo.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Descrizione (brogliaccio)</th><th>Importo</th><th>Fornitore</th></tr></thead><tbody>${nonIdentificateMostrate.map(r=>`<tr><td style="font-size:11px;color:#8796a9">${ctrlEsc(r.lottoNome)}</td><td style="font-size:12px">${ctrlEsc(r.descr)}</td><td>${ctrlEuro(r.importo)}</td><td><select class="cc-fornitore-riga-manuale" data-riga-id="${ctrlEsc(r.rigaId)}" style="min-width:180px" onchange="this.nextElementSibling.style.display=this.value==='__NUOVO__'?'inline-block':'none'"><option value="">— seleziona fornitore —</option>${fornitoriNotiOrdinati.map(n=>`<option value="${ctrlEsc(n)}">${ctrlEsc(n)}</option>`).join('')}<option value="__NUOVO__">+ Nuovo fornitore…</option></select><input class="cc-fornitore-riga-manuale-nuovo" placeholder="nome nuovo fornitore" style="display:none;min-width:160px;margin-top:4px"></td></tr>`).join('')}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:10px" onclick="ctrlSalvaFornitoriNonIdentificati()">💾 Salva fornitori</button></div>`:''}
   </div>`;
 }
 // ─── BUDGET RICAVI ───
