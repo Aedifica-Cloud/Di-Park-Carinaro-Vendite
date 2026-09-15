@@ -3836,10 +3836,36 @@ function ctrlImportCostiBrogliaccio(input){
     // diventa un importo negativo che riduce il costo invece di sparire — prima veniva scartata perché la riga
     // aveva Dare=0 (succedeva già nei dati reali, es. "Nc numero FPR 71/26" su Salvarezza).
     const CONTI_ESCLUSI=new Set(['214101','214601','442301','452101','452501','458201','240501','502101','50210101']);
+    // Sottoinsieme di CONTI_ESCLUSI che sono proprio i conti "fornitore/creditore" (Descrizione Conto = nome
+    // reale dell'azienda, es. 452101 → "COLELLA GIORGIO"). Su alcune registrazioni (tipico degli acquisti
+    // terreno: ACQUISTO TERRENO, ACQUISTO SUOLO PASSIONE) il nome del fornitore sta SOLO su questa riga - la
+    // riga di costo vera e propria, quella con il centro di costo, ha come "Descrizione di riga" solo il
+    // movimento ("ACQUISTO TERRENO") senza nessun nome azienda, e la riga fornitore non ha centro di costo
+    // (quindi viene scartata qui sotto e il nome andrebbe perso). Bug segnalato da Noemi il 15/09/2026:
+    // Colella Giorgio risultava a zero in Armonia 1 nonostante la fattura ci fosse, proprio per questo.
+    // Rimedio: prima passata, per ogni "Nr. Mov." (colonna 1, stesso movimento contabile) raccogliamo il nome
+    // trovato su una di queste righe fornitore, poi lo agganciamo alla descrizione della riga di costo
+    // corrispondente (se non lo contiene già), esattamente come per le righe "Ft. numero X - FORNITORE" scritte
+    // a mano nel resto del brogliaccio - così il motore di riconoscimento esistente funziona senza modifiche.
+    const CONTI_FORNITORE=new Set(['452101','452501','458201','214101']);
+    const colMov=(()=>{ // "Nr. Mov." non è tra le colonne già cercate sopra: la cerchiamo per nome sulla stessa riga header.
+      const r=rows[headerRow]||[];
+      const idx=r.findIndex(c=>txt(c).toLowerCase().includes('nr. mov')||txt(c).toLowerCase().includes('nr mov'));
+      return idx;
+    })();
+    const fornitorePerMovimento={};
+    if(colMov>=0){
+      for(let i=headerRow+1;i<rows.length;i++){
+        const r=rows[i]||[],conto=txt(r[colConto]),mov=txt(r[colMov]);
+        if(!mov||!CONTI_FORNITORE.has(conto))continue;
+        const nome=txt(r[colDescrConto]);
+        if(nome&&!fornitorePerMovimento[mov])fornitorePerMovimento[mov]=nome;
+      }
+    }
     const CDC_MAP=[['DPA1','a1'],['DPA2','a2'],['DPV','vittoria'],['DPP','passione'],['DPEQ','equilibrio'],['DPA','audacia']];
     function lottoDiCdc(cdc){const c=txt(cdc);if(!c)return null;for(const[pref,lot]of CDC_MAP)if(c===pref||c.startsWith(pref+' '))return lot;return null}
     const righe={a1:{},a2:{},vittoria:{},passione:{},equilibrio:{},audacia:{}};
-    let tot=0;
+    let tot=0,arricchite=0;
     for(let i=headerRow+1;i<rows.length;i++){
       const r=rows[i]||[],conto=txt(r[colConto]);
       if(!conto||CONTI_ESCLUSI.has(conto))continue;
@@ -3847,15 +3873,18 @@ function ctrlImportCostiBrogliaccio(input){
       const dare=Number(r[colDare])||0,avere=Number(r[colAvere])||0,importo=dare-avere;
       if(!importo)continue;
       const categoria=txt(r[colDescrConto])||'Altro';
+      let descr=txt(r[colDescr]);
+      const fornitoreMov=colMov>=0?fornitorePerMovimento[txt(r[colMov])]:null;
+      if(fornitoreMov&&ctrlConsuntivoNormalizza(descr).indexOf(ctrlConsuntivoNormalizza(fornitoreMov))<0){descr=descr+' - '+fornitoreMov;arricchite++}
       if(!righe[lotto][categoria])righe[lotto][categoria]=[];
-      righe[lotto][categoria].push({descr:txt(r[colDescr]),importo:Math.round(importo*100)/100});
+      righe[lotto][categoria].push({descr,importo:Math.round(importo*100)/100});
       tot++;
     }
     if(!tot)throw Error('nessuna riga di costo riconosciuta per i centri di costo D|Park (attesi: DPA1, DPA2, DPV, DPP, DPEQ, DPA)');
     if(!CTRL_DATA.economico)CTRL_DATA.economico={};
     CTRL_DATA.economico.costiRighe={righe,fileName:file.name,importedAt:new Date().toISOString()};
     ctrlSave();ctrlRender(proj);
-    ctrlNotify('✓ Brogliaccio costi importato: '+tot+' righe');
+    ctrlNotify('✓ Brogliaccio costi importato: '+tot+' righe'+(arricchite?(' ('+arricchite+' con fornitore recuperato dal movimento contabile)'):''));
   }catch(err){alert('Impossibile leggere il file: '+err.message)}finally{input.value=''}};
   reader.readAsArrayBuffer(file);
 }
@@ -5711,9 +5740,16 @@ function ctrlSalvaFornitoriNonIdentificati(){
     if(val){
       x[rigaId]=val;n++;
       // Insegna il nome al motore di riconoscimento (una volta sola per fornitore, deduplicato per token):
-      // da qui in poi qualsiasi riga con lo stesso testo verrà riconosciuta da sola, non solo questa.
-      const k=ctrlConsuntivoTokenKey(val);
-      if(k&&!appresiKeys.has(k)){appresi.push(val);appresiKeys.add(k)}
+      // da qui in poi qualsiasi riga con lo stesso testo verrà riconosciuta da sola, non solo questa. ECCEZIONE:
+      // se Noemi ha scelto direttamente una voce di budget "categoria" (FERRO/CEMENTO/PROFESSIONISTI/AEDIFICA
+      // SRL, vedi CONSUNTIVO_NON_FORNITORE) NON la insegniamo al motore a testo libero - sono parole troppo
+      // generiche, insegnarle globalmente farebbe scattare il match su qualunque riga futura che le citi per
+      // caso (lo stesso motivo per cui sono escluse dal dizionario, vedi CONSUNTIVO_NON_FORNITORE più sotto).
+      // L'assegnazione resta comunque valida ed effettiva per QUESTA riga precisa, tramite fornitoreRigaManuale.
+      if(!CONSUNTIVO_NON_FORNITORE.has(val)){
+        const k=ctrlConsuntivoTokenKey(val);
+        if(k&&!appresiKeys.has(k)){appresi.push(val);appresiKeys.add(k)}
+      }
     }else delete x[rigaId];
   });
   ctrlSave();ctrlRender(proj);
@@ -5777,12 +5813,13 @@ function ctrlConsuntivoFornitoriElenco(confronti){
 // Stessa forma del Budget Costi: un filtro (Fabbricato + Fornitore) sopra, poi per ogni fabbricato mostrato
 // una card con la tabella di confronto - totale fornitore a budget da un lato, totale fornitore a
 // consuntivo (dal brogliaccio) dall'altro, sulla stessa riga.
-function ctrlRenderConsuntivoCosti(){
-  const costiImport=(CTRL_DATA.economico&&CTRL_DATA.economico.costiRighe)||null;
+// ctrlConsuntivoVistaFiltrata: calcola UNA VOLTA i dati del confronto Budget vs Consuntivo secondo i filtri
+// correnti (CTRL_CONSUNTIVO_FABBRICATO/FORNITORE/STATO) - usata sia da ctrlRenderConsuntivoCosti (la vista a
+// schermo) sia da ctrlEsportaConsuntivoPDF (l'esportazione, richiesta da Noemi il 15/09/2026: "solo la vista
+// filtrata corrente"), così le due restano garantite identiche invece di duplicare la logica dei filtri in
+// due punti che potrebbero disallinearsi in futuro.
+function ctrlConsuntivoVistaFiltrata(){
   const conosciuti=ctrlConsuntivoFornitoriConosciuti();
-  // Elenco fornitori noti per il menu a tendina delle righe non identificate (richiesto da Noemi il
-  // 15/09/2026, al posto del campo libero con solo suggerimento): stessa lista che popolava il datalist.
-  const fornitoriNotiOrdinati=[...new Set(Object.values(conosciuti.canon))].sort((a,b)=>a.localeCompare(b,'it'));
   const LOTTI=[...CTRL_BUILDINGS,['generale','Costi generali D|Park (DPG)']];
   const confronti=LOTTI.map(([key,nome])=>({key,nome,...ctrlConsuntivoConfrontoLotto(key,conosciuti)}));
   const fornitoriOpzioni=ctrlConsuntivoFornitoriElenco(confronti);
@@ -5793,6 +5830,87 @@ function ctrlRenderConsuntivoCosti(){
   const righeVisibiliBase=c=>c.righe.filter(r=>!CTRL_CONSUNTIVO_FORNITORE||r.nome===CTRL_CONSUNTIVO_FORNITORE);
   const righeVisibili=c=>righeVisibiliBase(c).filter(r=>CTRL_CONSUNTIVO_STATO==='all'||r.stato===CTRL_CONSUNTIVO_STATO);
   const contaStato=s=>edificiDaMostrare.reduce((a,c)=>a+righeVisibiliBase(c).filter(r=>s==='all'||r.stato===s).length,0);
+  const totBudget=edificiDaMostrare.reduce((a,c)=>a+righeVisibili(c).reduce((s,r)=>s+r.budget,0),0);
+  const totConsuntivo=edificiDaMostrare.reduce((a,c)=>a+righeVisibili(c).reduce((s,r)=>s+r.consuntivo,0),0);
+  const nonIdentificateMostrate=(CTRL_CONSUNTIVO_FORNITORE||CTRL_CONSUNTIVO_STATO!=='all')?[]:edificiDaMostrare.flatMap(c=>c.nonIdentificate.map(r=>({...r,lottoNome:c.nome})));
+  const totNonIdentificato=nonIdentificateMostrate.reduce((a,r)=>a+r.importo,0);
+  return{conosciuti,LOTTI,confronti,fornitoriOpzioni,edificiDaMostrare,nomeFiltroLotto,righeVisibiliBase,righeVisibili,contaStato,totBudget,totConsuntivo,nonIdentificateMostrate,totNonIdentificato};
+}
+// ctrlEsportaConsuntivoPDF: esporta in PDF esattamente la vista filtrata corrente (richiesto da Noemi il
+// 15/09/2026), righe non identificate incluse in una sezione separata. Niente librerie nuove: apre una
+// finestra con un layout di stampa dedicato e lancia window.print() - in ogni browser "Salva come PDF" è
+// un'opzione nativa della finestra di stampa, senza bisogno di generare il PDF lato JS.
+function ctrlEsportaConsuntivoPDF(){
+  const v=ctrlConsuntivoVistaFiltrata();
+  const filtriParti=[
+    CTRL_CONSUNTIVO_FABBRICATO!=='all'?('Fabbricato: '+v.nomeFiltroLotto):'',
+    CTRL_CONSUNTIVO_FORNITORE?('Fornitore: '+CTRL_CONSUNTIVO_FORNITORE):'',
+    CTRL_CONSUNTIVO_STATO!=='all'?('Stato: '+((CONSUNTIVO_STATO_INFO[CTRL_CONSUNTIVO_STATO]||{}).label||CTRL_CONSUNTIVO_STATO)):''
+  ].filter(Boolean);
+  const dataOggi=new Date().toLocaleDateString('it-IT');
+  const tabelleLotti=v.edificiDaMostrare.map(c=>{
+    const righe=v.righeVisibili(c);
+    if(!righe.length)return '';
+    const righeHtml=righe.map(r=>{
+      const info=CONSUNTIVO_STATO_INFO[r.stato];
+      return `<tr><td>${ctrlEsc(r.nome)}</td><td>${c.haBudget?ctrlEuro(r.budget):'n/d'}</td><td>${ctrlEuro(r.consuntivo)}</td><td>${c.haBudget?ctrlEuro(r.diff):'—'}</td><td>${ctrlEsc(r.motivo||(info?info.label:r.stato))}</td></tr>`;
+    }).join('');
+    const totB=righe.reduce((a,r)=>a+r.budget,0),totC=righe.reduce((a,r)=>a+r.consuntivo,0);
+    return `<h2>${ctrlEsc(c.nome)}</h2><table><thead><tr><th>Fornitore</th><th>Totale a budget</th><th>Totale a consuntivo</th><th>Differenza</th><th>Stato</th></tr></thead><tbody>${righeHtml}</tbody><tfoot><tr><td><b>Totale</b></td><td><b>${c.haBudget?ctrlEuro(totB):'n/d'}</b></td><td><b>${ctrlEuro(totC)}</b></td><td></td><td></td></tr></tfoot></table>`;
+  }).join('');
+  const nonIdHtml=v.nonIdentificateMostrate.length?`<h2>Righe non identificate (${v.nonIdentificateMostrate.length} righe, ${ctrlEuro(v.totNonIdentificato)})</h2><table><thead><tr><th>Lotto</th><th>Descrizione (brogliaccio)</th><th>Importo</th></tr></thead><tbody>${v.nonIdentificateMostrate.map(r=>`<tr><td>${ctrlEsc(r.lottoNome)}</td><td>${ctrlEsc(r.descr)}</td><td>${ctrlEuro(r.importo)}</td></tr>`).join('')}</tbody></table>`:'';
+  if(!tabelleLotti&&!nonIdHtml){alert('Nessun dato da esportare con i filtri attuali.');return}
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Consuntivo Costi D|Park — ${dataOggi}</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;color:#1a2233;margin:24px;font-size:12px}
+h1{font-size:18px;margin:0 0 4px}
+.sub{color:#555;font-size:11px;margin:0 0 18px}
+h2{font-size:13px;margin:20px 0 6px;border-bottom:1px solid #ccc;padding-bottom:4px}
+table{width:100%;border-collapse:collapse;margin-bottom:6px}
+th,td{border:1px solid #ddd;padding:4px 6px;text-align:left;font-size:11px}
+th{background:#f2f4f7}
+tfoot td{background:#f8f9fb}
+@media print{@page{margin:14mm}}
+</style></head><body>
+<h1>Consuntivo Costi D|Park</h1>
+<p class="sub">Esportato il ${dataOggi}${filtriParti.length?' — Filtri: '+ctrlEsc(filtriParti.join(' · ')):' — nessun filtro attivo'}</p>
+${tabelleLotti||'<p>Nessuna riga di confronto per i filtri selezionati.</p>'}
+${nonIdHtml}
+</body></html>`;
+  const win=window.open('','_blank');
+  if(!win){alert('Il browser ha bloccato la finestra di stampa: consenti i popup per questo sito e riprova.');return}
+  win.document.open();win.document.write(html);win.document.close();
+  setTimeout(()=>{try{win.focus();win.print()}catch(e){}},350);
+}
+function ctrlRenderConsuntivoCosti(){
+  const costiImport=(CTRL_DATA.economico&&CTRL_DATA.economico.costiRighe)||null;
+  const{conosciuti,LOTTI,confronti,fornitoriOpzioni,edificiDaMostrare,nomeFiltroLotto,righeVisibiliBase,righeVisibili,contaStato,totBudget,totConsuntivo,nonIdentificateMostrate,totNonIdentificato}=ctrlConsuntivoVistaFiltrata();
+  // Elenco fornitori noti per il menu a tendina delle righe non identificate (richiesto da Noemi il
+  // 15/09/2026, al posto del campo libero con solo suggerimento): stessa lista che popolava il datalist.
+  const fornitoriNotiOrdinati=[...new Set(Object.values(conosciuti.canon))].sort((a,b)=>a.localeCompare(b,'it'));
+  // Voci di budget: Noemi ha corretto il 15/09/2026 un primo tentativo (che mostrava solo i 4 segnaposto
+  // FERRO/CEMENTO/PROFESSIONISTI/AEDIFICA SRL) chiarendo che per "fornitore" nel menu a tendina intende
+  // TUTTE le colonne del file computo metrico su Drive, non un sottoinsieme: qui sotto leggiamo quindi
+  // l'elenco COMPLETO e grezzo delle colonne fornitore del budget corrente (ctrlBudgetCostiCorrenti - lo
+  // stesso file/foglio importato in Budget Costi), inclusi sia i nomi reali (es. COLELLA GIORGIO, VOLPICELLI)
+  // sia i segnaposto di categoria (FERRO/CEMENTO/PROFESSIONISTI/AEDIFICA SRL), escluso solo "__DA_DEFINIRE__"
+  // che non è una colonna ma l'etichetta per righe di budget non ancora assegnate a un fornitore.
+  const vociBudgetSpeciali=(()=>{
+    const set=new Set();
+    ctrlBudgetCostiCorrenti().fasi.forEach(f=>f.voci.forEach(v=>v.righe.forEach(r=>{if(r.fornitore!=='__DA_DEFINIRE__')set.add(r.fornitore)})));
+    return[...set].sort((a,b)=>ctrlBudgetFornitoreInfo(a).label.localeCompare(ctrlBudgetFornitoreInfo(b).label,'it'));
+  })();
+  // Fornitori "noti" ma NON presenti tra le colonne di budget, ESCLUSI quelli che confluiscono comunque in
+  // una voce di categoria (es. "Antonio Falco"/"ANNALISA CASTALDO" -> PROFESSIONISTI, "STEEL METAL PRO SRL"/
+  // "PETRONE PASQUALE" -> FERRO, "EDILIA SRLS" -> AEDIFICA SRL, vedi ctrlConsuntivoBucketMateriale): Noemi ha
+  // chiesto il 15/09/2026 di toglierli dal menu, perché per l'assegnazione manuale vuole scegliere
+  // direttamente la voce di budget di destinazione ("PROFESSIONISTI" ecc.), non il nome del singolo
+  // professionista/azienda che ci confluisce dentro - il risultato nel confronto Budget vs Consuntivo è
+  // identico in entrambi i casi, ma scegliere la voce di budget è più diretto e non fa duplicare l'opzione.
+  // Restano invece selezionabili qui i nomi che NON hanno una voce di categoria (es. un fornitore imparato a
+  // mano in passato, o un'azienda del dizionario senza bucket come "Coppola Nicola"): per questi non esiste
+  // una voce di budget "diretta" da scegliere al posto loro.
+  const fornitoriNotiNonBudget=fornitoriNotiOrdinati.filter(n=>!vociBudgetSpeciali.includes(n)&&!ctrlConsuntivoBucketMateriale(n));
   const statoPillsHtml=[['all','Tutti',null]].concat(Object.keys(CONSUNTIVO_STATO_INFO).map(s=>[s,CONSUNTIVO_STATO_INFO[s].label,CONSUNTIVO_STATO_INFO[s]])).map(([key,label,info])=>{
     const attivo=CTRL_CONSUNTIVO_STATO===key;
     const chipClass=info?info.chip:'';
@@ -5800,10 +5918,6 @@ function ctrlRenderConsuntivoCosti(){
     return `<button type="button" class="ctrl-chip ${chipClass}${attivo?' active':''}" style="font-size:11px;padding:5px 10px" onclick="CTRL_CONSUNTIVO_STATO='${key}';ctrlRender('ctrl_consuntivo_costi')">${emoji}${ctrlEsc(label)} (${contaStato(key)})</button>`;
   }).join(' ');
   const filtriHtml=`<div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px"><h3 style="margin:0">Filtra</h3><button type="button" class="ctrl-btn light" onclick="CTRL_CONSUNTIVO_FABBRICATO='all';CTRL_CONSUNTIVO_FORNITORE='';CTRL_CONSUNTIVO_STATO='all';ctrlRender('ctrl_consuntivo_costi')">Azzera filtri</button></div><div class="ctrl-form" style="grid-template-columns:repeat(2,minmax(180px,1fr))"><div><label>Fabbricato</label><select onchange="CTRL_CONSUNTIVO_FABBRICATO=this.value;ctrlRender('ctrl_consuntivo_costi')"><option value="all" ${CTRL_CONSUNTIVO_FABBRICATO==='all'?'selected':''}>Tutti i fabbricati</option>${LOTTI.map(([k,n])=>`<option value="${k}" ${CTRL_CONSUNTIVO_FABBRICATO===k?'selected':''}>${ctrlEsc(n)}</option>`).join('')}</select></div><div><label>Fornitore</label><select onchange="CTRL_CONSUNTIVO_FORNITORE=this.value;ctrlRender('ctrl_consuntivo_costi')"><option value="" ${CTRL_CONSUNTIVO_FORNITORE===''?'selected':''}>Tutti i fornitori</option>${fornitoriOpzioni.map(f=>`<option value="${ctrlEsc(f)}" ${CTRL_CONSUNTIVO_FORNITORE===f?'selected':''}>${ctrlEsc(f)}</option>`).join('')}</select></div></div><div style="margin-top:12px"><label style="display:block;font-size:11px;color:#8796a9;margin-bottom:6px">Stato</label><div style="display:flex;gap:6px;flex-wrap:wrap">${statoPillsHtml}</div></div></div>`;
-  const totBudget=edificiDaMostrare.reduce((a,c)=>a+righeVisibili(c).reduce((s,r)=>s+r.budget,0),0);
-  const totConsuntivo=edificiDaMostrare.reduce((a,c)=>a+righeVisibili(c).reduce((s,r)=>s+r.consuntivo,0),0);
-  const nonIdentificateMostrate=(CTRL_CONSUNTIVO_FORNITORE||CTRL_CONSUNTIVO_STATO!=='all')?[]:edificiDaMostrare.flatMap(c=>c.nonIdentificate.map(r=>({...r,lottoNome:c.nome})));
-  const totNonIdentificato=nonIdentificateMostrate.reduce((a,r)=>a+r.importo,0);
   const lottiHtml=edificiDaMostrare.map(c=>{
     const righe=righeVisibili(c);
     if(!righe.length)return `<div class="ctrl-card" style="margin-bottom:14px"><h3 style="margin:0 0 6px">${ctrlEsc(c.nome)}</h3><p style="font-size:12px;color:#8796a9;margin:0">${(CTRL_CONSUNTIVO_FORNITORE||CTRL_CONSUNTIVO_STATO!=='all')?'Nessun fornitore di questo lotto corrisponde ai filtri scelti.':'Nessun costo registrato per questo lotto.'}</p></div>`;
@@ -5821,12 +5935,12 @@ function ctrlRenderConsuntivoCosti(){
     return `<div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap"><div><h3 style="margin:0">${ctrlEsc(c.nome)}</h3>${avvisi?`<small style="color:#d97706">${avvisi}</small>`:'<small style="color:#0d9488">tutto in linea</small>'}</div><div style="display:flex;gap:18px;align-items:center">${c.haBudget?`<div style="text-align:right"><div style="font-size:11px;color:#8796a9">Totale a budget</div><strong style="font-size:18px">${ctrlEuro(totBudgetLotto)}</strong></div>`:''}<div style="text-align:right"><div style="font-size:11px;color:#8796a9">Totale a consuntivo</div><strong style="font-size:18px">${ctrlEuro(totConsuntivoLotto)}</strong></div></div></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Fornitore</th><th>Totale a budget</th><th>Totale a consuntivo</th><th>Differenza</th><th>Stato</th></tr></thead><tbody>${righeHtml}</tbody></table></div>${nonIdNota}</div>`;
   }).join('');
   ctrlPopolaDatalistFornitoriNoti(conosciuti);
-  return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Consuntivo Costi D|Park</h2><p>Quanto risulta <b>realmente</b> fatturato da ciascun fornitore, sempre e solo dal brogliaccio contabile, a confronto con quanto previsto nel Budget Costi — fornitore per fornitore, per fabbricato.</p></div><div><span class="ctrl-chip ${costiImport?'ok':''}">${costiImport?('✓ Brogliaccio: '+ctrlEsc(costiImport.fileName||'')+(costiImport.importedAt?(' · '+new Date(costiImport.importedAt).toLocaleString('it-IT')):'')):'Nessun brogliaccio caricato dall\'app: valori dell\'ultimo aggiornamento manuale'}</span><label class="ctrl-btn" style="display:inline-block;cursor:pointer;margin-left:8px">${costiImport?'Aggiorna brogliaccio':'Carica brogliaccio'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="ctrlImportCostiBrogliaccio(this)"></label></div></div>
+  return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Consuntivo Costi D|Park</h2><p>Quanto risulta <b>realmente</b> fatturato da ciascun fornitore, sempre e solo dal brogliaccio contabile, a confronto con quanto previsto nel Budget Costi — fornitore per fornitore, per fabbricato.</p></div><div><span class="ctrl-chip ${costiImport?'ok':''}">${costiImport?('✓ Brogliaccio: '+ctrlEsc(costiImport.fileName||'')+(costiImport.importedAt?(' · '+new Date(costiImport.importedAt).toLocaleString('it-IT')):'')):'Nessun brogliaccio caricato dall\'app: valori dell\'ultimo aggiornamento manuale'}</span><label class="ctrl-btn" style="display:inline-block;cursor:pointer;margin-left:8px">${costiImport?'Aggiorna brogliaccio':'Carica brogliaccio'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="ctrlImportCostiBrogliaccio(this)"></label><button type="button" class="ctrl-btn light" style="margin-left:8px" onclick="ctrlEsportaConsuntivoPDF()">📄 Esporta PDF</button></div></div>
   ${filtriHtml}
   <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(totBudget)}</strong><span>Totale a budget${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''}</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totConsuntivo)}</strong><span>Totale a consuntivo${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''}</span></div><div class="ctrl-kpi"><strong style="color:#c62828">${contaStato('rosso')}</strong><span>🔴 Fornitori sopra budget</span></div><div class="ctrl-kpi"><strong style="color:${totNonIdentificato?'#d97706':'#0d9488'}">${ctrlEuro(totNonIdentificato)}</strong><span>Fatturato di cui non riconosco il fornitore (${nonIdentificateMostrate.length} righe)</span></div></div>
   <p style="font-size:10px;color:#8796a9;margin:-6px 0 16px">🟢 In linea = consuntivo entro €3.000 o il 20% del budget (quale dei due sia maggiore). ⚪ Da alimentare = consuntivo sotto budget oltre quella soglia, il fornitore deve ancora fatturare il resto. 🔴 Sopra budget = consuntivo superiore al budget previsto. 🟡 Da verificare = un lato è a zero (fatturato senza budget, o a budget e mai fatturato). Il Budget Costi copre oggi solo Armonia 1 e 2: negli altri fabbricati si vede solo il consuntivo, senza confronto.</p>
   ${lottiHtml}
-  ${nonIdentificateMostrate.length?`<div class="ctrl-card"><div style="margin-bottom:10px"><h3 style="margin:0">${CTRL_CONSUNTIVO_FABBRICATO==='all'?'Tutte le righe non identificate':'Righe non identificate — '+ctrlEsc(nomeFiltroLotto)} <span style="font-weight:400;color:#8796a9;font-size:11px">(${nonIdentificateMostrate.length} righe, ${ctrlEuro(totNonIdentificato)})</span></h3><small>Scegli il fornitore dal menu per ogni riga (o "+ Nuovo fornitore…" se non è ancora in elenco): da qui in poi verrà riconosciuto automaticamente ovunque compaia con lo stesso testo.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Descrizione (brogliaccio)</th><th>Importo</th><th>Fornitore</th></tr></thead><tbody>${nonIdentificateMostrate.map(r=>`<tr><td style="font-size:11px;color:#8796a9">${ctrlEsc(r.lottoNome)}</td><td style="font-size:12px">${ctrlEsc(r.descr)}</td><td>${ctrlEuro(r.importo)}</td><td><select class="cc-fornitore-riga-manuale" data-riga-id="${ctrlEsc(r.rigaId)}" style="min-width:180px" onchange="this.nextElementSibling.style.display=this.value==='__NUOVO__'?'inline-block':'none'"><option value="">— seleziona fornitore —</option>${fornitoriNotiOrdinati.map(n=>`<option value="${ctrlEsc(n)}">${ctrlEsc(n)}</option>`).join('')}<option value="__NUOVO__">+ Nuovo fornitore…</option></select><input class="cc-fornitore-riga-manuale-nuovo" placeholder="nome nuovo fornitore" style="display:none;min-width:160px;margin-top:4px"></td></tr>`).join('')}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:10px" onclick="ctrlSalvaFornitoriNonIdentificati()">💾 Salva fornitori</button></div>`:''}
+  ${nonIdentificateMostrate.length?`<div class="ctrl-card"><div style="margin-bottom:10px"><h3 style="margin:0">${CTRL_CONSUNTIVO_FABBRICATO==='all'?'Tutte le righe non identificate':'Righe non identificate — '+ctrlEsc(nomeFiltroLotto)} <span style="font-weight:400;color:#8796a9;font-size:11px">(${nonIdentificateMostrate.length} righe, ${ctrlEuro(totNonIdentificato)})</span></h3><small>Scegli il fornitore dal menu per ogni riga (o "+ Nuovo fornitore…" se non è ancora in elenco): da qui in poi verrà riconosciuto automaticamente ovunque compaia con lo stesso testo.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Descrizione (brogliaccio)</th><th>Importo</th><th>Fornitore</th></tr></thead><tbody>${nonIdentificateMostrate.map(r=>`<tr><td style="font-size:11px;color:#8796a9">${ctrlEsc(r.lottoNome)}</td><td style="font-size:12px">${ctrlEsc(r.descr)}</td><td>${ctrlEuro(r.importo)}</td><td><select class="cc-fornitore-riga-manuale" data-riga-id="${ctrlEsc(r.rigaId)}" style="min-width:180px" onchange="this.nextElementSibling.style.display=this.value==='__NUOVO__'?'inline-block':'none'"><option value="">— seleziona fornitore —</option><optgroup label="Voci di budget (colonne del file Drive)">${vociBudgetSpeciali.map(v=>`<option value="${ctrlEsc(v)}">${ctrlEsc(ctrlBudgetFornitoreInfo(v).label)}</option>`).join('')}</optgroup>${fornitoriNotiNonBudget.length?`<optgroup label="Altri fornitori noti (non a budget)">${fornitoriNotiNonBudget.map(n=>`<option value="${ctrlEsc(n)}">${ctrlEsc(n)}</option>`).join('')}</optgroup>`:''}<option value="__NUOVO__">+ Nuovo fornitore…</option></select><input class="cc-fornitore-riga-manuale-nuovo" placeholder="nome nuovo fornitore" style="display:none;min-width:160px;margin-top:4px"></td></tr>`).join('')}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:10px" onclick="ctrlSalvaFornitoriNonIdentificati()">💾 Salva fornitori</button></div>`:''}
   </div>`;
 }
 // ─── BUDGET RICAVI ───
