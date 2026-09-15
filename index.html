@@ -5380,11 +5380,18 @@ function ctrlBudgetEstraiFasiDaFoglio(ws){
   let headerRowIdx=-1;
   for(let i=0;i<rows.length;i++){
     const r=rows[i]||[];
-    if(r.slice(2,24).filter(c=>c!=null&&String(c).trim()!=='').length>=3){headerRowIdx=i;break}
+    if(r.slice(1,24).filter(c=>c!=null&&String(c).trim()!=='').length>=3){headerRowIdx=i;break}
   }
-  if(headerRowIdx<0)throw new Error('non trovo la riga con i nomi dei fornitori (attesi almeno 3 dalla colonna C in poi, su '+rows.length+' righe totali lette nel foglio)');
+  if(headerRowIdx<0)throw new Error('non trovo la riga con i nomi dei fornitori (attesi almeno 3 dalla seconda colonna del foglio in poi, su '+rows.length+' righe totali lette nel foglio)');
   const headerRow=rows[headerRowIdx]||[],headers={};
-  for(let c=2;c<headerRow.length;c++){
+  // Sul file reale la prima colonna del foglio (indice 0 nell'array letto da SheetJS — che parte
+  // dall'inizio dell'intervallo dichiarato, qui colonna B, non necessariamente dalla colonna A del
+  // foglio) contiene l'etichetta fase/voce; i fornitori iniziano subito dopo, da indice 1. Prima
+  // qui si partiva da indice 2 assumendo due colonne di intestazione prima dei fornitori: sul file
+  // vero ce n'è solo una, e quella in più faceva saltare il primo fornitore (COLELLA GIORGIO) —
+  // motivo per cui "Acquisto Terreno", che ha importo solo su quel fornitore, risultava sempre
+  // senza importo.
+  for(let c=1;c<headerRow.length;c++){
     const v=headerRow[c],txt=v==null?'':String(v).trim();
     if(/^somma|^totale/i.test(txt))continue;
     headers[c]=txt===''?'__DA_DEFINIRE__':txt;
