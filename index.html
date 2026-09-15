@@ -5379,19 +5379,65 @@ const BUDGET_FORNITORE_INFO={
 };
 function ctrlBudgetFornitoreInfo(nome){return BUDGET_FORNITORE_INFO[nome]||{label:nome,tipo:'fornitore'}}
 function ctrlBudgetChipClasse(tipo){return tipo==='daDefinire'?'warn':tipo==='interno'?'ok':''}
-// ctrlBudgetCostiCorrenti: se Noemi ha già premuto "Aggiorna da Drive" almeno una volta, usa quella copia
-// salvata in CTRL_DATA (sincronizzata su Supabase come tutto il resto); altrimenti usa lo snapshot fisso
-// caricato in build (BUDGET_COSTI_ARMONIA12) - stesso schema di ctrlCostiRigheCorrenti() per i costi.
-function ctrlBudgetCostiCorrenti(){
-  const imp=CTRL_DATA.economico&&CTRL_DATA.economico.budgetCosti;
-  return imp||BUDGET_COSTI_ARMONIA12;
+// Il file Drive del computo metrico ha PIU' fogli (ARMONIA12, VITTORIA, PASSIONE): fino al 16/09/2026 l'app
+// leggeva solo ARMONIA12, quindi Budget Costi e Consuntivo Costi mostravano il confronto SOLO per Armonia 1
+// e 2 (segnalato da Noemi: "il budget costi di Vittoria non mi fa vedere le righe"). Ogni foglio diventa ora
+// il budget di un "gruppo": armonia12 (Armonia 1 + Armonia 2 combinati, diviso 50/50 fra i due lotti gemelli -
+// comportamento invariato), vittoria e passione (ciascuno un edificio singolo con il proprio foglio, quindi
+// NESSUNA divisione 50/50: l'importo del foglio è già quello dell'edificio). CTRL_BUDGET_GRUPPO_DIVISORE è
+// anche la lista dei gruppi noti, usata per aggregare su tutti quando serve (dizionario fornitori, filtri).
+const CTRL_BUDGET_GRUPPO_DI_LOTTO={a1:'armonia12',a2:'armonia12',vittoria:'vittoria',passione:'passione'};
+const CTRL_BUDGET_GRUPPO_DIVISORE={armonia12:2,vittoria:1,passione:1};
+// ctrlBudgetDatiGruppo: dati di budget di UN gruppo. Se Noemi ha già premuto "Aggiorna da Drive" dopo il
+// 16/09/2026, usa la copia salvata per quel gruppo in CTRL_DATA.economico.budgetCostiPerGruppo (sincronizzata
+// su Supabase). RETROCOMPATIBILITA': prima di allora esisteva un solo blocco CTRL_DATA.economico.budgetCosti,
+// sempre e solo per Armonia 1+2 - lo trattiamo come lo slot "armonia12" così i dati già sincronizzati da
+// Noemi restano validi senza bisogno di rifare l'import. Per vittoria/passione, se non ancora importati,
+// torna null (prima d'ora non esistevano proprio, niente snapshot fisso da usare come per armonia12).
+function ctrlBudgetDatiGruppo(gruppo){
+  const store=(CTRL_DATA.economico&&CTRL_DATA.economico.budgetCostiPerGruppo)||{};
+  if(store[gruppo])return store[gruppo];
+  if(gruppo==='armonia12'){
+    const legacy=CTRL_DATA.economico&&CTRL_DATA.economico.budgetCosti;
+    return legacy||BUDGET_COSTI_ARMONIA12;
+  }
+  return null;
 }
-// Elenco di tutte le etichette fornitore presenti nel computo (per popolare il filtro) - calcolato una
-// volta sui dati grezzi, indipendentemente dai filtri correnti, così il menu a tendina non perde opzioni
-// quando si restringe la vista.
+// ctrlBudgetCostiCorrenti: retrocompatibile, resta il budget di Armonia 1+2 (uso storico prima del
+// 16/09/2026) - per gli altri gruppi vedi ctrlBudgetDatiGruppo.
+function ctrlBudgetCostiCorrenti(){
+  return ctrlBudgetDatiGruppo('armonia12');
+}
+// Un gruppo "ha dati" solo se contiene almeno un fornitore REALE, non solo "__DA_DEFINIRE__" (un foglio può
+// essere tecnicamente importabile - il parser non dà errore - ma ancora vuoto: è il caso di PASSIONE al
+// 16/09/2026, che Noemi non ha ancora compilato su Drive). In quel caso l'edificio resta "non disponibile"
+// esattamente come se il foglio non fosse mai stato importato.
+function ctrlBudgetGruppoHaDati(gruppo){
+  const dati=ctrlBudgetDatiGruppo(gruppo);
+  if(!dati||!dati.fasi)return false;
+  return dati.fasi.some(f=>f.voci.some(v=>v.righe.some(r=>r.fornitore!=='__DA_DEFINIRE__')));
+}
+function ctrlLottoHaBudget(lottoKey){
+  const gruppo=CTRL_BUDGET_GRUPPO_DI_LOTTO[lottoKey];
+  return!!gruppo&&ctrlBudgetGruppoHaDati(gruppo);
+}
+// Tutte le righe {fornitore,importo} di TUTTI i gruppi di budget importati e con dati (Armonia 1+2, Vittoria,
+// Passione), SENZA applicare la divisione 50/50 - usata per costruire elenchi/dizionari di fornitori (filtri,
+// riconoscimento testo libero), mai per sommare importi in euro (per quello serve la divisione per gruppo).
+function ctrlBudgetTutteLeRighe(){
+  const righe=[];
+  Object.keys(CTRL_BUDGET_GRUPPO_DIVISORE).forEach(gruppo=>{
+    if(!ctrlBudgetGruppoHaDati(gruppo))return;
+    ctrlBudgetDatiGruppo(gruppo).fasi.forEach(f=>f.voci.forEach(v=>v.righe.forEach(r=>righe.push(r))));
+  });
+  return righe;
+}
+// Elenco di tutte le etichette fornitore presenti nel computo, su TUTTI i gruppi con dati (per popolare il
+// filtro) - calcolato una volta sui dati grezzi, indipendentemente dai filtri correnti, così il menu a
+// tendina non perde opzioni quando si restringe la vista.
 function ctrlBudgetFornitoriElenco(){
   const set=new Set();
-  ctrlBudgetCostiCorrenti().fasi.forEach(f=>f.voci.forEach(v=>v.righe.forEach(r=>set.add(ctrlBudgetFornitoreInfo(r.fornitore).label))));
+  ctrlBudgetTutteLeRighe().forEach(r=>set.add(ctrlBudgetFornitoreInfo(r.fornitore).label));
   return Array.from(set).sort((a,b)=>a.localeCompare(b,'it'));
 }
 // SYNC DA GOOGLE DRIVE: Noemi tiene il computo metrico su un file Excel nel suo Drive che modifica in
@@ -5553,31 +5599,51 @@ async function ctrlBudgetScaricaEImporta(token){
     if(!res.ok)throw new Error('download fallito (codice '+res.status+')');
     const buf=await res.arrayBuffer();
     const wb=XLSX.read(buf,{type:'array'});
-    const nomeFoglio=wb.SheetNames.find(n=>/armonia\s*12/i.test(n))||wb.SheetNames[0];
-    let fasi;
-    try{
-      fasi=ctrlBudgetEstraiFasiDaFoglio(wb.Sheets[nomeFoglio]);
-    }catch(eParse){
-      throw new Error('foglio "'+nomeFoglio+'" (su '+wb.SheetNames.length+' fogli nel file: '+wb.SheetNames.join(', ')+') — '+eParse.message);
-    }
+    // Un solo file Drive, tre fogli - importiamo tutti e tre in un'unica sincronizzazione (richiesto da
+    // Noemi il 16/09/2026: prima si leggeva solo ARMONIA12, quindi Vittoria e Passione restavano sempre
+    // "non disponibili" in Budget Costi anche quando il foglio Drive aveva già i dati). Ogni foglio trovato
+    // aggiorna il proprio gruppo; un foglio mancante o che non si riesce a interpretare non blocca gli altri.
+    const MAPPA_FOGLI={armonia12:/armonia\s*12/i,vittoria:/vittoria/i,passione:/passione/i};
+    const risultatoPerGruppo={};
+    const problemi=[];
+    Object.entries(MAPPA_FOGLI).forEach(([gruppo,pattern])=>{
+      const nomeFoglio=wb.SheetNames.find(n=>pattern.test(n));
+      if(!nomeFoglio){problemi.push(gruppo+': nessun foglio trovato (fogli nel file: '+wb.SheetNames.join(', ')+')');return}
+      try{
+        const fasi=ctrlBudgetEstraiFasiDaFoglio(wb.Sheets[nomeFoglio]);
+        risultatoPerGruppo[gruppo]={version:'drive-'+new Date().toISOString().slice(0,10),fasi,fileName:meta.name||'computo metrico',foglio:nomeFoglio,importedAt:new Date().toISOString(),nota:'Sincronizzato da Google Drive (foglio "'+nomeFoglio+'").'+(gruppo==='armonia12'?' Stessa divisione 50/50 Armonia 1 + 2 applicata a schermo.':' Importo per edificio singolo, nessuna divisione 50/50.')};
+      }catch(eParse){
+        problemi.push(gruppo+' (foglio "'+nomeFoglio+'"): '+eParse.message);
+      }
+    });
+    if(!Object.keys(risultatoPerGruppo).length)throw new Error('nessun foglio importato.\n\n'+problemi.join('\n'));
     if(!CTRL_DATA.economico)CTRL_DATA.economico={};
-    CTRL_DATA.economico.budgetCosti={version:'drive-'+new Date().toISOString().slice(0,10),fasi,fileName:meta.name||'computo metrico',importedAt:new Date().toISOString(),nota:'Sincronizzato da Google Drive (foglio "'+nomeFoglio+'"). Stessa divisione 50/50 Armonia 1 + 2 applicata a schermo.'};
+    if(!CTRL_DATA.economico.budgetCostiPerGruppo)CTRL_DATA.economico.budgetCostiPerGruppo={};
+    Object.assign(CTRL_DATA.economico.budgetCostiPerGruppo,risultatoPerGruppo);
     ctrlSave();ctrlRender('ctrl_budget_costi');
-    ctrlNotify('✓ Computo metrico aggiornato da Drive: '+fasi.reduce((a,f)=>a+f.voci.length,0)+' voci');
+    const vociTotali=Object.values(risultatoPerGruppo).reduce((a,d)=>a+d.fasi.reduce((s,f)=>s+f.voci.length,0),0);
+    const gruppiOk=Object.keys(risultatoPerGruppo).join(', ');
+    ctrlNotify('✓ Computo metrico aggiornato da Drive ('+gruppiOk+'): '+vociTotali+' voci'+(problemi.length?(' — attenzione: '+problemi.join(' · ')):''));
   }catch(e){console.error(e);alert('Impossibile aggiornare da Drive: '+e.message)}
 }
 function ctrlRenderBudgetCosti(){
+  // "dati"/"daDrive" qui sotto restano quelli di Armonia 1+2 (retrocompatibili) SOLO per il chip riassuntivo
+  // in alto: ogni edificio nella tabella usa invece i propri dati (vedi ctrlBudgetDatiGruppo dentro il map
+  // qui sotto), perché da oggi (16/09/2026) i gruppi Armonia 1+2/Vittoria/Passione hanno ciascuno il proprio
+  // import, non più un unico blocco condiviso.
   const dati=ctrlBudgetCostiCorrenti();
-  const daDrive=!!(CTRL_DATA.economico&&CTRL_DATA.economico.budgetCosti);
-  const CHIAVI_CON_DATI=['a1','a2'];
-  const edificiDisponibili=CTRL_BUILDINGS.filter(([k])=>CHIAVI_CON_DATI.includes(k));
-  const edificiSenzaDati=CTRL_BUILDINGS.filter(([k])=>!CHIAVI_CON_DATI.includes(k));
+  const daDrive=!!(CTRL_DATA.economico&&(CTRL_DATA.economico.budgetCosti||CTRL_DATA.economico.budgetCostiPerGruppo));
+  const edificiDisponibili=CTRL_BUILDINGS.filter(([k])=>ctrlLottoHaBudget(k));
+  const edificiSenzaDati=CTRL_BUILDINGS.filter(([k])=>!ctrlLottoHaBudget(k));
   const edificiDaMostrare=CTRL_BUDGET_FABBRICATO==='all'?edificiDisponibili:CTRL_BUILDINGS.filter(([k])=>k===CTRL_BUDGET_FABBRICATO);
   const perFornitoreTotale={};
   const edificiHtml=edificiDaMostrare.map(([key,nome])=>{
-    if(!CHIAVI_CON_DATI.includes(key))return `<div class="ctrl-card" style="margin-bottom:14px"><h3 style="margin:0 0 6px">${ctrlEsc(nome)}</h3><p style="font-size:12px;color:#8796a9;margin:0">Non ancora disponibile: mandami il computo metrico di questo edificio.</p></div>`;
+    if(!ctrlLottoHaBudget(key))return `<div class="ctrl-card" style="margin-bottom:14px"><h3 style="margin:0 0 6px">${ctrlEsc(nome)}</h3><p style="font-size:12px;color:#8796a9;margin:0">Non ancora disponibile: mandami il computo metrico di questo edificio.</p></div>`;
+    const gruppo=CTRL_BUDGET_GRUPPO_DI_LOTTO[key];
+    const datiEdificio=ctrlBudgetDatiGruppo(gruppo);
+    const divisore=CTRL_BUDGET_GRUPPO_DIVISORE[gruppo]||1;
     let totaleEdificio=0,nRigheMostrate=0;
-    const fasiHtml=dati.fasi.map(fase=>{
+    const fasiHtml=datiEdificio.fasi.map(fase=>{
       let subtotaleFase=0;
       const righeVisibili=fase.voci.flatMap(v=>v.righe.map(r=>({v,r,info:ctrlBudgetFornitoreInfo(r.fornitore)})).filter(({info})=>!CTRL_BUDGET_FORNITORE||info.label===CTRL_BUDGET_FORNITORE));
       // Voci presenti nel computo ma senza nessun importo riconosciuto (es. non ancora prezzate, oppure
@@ -5587,7 +5653,7 @@ function ctrlRenderBudgetCosti(){
       const vociSenzaImporto=CTRL_BUDGET_FORNITORE?[]:fase.voci.filter(v=>!v.righe.length);
       if(!righeVisibili.length&&!vociSenzaImporto.length)return '';
       const righeHtml=righeVisibili.map(({v,r,info})=>{
-        const importo=r.importo/2;
+        const importo=r.importo/divisore;
         subtotaleFase+=importo;nRigheMostrate++;
         perFornitoreTotale[info.label]=(perFornitoreTotale[info.label]||0)+importo;
         const chip=info.tipo!=='fornitore'?`<span class="ctrl-chip ${ctrlBudgetChipClasse(info.tipo)}" style="margin-left:6px">${info.tipo==='daDefinire'?'da definire':info.tipo==='interno'?'interno':'categoria'}</span>`:'';
@@ -5602,16 +5668,17 @@ function ctrlRenderBudgetCosti(){
   }).join('');
   const fornitoriRiepilogo=Object.entries(perFornitoreTotale).sort((a,b)=>b[1]-a[1]);
   // Il riepilogo per fornitore somma tutti gli edifici attualmente mostrati (filtro fabbricato incluso):
-  // se il filtro è su "Tutti" somma Armonia 1 + Armonia 2, se è su un solo edificio mostra solo quello.
+  // se il filtro è su "Tutti" somma tutti gli edifici disponibili (Armonia 1+2, e ora anche Vittoria quando
+  // ha dati), se è su un solo edificio mostra solo quello.
   const fornitoriHtml=fornitoriRiepilogo.map(([label,tot])=>`<tr><td>${ctrlEsc(label)}</td><td>${ctrlEuro(tot)}</td></tr>`).join('');
   const totaleComplessivo=fornitoriRiepilogo.reduce((a,[,v])=>a+v,0);
   const senzaDatiHtml=edificiSenzaDati.map(([,nome])=>`<span class="ctrl-chip" style="margin:0 6px 6px 0">${ctrlEsc(nome)}</span>`).join('');
   const fornitoriOpzioni=ctrlBudgetFornitoriElenco();
   const filtriHtml=`<div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px"><h3 style="margin:0">Filtra</h3><button type="button" class="ctrl-btn light" onclick="CTRL_BUDGET_FABBRICATO='all';CTRL_BUDGET_FORNITORE='';ctrlRender('ctrl_budget_costi')">Azzera filtri</button></div><div class="ctrl-form" style="grid-template-columns:repeat(2,minmax(180px,1fr))"><div><label>Fabbricato</label><select onchange="CTRL_BUDGET_FABBRICATO=this.value;ctrlRender('ctrl_budget_costi')"><option value="all" ${CTRL_BUDGET_FABBRICATO==='all'?'selected':''}>Tutti i fabbricati disponibili</option>${CTRL_BUILDINGS.map(([k,n])=>`<option value="${k}" ${CTRL_BUDGET_FABBRICATO===k?'selected':''}>${ctrlEsc(n)}</option>`).join('')}</select></div><div><label>Fornitore</label><select onchange="CTRL_BUDGET_FORNITORE=this.value;ctrlRender('ctrl_budget_costi')"><option value="" ${CTRL_BUDGET_FORNITORE===''?'selected':''}>Tutti i fornitori</option>${fornitoriOpzioni.map(f=>`<option value="${ctrlEsc(f)}" ${CTRL_BUDGET_FORNITORE===f?'selected':''}>${ctrlEsc(f)}</option>`).join('')}</select></div></div></div>`;
   return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Budget Costi D|Park</h2><p>Preventivo per fase di lavorazione e fornitore, dal computo metrico — <b>non</b> è il consuntivo (quello è nel Consuntivo Costi): qui è quanto si prevede di spendere, lì quanto si è speso davvero secondo le fatture.</p></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="ctrl-btn" onclick="ctrlAggiornaBudgetDaDrive()">🔄 Aggiorna da Drive</button><span class="ctrl-chip ${daDrive?'ok':''}">${daDrive?('✓ Da Drive: '+ctrlEsc(dati.fileName||'')+(dati.importedAt?(' · '+new Date(dati.importedAt).toLocaleString('it-IT')):'')):'Snapshot fisso (mai aggiornato da Drive)'}</span></div></div>
-  <p style="font-size:11px;color:#8796a9;margin:-6px 0 16px">${ctrlEsc(dati.nota)}</p>
+  <p style="font-size:11px;color:#8796a9;margin:-6px 0 16px">${ctrlEsc(dati.nota)} Il pulsante "Aggiorna da Drive" sincronizza in un colpo solo i fogli ARMONIA12, VITTORIA e PASSIONE del file.</p>
   ${filtriHtml}
-  ${CTRL_BUDGET_FABBRICATO==='all'?`<div class="ctrl-card" style="margin-bottom:14px;background:#fdf8ec;border-color:#eee0c8"><b style="font-size:12px">Non ancora disponibile per:</b> ${senzaDatiHtml||'—'}<p style="font-size:11px;color:#8796a9;margin:8px 0 0">Mandami il computo metrico di questi edifici per completare la sezione.</p></div>`:''}
+  ${CTRL_BUDGET_FABBRICATO==='all'?`<div class="ctrl-card" style="margin-bottom:14px;background:#fdf8ec;border-color:#eee0c8"><b style="font-size:12px">Non ancora disponibile per:</b> ${senzaDatiHtml||'—'}<p style="font-size:11px;color:#8796a9;margin:8px 0 0">Serve il foglio con i numeri compilati su Drive per questi edifici (o mandamelo in chat).</p></div>`:''}
   ${edificiHtml}
   <div class="ctrl-card"><h3>Totale per fornitore <span style="font-weight:400;color:#8796a9;font-size:11px">(sugli edifici mostrati qui sopra)</span></h3><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Fornitore</th><th>Importo</th></tr></thead><tbody>${fornitoriHtml}</tbody><tfoot><tr><td><b>Totale</b></td><td><b>${ctrlEuro(totaleComplessivo)}</b></td></tr></tfoot></table></div></div>
   </div>`;
@@ -5640,8 +5707,12 @@ function ctrlConsuntivoTokenKey(nome){
   const toks=[...new Set(norm.split(' ').filter(t=>t&&!CONSUNTIVO_STOP_WORDS.has(t)&&(t.length>=3||/^\d+$/.test(t))))].sort();
   return toks.join('|');
 }
-// Lotti per cui il Budget Costi ha dati oggi (stessa lista di ctrlRenderBudgetCosti - tenerle allineate).
-const CONSUNTIVO_LOTTI_CON_BUDGET=['a1','a2'];
+// Lotti per cui il Budget Costi ha dati oggi: non più un elenco fisso (dal 16/09/2026 dipende da quali
+// gruppi sono stati importati e hanno numeri reali, vedi ctrlLottoHaBudget/ctrlBudgetGruppoHaDati) - usare
+// SEMPRE ctrlConsuntivoLottiConBudget()/ctrlLottoHaBudget(lottoKey), mai un elenco scritto a mano qui.
+function ctrlConsuntivoLottiConBudget(){
+  return CTRL_BUILDINGS.map(([k])=>k).filter(ctrlLottoHaBudget);
+}
 // Fornitori "segnaposto" nel Budget Costi che non sono un vero nome di fornitore da cercare nel brogliaccio.
 // FERRO/CEMENTO/PROFESSIONISTI restano esclusi qui (dal dizionario di riconoscimento testo libero): sono
 // parole troppo generiche per fare da "fornitore noto" nel motore di matching a singola parola (qualunque
@@ -5676,7 +5747,7 @@ function ctrlConsuntivoBucketMateriale(nome){
 }
 function ctrlBudgetFornitoriRawElenco(){
   const set=new Set();
-  ctrlBudgetCostiCorrenti().fasi.forEach(f=>f.voci.forEach(v=>v.righe.forEach(r=>{if(!CONSUNTIVO_NON_FORNITORE.has(r.fornitore))set.add(r.fornitore)})));
+  ctrlBudgetTutteLeRighe().forEach(r=>{if(!CONSUNTIVO_NON_FORNITORE.has(r.fornitore))set.add(r.fornitore)});
   return[...set];
 }
 // Fornitori "appresi": nomi che Noemi ha assegnato a mano a una riga non identificata (nuova azienda, o
@@ -5760,15 +5831,17 @@ function ctrlSalvaFornitoriNonIdentificati(){
   ctrlNotify(n?'✓ '+n+' righe assegnate a un fornitore':'✓ Salvato');
 }
 // Confronto Budget vs Consuntivo per fornitore, per UN lotto (o 'generale' per i costi DPG non ripartiti).
-// Il budget esiste solo per i lotti in CONSUNTIVO_LOTTI_CON_BUDGET: altrove si vede solo il consuntivo.
+// Il budget esiste solo per i lotti con ctrlLottoHaBudget(lottoKey)===true: altrove si vede solo il consuntivo.
 function ctrlConsuntivoConfrontoLotto(lottoKey,conosciuti){
   const manuali=ctrlFornitoreRigaManualeState();
   const budgetPerFornitore={};
-  if(CONSUNTIVO_LOTTI_CON_BUDGET.includes(lottoKey)){
-    ctrlBudgetCostiCorrenti().fasi.forEach(f=>f.voci.forEach(v=>v.righe.forEach(r=>{
+  if(ctrlLottoHaBudget(lottoKey)){
+    const gruppo=CTRL_BUDGET_GRUPPO_DI_LOTTO[lottoKey];
+    const divisore=CTRL_BUDGET_GRUPPO_DIVISORE[gruppo]||1;
+    ctrlBudgetDatiGruppo(gruppo).fasi.forEach(f=>f.voci.forEach(v=>v.righe.forEach(r=>{
       if(CONSUNTIVO_NON_FORNITORE_CONFRONTO.has(r.fornitore))return;
       const nome=conosciuti.canon[ctrlConsuntivoTokenKey(r.fornitore)]||r.fornitore;
-      budgetPerFornitore[nome]=(budgetPerFornitore[nome]||0)+r.importo/2;
+      budgetPerFornitore[nome]=(budgetPerFornitore[nome]||0)+r.importo/divisore;
     })));
   }
   const consuntivoPerFornitore={},nonIdentificate=[];
@@ -5796,7 +5869,7 @@ function ctrlConsuntivoConfrontoLotto(lottoKey,conosciuti){
     else{const soglia=Math.max(3000,budget*0.2);stato=(diff<=soglia)?'verde':'bianco';}
     return{nome,budget,consuntivo,diff,stato,motivo};
   }).sort((a,b)=>Math.max(b.budget,b.consuntivo)-Math.max(a.budget,a.consuntivo));
-  return{righe,nonIdentificate,haBudget:CONSUNTIVO_LOTTI_CON_BUDGET.includes(lottoKey),totBudget:righe.reduce((a,r)=>a+r.budget,0),totConsuntivo:righe.reduce((a,r)=>a+r.consuntivo,0)};
+  return{righe,nonIdentificate,haBudget:ctrlLottoHaBudget(lottoKey),totBudget:righe.reduce((a,r)=>a+r.budget,0),totConsuntivo:righe.reduce((a,r)=>a+r.consuntivo,0)};
 }
 function ctrlPopolaDatalistFornitoriNoti(conosciuti){
   const dl=document.getElementById('fornitori-noti-datalist');if(!dl)return;
@@ -5895,13 +5968,14 @@ function ctrlRenderConsuntivoCosti(){
   // Voci di budget: Noemi ha corretto il 15/09/2026 un primo tentativo (che mostrava solo i 4 segnaposto
   // FERRO/CEMENTO/PROFESSIONISTI/AEDIFICA SRL) chiarendo che per "fornitore" nel menu a tendina intende
   // TUTTE le colonne del file computo metrico su Drive, non un sottoinsieme: qui sotto leggiamo quindi
-  // l'elenco COMPLETO e grezzo delle colonne fornitore del budget corrente (ctrlBudgetCostiCorrenti - lo
-  // stesso file/foglio importato in Budget Costi), inclusi sia i nomi reali (es. COLELLA GIORGIO, VOLPICELLI)
-  // sia i segnaposto di categoria (FERRO/CEMENTO/PROFESSIONISTI/AEDIFICA SRL), escluso solo "__DA_DEFINIRE__"
-  // che non è una colonna ma l'etichetta per righe di budget non ancora assegnate a un fornitore.
+  // l'elenco COMPLETO e grezzo delle colonne fornitore di TUTTI i gruppi di budget con dati (ctrlBudgetTutteLeRighe
+  // - dal 16/09/2026 include anche Vittoria/Passione quando hanno numeri, non solo Armonia 1+2), inclusi sia
+  // i nomi reali (es. COLELLA GIORGIO, VOLPICELLI) sia i segnaposto di categoria (FERRO/CEMENTO/PROFESSIONISTI/
+  // AEDIFICA SRL), escluso solo "__DA_DEFINIRE__" che non è una colonna ma l'etichetta per righe di budget non
+  // ancora assegnate a un fornitore.
   const vociBudgetSpeciali=(()=>{
     const set=new Set();
-    ctrlBudgetCostiCorrenti().fasi.forEach(f=>f.voci.forEach(v=>v.righe.forEach(r=>{if(r.fornitore!=='__DA_DEFINIRE__')set.add(r.fornitore)})));
+    ctrlBudgetTutteLeRighe().forEach(r=>{if(r.fornitore!=='__DA_DEFINIRE__')set.add(r.fornitore)});
     return[...set].sort((a,b)=>ctrlBudgetFornitoreInfo(a).label.localeCompare(ctrlBudgetFornitoreInfo(b).label,'it'));
   })();
   // Fornitori "noti" ma NON presenti tra le colonne di budget, ESCLUSI quelli che confluiscono comunque in
@@ -5942,7 +6016,7 @@ function ctrlRenderConsuntivoCosti(){
   return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Consuntivo Costi D|Park</h2><p>Quanto risulta <b>realmente</b> fatturato da ciascun fornitore, sempre e solo dal brogliaccio contabile, a confronto con quanto previsto nel Budget Costi — fornitore per fornitore, per fabbricato.</p></div><div><span class="ctrl-chip ${costiImport?'ok':''}">${costiImport?('✓ Brogliaccio: '+ctrlEsc(costiImport.fileName||'')+(costiImport.importedAt?(' · '+new Date(costiImport.importedAt).toLocaleString('it-IT')):'')):'Nessun brogliaccio caricato dall\'app: valori dell\'ultimo aggiornamento manuale'}</span><label class="ctrl-btn" style="display:inline-block;cursor:pointer;margin-left:8px">${costiImport?'Aggiorna brogliaccio':'Carica brogliaccio'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="ctrlImportCostiBrogliaccio(this)"></label><button type="button" class="ctrl-btn light" style="margin-left:8px" onclick="ctrlEsportaConsuntivoPDF()">📄 Esporta PDF</button></div></div>
   ${filtriHtml}
   <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(totBudget)}</strong><span>Totale a budget${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''}</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totConsuntivo)}</strong><span>Totale a consuntivo${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''}</span></div><div class="ctrl-kpi"><strong style="color:#c62828">${contaStato('rosso')}</strong><span>🔴 Fornitori sopra budget</span></div><div class="ctrl-kpi"><strong style="color:${totNonIdentificato?'#d97706':'#0d9488'}">${ctrlEuro(totNonIdentificato)}</strong><span>Fatturato di cui non riconosco il fornitore (${nonIdentificateMostrate.length} righe)</span></div></div>
-  <p style="font-size:10px;color:#8796a9;margin:-6px 0 16px">🟢 In linea = consuntivo entro €3.000 o il 20% del budget (quale dei due sia maggiore). ⚪ Da alimentare = consuntivo sotto budget oltre quella soglia, il fornitore deve ancora fatturare il resto. 🔴 Sopra budget = consuntivo superiore al budget previsto. 🟡 Da verificare = un lato è a zero (fatturato senza budget, o a budget e mai fatturato). Il Budget Costi copre oggi solo Armonia 1 e 2: negli altri fabbricati si vede solo il consuntivo, senza confronto.</p>
+  <p style="font-size:10px;color:#8796a9;margin:-6px 0 16px">🟢 In linea = consuntivo entro €3.000 o il 20% del budget (quale dei due sia maggiore). ⚪ Da alimentare = consuntivo sotto budget oltre quella soglia, il fornitore deve ancora fatturare il resto. 🔴 Sopra budget = consuntivo superiore al budget previsto. 🟡 Da verificare = un lato è a zero (fatturato senza budget, o a budget e mai fatturato). Il Budget Costi copre oggi Armonia 1, Armonia 2 e Vittoria: negli altri fabbricati (senza un foglio Drive con numeri compilati) si vede solo il consuntivo, senza confronto.</p>
   ${lottiHtml}
   ${nonIdentificateMostrate.length?`<div class="ctrl-card"><div style="margin-bottom:10px"><h3 style="margin:0">${CTRL_CONSUNTIVO_FABBRICATO==='all'?'Tutte le righe non identificate':'Righe non identificate — '+ctrlEsc(nomeFiltroLotto)} <span style="font-weight:400;color:#8796a9;font-size:11px">(${nonIdentificateMostrate.length} righe, ${ctrlEuro(totNonIdentificato)})</span></h3><small>Scegli il fornitore dal menu per ogni riga (o "+ Nuovo fornitore…" se non è ancora in elenco): da qui in poi verrà riconosciuto automaticamente ovunque compaia con lo stesso testo.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Descrizione (brogliaccio)</th><th>Importo</th><th>Fornitore</th></tr></thead><tbody>${nonIdentificateMostrate.map(r=>`<tr><td style="font-size:11px;color:#8796a9">${ctrlEsc(r.lottoNome)}</td><td style="font-size:12px">${ctrlEsc(r.descr)}</td><td>${ctrlEuro(r.importo)}</td><td><select class="cc-fornitore-riga-manuale" data-riga-id="${ctrlEsc(r.rigaId)}" style="min-width:180px" onchange="this.nextElementSibling.style.display=this.value==='__NUOVO__'?'inline-block':'none'"><option value="">— seleziona fornitore —</option><optgroup label="Voci di budget (colonne del file Drive)">${vociBudgetSpeciali.map(v=>`<option value="${ctrlEsc(v)}">${ctrlEsc(ctrlBudgetFornitoreInfo(v).label)}</option>`).join('')}</optgroup>${fornitoriNotiNonBudget.length?`<optgroup label="Altri fornitori noti (non a budget)">${fornitoriNotiNonBudget.map(n=>`<option value="${ctrlEsc(n)}">${ctrlEsc(n)}</option>`).join('')}</optgroup>`:''}<option value="__NUOVO__">+ Nuovo fornitore…</option></select><input class="cc-fornitore-riga-manuale-nuovo" placeholder="nome nuovo fornitore" style="display:none;min-width:160px;margin-top:4px"></td></tr>`).join('')}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:10px" onclick="ctrlSalvaFornitoriNonIdentificati()">💾 Salva fornitori</button></div>`:''}
   </div>`;
@@ -6037,7 +6111,7 @@ function ctrlReportRicaviAggregati(){
 function ctrlReportStatoFornitoriAggregato(){
   const conosciuti=ctrlConsuntivoFornitoriConosciuti();
   const conta={verde:0,bianco:0,rosso:0,giallo:0};
-  CONSUNTIVO_LOTTI_CON_BUDGET.forEach(key=>{
+  ctrlConsuntivoLottiConBudget().forEach(key=>{
     ctrlConsuntivoConfrontoLotto(key,conosciuti).righe.forEach(r=>{conta[r.stato]=(conta[r.stato]||0)+1});
   });
   return conta;
