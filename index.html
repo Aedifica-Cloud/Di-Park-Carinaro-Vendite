@@ -3692,6 +3692,10 @@ const FORNITORI_CATEGORIA_SUGGERITE = {
   'Antonio Falco': 'PROFESSIONISTI',
   'REAL ESTATE SRLS': 'Consulente immobiliare',
   'NUOVA EDILIA S.R.L': 'Materiali edili',
+  // Azienda DIVERSA da "NUOVA EDILIA S.R.L" qui sopra (Noemi lo ha chiarito il 15/09/2026, dopo un mio
+  // fraintendimento iniziale): i suoi costi su Armonia 1, Armonia 2, Vittoria e Passione vanno confrontati
+  // sulla riga di budget "AEDIFICA SRL", vedi CATEGORIA_MATERIALE_A_BUDGET più sotto.
+  'EDILIA SRLS': 'Manodopera Aedifica',
   'SAN PIO PAVIMENTAZIONI SRL': 'Levigature calcestruzzo',
   'Francesco Del Villano': 'Architetto',
   'IPIEMME S.P.A.': 'Manufatti fogne',
@@ -5321,10 +5325,13 @@ function ctrlRenderFinanziario(){
 // da Noemi l'11/09/2026) - non esiste ancora un dato separato per lotto nel file sorgente.
 // Bucket speciali dentro il file, chiariti da Noemi riga per riga (non sono un errore di battitura):
 //  - colonna senza intestazione -> costo definito, fornitore non ancora scelto ("Fornitore da definire")
-//  - "FERRO"/"CEMENTO" -> materiale fornito da più fornitori diversi, ancora raggruppato per categoria
-//  - "AEDIFICA SRL" -> manodopera interna (operai propri), non un subappaltatore
+//  - "FERRO"/"CEMENTO"/"PROFESSIONISTI" -> materiale o servizio fornito da più fornitori diversi, ancora
+//    raggruppato per categoria
+//  - "AEDIFICA SRL" -> manodopera interna (operai propri), non un subappaltatore; nel confronto Budget vs
+//    Consuntivo comprende anche le fatture di EDILIA SRLS (indicato da Noemi il 15/09/2026 - NON va confusa
+//    con "NUOVA EDILIA S.R.L", azienda diversa)
 const BUDGET_FORNITORE_INFO={
-  "AEDIFICA SRL":{label:"Aedifica Srl — manodopera interna",tipo:"interno"},
+  "AEDIFICA SRL":{label:"Aedifica Srl — manodopera interna (+ fatture EDILIA SRLS)",tipo:"interno"},
   // "da specificare" non è più letterale dal 15/09/2026: Noemi ha indicato i fornitori reali (Movisid,
   // Commercio Edile, Industrie Riunite Odolesi I.R.O. per il ferro; Ansa, Betonpav per il cemento) — restano
   // però categorie nel Budget Costi (il computo non dice quale dei fornitori reali ha fatto cosa), per
@@ -5332,6 +5339,9 @@ const BUDGET_FORNITORE_INFO={
   // vedi ctrlConsuntivoBucketMateriale.
   "FERRO":{label:"Ferro (Movisid, Commercio Edile, I.R.O.)",tipo:"categoria"},
   "CEMENTO":{label:"Cemento (Ansa, Betonpav)",tipo:"categoria"},
+  // Colonna aggiunta da Noemi al computo metrico il 15/09/2026: raggruppa le parcelle dei professionisti che
+  // non hanno una colonna propria nel Budget Costi (es. Annalisa Castaldo, Antonio Falco).
+  "PROFESSIONISTI":{label:"Professionisti (Annalisa Castaldo, Antonio Falco, ...)",tipo:"categoria"},
   "__DA_DEFINIRE__":{label:"Fornitore da definire",tipo:"daDefinire"}
 };
 function ctrlBudgetFornitoreInfo(nome){return BUDGET_FORNITORE_INFO[nome]||{label:nome,tipo:'fornitore'}}
@@ -5600,22 +5610,32 @@ function ctrlConsuntivoTokenKey(nome){
 // Lotti per cui il Budget Costi ha dati oggi (stessa lista di ctrlRenderBudgetCosti - tenerle allineate).
 const CONSUNTIVO_LOTTI_CON_BUDGET=['a1','a2'];
 // Fornitori "segnaposto" nel Budget Costi che non sono un vero nome di fornitore da cercare nel brogliaccio.
-// FERRO/CEMENTO restano esclusi qui (dal dizionario di riconoscimento testo libero): sono parole troppo
-// generiche per fare da "fornitore noto" nel motore di matching a singola parola (qualunque riga che citi
-// "ferro" per un motivo qualsiasi finirebbe assegnata lì). Il confronto Budget vs Consuntivo per queste due
-// categorie usa invece ctrlConsuntivoBucketMateriale, più sotto: aggrega i fornitori reali di ferro/cemento
-// (indicati da Noemi il 15/09/2026) sulla riga di categoria, senza toccare il matching a testo libero.
-const CONSUNTIVO_NON_FORNITORE=new Set(['__DA_DEFINIRE__','AEDIFICA SRL','FERRO','CEMENTO']);
+// FERRO/CEMENTO/PROFESSIONISTI restano esclusi qui (dal dizionario di riconoscimento testo libero): sono
+// parole troppo generiche per fare da "fornitore noto" nel motore di matching a singola parola (qualunque
+// riga che citi "professionisti" per un motivo qualsiasi finirebbe assegnata lì). Il confronto Budget vs
+// Consuntivo per queste categorie usa invece ctrlConsuntivoBucketMateriale, più sotto: aggrega i fornitori
+// reali (indicati da Noemi il 15/09/2026) sulla riga di categoria, senza toccare il matching a testo libero.
+const CONSUNTIVO_NON_FORNITORE=new Set(['__DA_DEFINIRE__','AEDIFICA SRL','FERRO','CEMENTO','PROFESSIONISTI']);
 // Sottoinsieme usato SOLO nel confronto Budget vs Consuntivo (ctrlConsuntivoConfrontoLotto): a differenza di
-// CONSUNTIVO_NON_FORNITORE qui sopra, FERRO/CEMENTO NON sono esclusi — vogliamo che la loro riga di budget
-// compaia nel confronto, aggregata per categoria di materiale (vedi CATEGORIA_MATERIALE_A_BUDGET sotto).
-const CONSUNTIVO_NON_FORNITORE_CONFRONTO=new Set(['__DA_DEFINIRE__','AEDIFICA SRL']);
-// Fornitori reali di Ferro/Calcestruzzo indicati da Noemi il 15/09/2026 (già presenti in
-// FORNITORI_CATEGORIA_SUGGERITE con questa categoria): quando una riga di consuntivo viene riconosciuta come
-// uno di questi, la contiamo sulla riga di budget "FERRO"/"CEMENTO" invece che su una riga per azienda — il
-// computo metrico non specifica quale dei fornitori reali ha fornito quale importo, solo il totale per
-// materiale. "Calcestruzzo" nel dizionario e "CEMENTO" nel Budget Costi sono lo stesso materiale.
-const CATEGORIA_MATERIALE_A_BUDGET={'Ferro':'FERRO','Calcestruzzo':'CEMENTO'};
+// CONSUNTIVO_NON_FORNITORE qui sopra, FERRO/CEMENTO/PROFESSIONISTI/AEDIFICA SRL NON sono esclusi — vogliamo
+// che la loro riga di budget compaia nel confronto, aggregata per categoria (vedi CATEGORIA_MATERIALE_A_BUDGET
+// sotto). AEDIFICA SRL era esclusa qui fino al 15/09/2026 (si pensava fosse solo manodopera interna, senza
+// nulla da confrontare con una fattura reale) - Noemi ha poi chiarito che le fatture di EDILIA SRLS nel
+// brogliaccio (Armonia 1, Armonia 2, Vittoria e Passione) vanno proprio confrontate su questa riga di budget,
+// quindi ora resta inclusa. NB: un primo tentativo aveva mappato qui "NUOVA EDILIA S.R.L" per errore -
+// corretto lo stesso giorno, è un'azienda diversa da EDILIA SRLS e non c'entra con questo bucket.
+const CONSUNTIVO_NON_FORNITORE_CONFRONTO=new Set(['__DA_DEFINIRE__']);
+// Fornitori reali di Ferro/Calcestruzzo/Professionisti/Aedifica indicati da Noemi (15/09/2026, più volte lo
+// stesso giorno - già presenti in FORNITORI_CATEGORIA_SUGGERITE con questa categoria): quando una riga di
+// consuntivo viene riconosciuta come uno di questi, la contiamo sulla riga di budget
+// "FERRO"/"CEMENTO"/"PROFESSIONISTI"/"AEDIFICA SRL" invece che su una riga per azienda — il computo metrico
+// non specifica quale dei fornitori reali ha fornito quale importo/prestazione, solo il totale per categoria.
+// "Calcestruzzo" nel dizionario e "CEMENTO" nel Budget Costi sono lo stesso materiale; "PROFESSIONISTI" nel
+// dizionario e nel Budget Costi hanno lo stesso nome (colonna aggiunta da Noemi al computo metrico il
+// 15/09/2026, copre Annalisa Castaldo e Antonio Falco, che non hanno una colonna propria); "Manodopera
+// Aedifica" (solo EDILIA SRLS nel dizionario - NON va confusa con "NUOVA EDILIA S.R.L", azienda diversa e
+// categoria diversa "Materiali edili") va sulla riga "AEDIFICA SRL".
+const CATEGORIA_MATERIALE_A_BUDGET={'Ferro':'FERRO','Calcestruzzo':'CEMENTO','PROFESSIONISTI':'PROFESSIONISTI','Manodopera Aedifica':'AEDIFICA SRL'};
 function ctrlConsuntivoBucketMateriale(nome){
   const k=ctrlConsuntivoTokenKey(nome);
   const voce=Object.entries(FORNITORI_CATEGORIA_SUGGERITE).find(([n])=>ctrlConsuntivoTokenKey(n)===k);
