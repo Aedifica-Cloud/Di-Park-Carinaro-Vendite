@@ -5830,6 +5830,43 @@ function ctrlSalvaFornitoriNonIdentificati(){
   ctrlSave();ctrlRender(proj);
   ctrlNotify(n?'✓ '+n+' righe assegnate a un fornitore':'✓ Salvato');
 }
+// Assegnazioni manuali GIÀ impostate (anche se sbagliate): a differenza delle "righe non identificate" qui
+// sopra (che mostra solo le righe MAI assegnate a nessuno), questo elenco permette di rivedere e CORREGGERE
+// un'assegnazione fatta in passato - una riga con un'assegnazione manuale, anche errata, non risulta più "non
+// identificata" e quindi prima restava invisibile. Nato il 16/09/2026 dopo aver scoperto così l'errore su
+// Colella Giorgio: l'acquisto terreno da 337.000€ era assegnato per sbaglio a "COMUNE DI CARINARO".
+function ctrlAssegnazioniManualiElenco(lottiVisibili){
+  const manuali=ctrlFornitoreRigaManualeState();
+  const mappaRighe={};
+  ctrlTutteLeRigheCostiFornitori().forEach(r=>{mappaRighe[r.rigaId]=r});
+  return Object.entries(manuali).map(([rigaId,fornitoreAssegnato])=>{
+    const r=mappaRighe[rigaId];
+    if(!r)return null;// riga sparita dal brogliaccio corrente: assegnazione orfana, non la mostriamo qui
+    if(lottiVisibili&&!lottiVisibili.has(r.lotto))return null;
+    return{rigaId,lotto:r.lotto,descr:r.descr,importo:r.importo,fornitoreAssegnato};
+  }).filter(Boolean).sort((a,b)=>b.importo-a.importo);
+}
+function ctrlSalvaAssegnazioniEsistenti(){
+  if(!CAN_EDIT){openLogin();return}
+  const x=ctrlFornitoreRigaManualeState();
+  const appresi=ctrlFornitoriAppresiState();
+  const appresiKeys=new Set(appresi.map(n=>ctrlConsuntivoTokenKey(n)));
+  let modificate=0,rimosse=0;
+  document.querySelectorAll('.cc-assegnazione-esistente').forEach(select=>{
+    const rigaId=select.dataset.rigaId;
+    let val=select.value.trim();
+    if(val==='__NUOVO__')val=(select.nextElementSibling&&select.nextElementSibling.value||'').trim();
+    if(val==='__RIMUOVI__'||!val){if(x[rigaId]){delete x[rigaId];rimosse++}return}
+    if(x[rigaId]!==val)modificate++;
+    x[rigaId]=val;
+    if(!CONSUNTIVO_NON_FORNITORE.has(val)){
+      const k=ctrlConsuntivoTokenKey(val);
+      if(k&&!appresiKeys.has(k)){appresi.push(val);appresiKeys.add(k)}
+    }
+  });
+  ctrlSave();ctrlRender(proj);
+  ctrlNotify((modificate||rimosse)?`✓ ${modificate} corrette, ${rimosse} rimosse`:'✓ Nessuna modifica');
+}
 // Confronto Budget vs Consuntivo per fornitore, per UN lotto (o 'generale' per i costi DPG non ripartiti).
 // Il budget esiste solo per i lotti con ctrlLottoHaBudget(lottoKey)===true: altrove si vede solo il consuntivo.
 function ctrlConsuntivoConfrontoLotto(lottoKey,conosciuti){
@@ -5989,6 +6026,12 @@ function ctrlRenderConsuntivoCosti(){
   // mano in passato, o un'azienda del dizionario senza bucket come "Coppola Nicola"): per questi non esiste
   // una voce di budget "diretta" da scegliere al posto loro.
   const fornitoriNotiNonBudget=fornitoriNotiOrdinati.filter(n=>!vociBudgetSpeciali.includes(n)&&!ctrlConsuntivoBucketMateriale(n));
+  // Elenco di riesame per le assegnazioni manuali GIÀ impostate (vedi ctrlAssegnazioniManualiElenco): permette
+  // di correggere un errore vecchio (es. una riga assegnata al fornitore sbagliato), non solo di assegnare le
+  // righe mai toccate. Limitato ai lotti attualmente mostrati secondo il filtro Fabbricato.
+  const lottiVisibiliSet=new Set(edificiDaMostrare.map(c=>c.key));
+  const nomeLottoDa=k=>(LOTTI.find(([kk])=>kk===k)||[])[1]||k;
+  const assegnazioniEsistenti=ctrlAssegnazioniManualiElenco(lottiVisibiliSet).map(a=>({...a,lottoNome:nomeLottoDa(a.lotto)}));
   const statoPillsHtml=[['all','Tutti',null]].concat(Object.keys(CONSUNTIVO_STATO_INFO).map(s=>[s,CONSUNTIVO_STATO_INFO[s].label,CONSUNTIVO_STATO_INFO[s]])).map(([key,label,info])=>{
     const attivo=CTRL_CONSUNTIVO_STATO===key;
     const chipClass=info?info.chip:'';
@@ -6019,6 +6062,11 @@ function ctrlRenderConsuntivoCosti(){
   <p style="font-size:10px;color:#8796a9;margin:-6px 0 16px">🟢 In linea = consuntivo entro €3.000 o il 20% del budget (quale dei due sia maggiore). ⚪ Da alimentare = consuntivo sotto budget oltre quella soglia, il fornitore deve ancora fatturare il resto. 🔴 Sopra budget = consuntivo superiore al budget previsto. 🟡 Da verificare = un lato è a zero (fatturato senza budget, o a budget e mai fatturato). Il Budget Costi copre oggi Armonia 1, Armonia 2 e Vittoria: negli altri fabbricati (senza un foglio Drive con numeri compilati) si vede solo il consuntivo, senza confronto.</p>
   ${lottiHtml}
   ${nonIdentificateMostrate.length?`<div class="ctrl-card"><div style="margin-bottom:10px"><h3 style="margin:0">${CTRL_CONSUNTIVO_FABBRICATO==='all'?'Tutte le righe non identificate':'Righe non identificate — '+ctrlEsc(nomeFiltroLotto)} <span style="font-weight:400;color:#8796a9;font-size:11px">(${nonIdentificateMostrate.length} righe, ${ctrlEuro(totNonIdentificato)})</span></h3><small>Scegli il fornitore dal menu per ogni riga (o "+ Nuovo fornitore…" se non è ancora in elenco): da qui in poi verrà riconosciuto automaticamente ovunque compaia con lo stesso testo.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Descrizione (brogliaccio)</th><th>Importo</th><th>Fornitore</th></tr></thead><tbody>${nonIdentificateMostrate.map(r=>`<tr><td style="font-size:11px;color:#8796a9">${ctrlEsc(r.lottoNome)}</td><td style="font-size:12px">${ctrlEsc(r.descr)}</td><td>${ctrlEuro(r.importo)}</td><td><select class="cc-fornitore-riga-manuale" data-riga-id="${ctrlEsc(r.rigaId)}" style="min-width:180px" onchange="this.nextElementSibling.style.display=this.value==='__NUOVO__'?'inline-block':'none'"><option value="">— seleziona fornitore —</option><optgroup label="Voci di budget (colonne del file Drive)">${vociBudgetSpeciali.map(v=>`<option value="${ctrlEsc(v)}">${ctrlEsc(ctrlBudgetFornitoreInfo(v).label)}</option>`).join('')}</optgroup>${fornitoriNotiNonBudget.length?`<optgroup label="Altri fornitori noti (non a budget)">${fornitoriNotiNonBudget.map(n=>`<option value="${ctrlEsc(n)}">${ctrlEsc(n)}</option>`).join('')}</optgroup>`:''}<option value="__NUOVO__">+ Nuovo fornitore…</option></select><input class="cc-fornitore-riga-manuale-nuovo" placeholder="nome nuovo fornitore" style="display:none;min-width:160px;margin-top:4px"></td></tr>`).join('')}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:10px" onclick="ctrlSalvaFornitoriNonIdentificati()">💾 Salva fornitori</button></div>`:''}
+  ${assegnazioniEsistenti.length?`<div class="ctrl-card" style="margin-top:14px"><div style="margin-bottom:10px"><h3 style="margin:0">Assegnazioni manuali già impostate <span style="font-weight:400;color:#8796a9;font-size:11px">(${assegnazioniEsistenti.length} righe)</span></h3><small>Righe già assegnate a un fornitore a mano in passato: controlla se sono ancora giuste. Per cambiarle scegli un altro fornitore dal menu, o "— rimuovi assegnazione —" per tornare al riconoscimento automatico. Ricordati di salvare in fondo.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Descrizione (brogliaccio)</th><th>Importo</th><th>Assegnato a</th></tr></thead><tbody>${assegnazioniEsistenti.map(a=>{
+    const opzioniNote=new Set([...vociBudgetSpeciali,...fornitoriNotiNonBudget]);
+    const extraOption=opzioniNote.has(a.fornitoreAssegnato)?'':`<option value="${ctrlEsc(a.fornitoreAssegnato)}" selected>${ctrlEsc(a.fornitoreAssegnato)} (assegnazione attuale)</option>`;
+    return `<tr><td style="font-size:11px;color:#8796a9">${ctrlEsc(a.lottoNome)}</td><td style="font-size:12px">${ctrlEsc(a.descr)}</td><td>${ctrlEuro(a.importo)}</td><td><select class="cc-assegnazione-esistente" data-riga-id="${ctrlEsc(a.rigaId)}" style="min-width:180px" onchange="this.nextElementSibling.style.display=this.value==='__NUOVO__'?'inline-block':'none'"><option value="__RIMUOVI__">— rimuovi assegnazione —</option>${extraOption}<optgroup label="Voci di budget (colonne del file Drive)">${vociBudgetSpeciali.map(v=>`<option value="${ctrlEsc(v)}" ${a.fornitoreAssegnato===v?'selected':''}>${ctrlEsc(ctrlBudgetFornitoreInfo(v).label)}</option>`).join('')}</optgroup>${fornitoriNotiNonBudget.length?`<optgroup label="Altri fornitori noti (non a budget)">${fornitoriNotiNonBudget.map(n=>`<option value="${ctrlEsc(n)}" ${a.fornitoreAssegnato===n?'selected':''}>${ctrlEsc(n)}</option>`).join('')}</optgroup>`:''}<option value="__NUOVO__">+ Nuovo fornitore…</option></select><input class="cc-fornitore-riga-manuale-nuovo" placeholder="nome nuovo fornitore" style="display:none;min-width:160px;margin-top:4px"></td></tr>`;
+  }).join('')}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:10px" onclick="ctrlSalvaAssegnazioniEsistenti()">💾 Salva correzioni</button></div>`:''}
   </div>`;
 }
 // ─── BUDGET RICAVI ───
