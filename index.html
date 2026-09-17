@@ -27,7 +27,7 @@
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333;min-height:100vh;}
 
 /* ── HEADER ── */
-.header{background:var(--navy);color:#fff;padding:16px 24px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow);}
+.header{background:var(--navy);color:#fff;padding:16px 24px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow);flex-wrap:wrap;row-gap:8px;}
 .logo{font-size:22px;font-weight:800;letter-spacing:1px;color:var(--gold);}
 .logo span{color:#fff;font-weight:300;}
 .saved-lbl{margin-left:auto;font-size:11px;opacity:.6;min-width:80px;text-align:right;}
@@ -368,6 +368,52 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
 .hist-change .from{color:var(--red);text-decoration:line-through;font-style:italic;}
 .hist-change .to{color:var(--green);font-weight:700;}
 .hist-change .empty{color:#bbb;font-style:italic;}
+
+/* ── RESPONSIVE / MOBILE (iPhone e schermi stretti) ── */
+/* Evita lo zoom automatico di Safari su iPhone quando si tocca un campo: richiede font-size >=16px
+   sugli input. Vale per TUTTI gli input/select/textarea della pagina, anche quelli con stile inline
+   (l'!important in un foglio di stile vince sempre su uno stile inline senza !important). */
+@media(max-width:700px){
+  input,select,textarea{font-size:16px!important;}
+}
+@media(max-width:820px){
+  .header{padding:10px 14px;gap:10px;}
+  .logo{font-size:18px;}
+  .header-subtitle{display:none;}
+  .saved-lbl{min-width:0;}
+  .presence .plbl{display:none;}
+  .authemail{max-width:110px;}
+  .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding:0 10px;}
+  .tab{white-space:nowrap;flex-shrink:0;padding:10px 14px;}
+  #kpi{padding:12px 14px;}
+  .legend{padding:10px 14px;}
+  #content{padding:14px;}
+  .dash{padding:14px;gap:18px;}
+  .dash-grid{grid-template-columns:1fr;}
+  .floor-row{flex-direction:column;align-items:stretch;gap:4px;}
+  .floor-label{min-width:0;text-align:left;padding-top:0;display:flex;align-items:baseline;gap:6px;}
+  .floor-plan{gap:12px;}
+  .fg2{grid-template-columns:1fr;}
+  .modal{max-width:100%;}
+  .mhead{padding:16px 16px;}
+  .mbody{padding:16px;}
+  .mprev{padding:8px 16px 10px;}
+  .mfoot{padding:12px 16px;flex-wrap:wrap;}
+  .mfoot .btn{flex:1;min-width:120px;}
+  .mtabs{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 16px;}
+  .mtab{white-space:nowrap;flex-shrink:0;padding:10px 14px;}
+  .dglobal-nums{grid-template-columns:repeat(2,1fr);}
+  .ptable-head{flex-wrap:wrap;gap:8px;}
+  .cf-wrap{padding:14px 16px;}
+  .cf-bar-lbl{width:64px;font-size:10px;}
+  .cf-bar-val{width:80px;font-size:10px;}
+  .history-wrap{padding:0 14px 16px;}
+}
+@media(max-width:480px){
+  .kpi{min-width:0;flex-basis:calc(50% - 6px);}
+  .kpi.big{flex-basis:100%;min-width:0;}
+  .dglobal-nums{grid-template-columns:1fr 1fr;}
+}
 </style>
 </head>
 <body>
@@ -376,7 +422,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#333
 
 <div class="header">
   <div class="logo">D|PARK <span>Carinaro</span></div>
-  <div style="font-size:12px;opacity:.5;margin-left:8px;">Gestionale Vendite</div>
+  <div class="header-subtitle" style="font-size:12px;opacity:.5;margin-left:8px;">Gestionale Vendite</div>
   <div class="saved-lbl" id="saved"></div>
   <div class="presence" id="presence"></div>
   <div class="authbar" id="authbar"></div>
@@ -3529,8 +3575,22 @@ load(); sw('lotti'); initAuth(); loadFiles();
   .entity-categories label{display:block;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;color:#9eb0c6;margin:0 6px 7px}.entity-cat{display:block;width:100%;border:0;border-radius:9px;background:transparent;color:#bdc9d8;text-align:left;padding:11px 12px;margin:3px 0;font-size:12px;font-weight:750;cursor:pointer}.entity-cat:hover{background:rgba(255,255,255,.08);color:#fff}.entity-cat.active{background:rgba(201,168,76,.18);color:#fff;box-shadow:inset 3px 0 #c9a84c}
   .entity-context{margin-top:22px;padding:14px 9px;border-top:1px solid rgba(255,255,255,.12)}.entity-context b{display:block;color:#fff;font-size:13px}.entity-context span{font-size:10px;color:#8fa1b7}
   #kpi,.legend,#check-panel,#content{margin-left:255px}.header{z-index:40}.ctrl-shell{max-width:1250px}.ctrl-subtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}.ctrl-subtab{border:1px solid #d9cbb6;border-radius:8px;padding:8px 11px;background:#fff;color:var(--navy);font-size:10px;font-weight:800;cursor:pointer}.ctrl-subtab.active{background:var(--navy);color:#fff}
-  @media(max-width:850px){.ctrl-kpis,.ctrl-grid{grid-template-columns:1fr 1fr}.ctrl-form{grid-template-columns:1fr 1fr}}@media(max-width:560px){.ctrl-kpis,.ctrl-grid,.ctrl-form{grid-template-columns:1fr}.ctrl-form .wide{grid-column:auto}}
+  @media(max-width:850px){.ctrl-kpis,.ctrl-grid{grid-template-columns:1fr 1fr!important}.ctrl-form{grid-template-columns:1fr 1fr!important}}@media(max-width:560px){.ctrl-kpis,.ctrl-grid,.ctrl-form{grid-template-columns:1fr!important}.ctrl-form .wide{grid-column:auto!important}.diary-facts{grid-template-columns:1fr 1fr}}
   @media(max-width:750px){.entity-nav{position:static;width:auto;display:block}.entity-categories{display:flex;gap:4px;overflow-x:auto}.entity-cat{white-space:nowrap;width:auto}.entity-context{display:none}#kpi,.legend,#check-panel,#content{margin-left:0}}
+  @media(max-width:600px){
+    .ctrl-shell{padding:14px}
+    .ctrl-card{padding:14px}
+    .ctrl-select{min-width:0;width:100%}
+    .ctrl-head{gap:10px}
+    .ctrl-kpi{padding:12px}
+    .ctrl-kpi strong{font-size:18px}
+    .jg-add-row select,.jg-add-row input[type=text]{min-width:0;width:100%}
+    .jg-picked{flex-wrap:wrap}
+    .jg-picked-name{min-width:0;width:100%}
+    .diary-day-head{flex-wrap:wrap}
+    .ctrl-bot-panel{right:16px;left:16px;width:auto;bottom:80px}
+    .ctrl-bot-fab{right:16px;bottom:16px}
+  }
   .ctrl-bot-fab{position:fixed;right:22px;bottom:22px;width:56px;height:56px;border-radius:50%;background:var(--navy);color:#fff;border:0;font-size:24px;cursor:pointer;box-shadow:0 4px 14px rgba(15,32,55,.35);z-index:200;display:flex;align-items:center;justify-content:center}
   .ctrl-bot-fab:hover{background:#233f63}
   .ctrl-bot-panel{position:fixed;right:22px;bottom:88px;width:340px;max-width:calc(100vw - 32px);height:460px;max-height:calc(100vh - 120px);background:#fff;border-radius:14px;box-shadow:0 10px 40px rgba(15,32,55,.3);z-index:200;display:none;flex-direction:column;overflow:hidden}
@@ -3555,7 +3615,7 @@ const CTRL_AREAS=[
 ];
 const CTRL_STATE_ID='dpark_control_v1',CTRL_LS='dpark_control_v1';
 let CTRL_REMOTE_READY=false,CTRL_SYNCING=false,CTRL_REALTIME_CHANNEL=null;
-let CTRL_BUILDING='a1',CTRL_ANAG_TAB='appalto',CTRL_DOC_SUBJECT='appaltatrice',CTRL_GLOBAL_SUB_ID='',CTRL_GLOBAL_PROF_ID='',CTRL_GLOBAL_PROF_EDIT=false,CTRL_ECON_LOTTO='a1',CTRL_RIEP_LOTTO='all',CTRL_RIEP_DA='',CTRL_RIEP_A='',CTRL_RIEP_NOME='',CTRL_BUDGET_FABBRICATO='all',CTRL_BUDGET_FORNITORE='',CTRL_CONSUNTIVO_FABBRICATO='all',CTRL_CONSUNTIVO_FORNITORE='',CTRL_CONSUNTIVO_STATO='all',CTRL_BUDGETRICAVI_FABBRICATO='all',CTRL_CONSUNTIVORICAVI_FABBRICATO='all',CTRL_DATA={attivita:[],crono:[],giornale:[],documenti:[],acquisti:[],anagrafica:{},subappaltatoriGenerali:[],professionistiGenerali:[],contabilita:[],economico:{}};
+let CTRL_BUILDING='a1',CTRL_ANAG_TAB='appalto',CTRL_DOC_SUBJECT='appaltatrice',CTRL_GLOBAL_SUB_ID='',CTRL_GLOBAL_PROF_ID='',CTRL_GLOBAL_PROF_EDIT=false,CTRL_ECON_LOTTO='a1',CTRL_RIEP_LOTTO='all',CTRL_RIEP_DA='',CTRL_RIEP_A='',CTRL_RIEP_NOME='',CTRL_BUDGET_FABBRICATO='all',CTRL_BUDGET_FORNITORE='',CTRL_CONSUNTIVO_FABBRICATO='all',CTRL_CONSUNTIVO_FORNITORE='',CTRL_CONSUNTIVO_STATO='all',CTRL_BUDGETRICAVI_FABBRICATO='all',CTRL_CONSUNTIVORICAVI_FABBRICATO='all',CTRL_REPORT_FABBRICATO='all',CTRL_DATA={attivita:[],crono:[],giornale:[],documenti:[],acquisti:[],anagrafica:{},subappaltatoriGenerali:[],professionistiGenerali:[],contabilita:[],economico:{}};
 let CTRL_SINTESI_LOTTI=['a1','a2','passione','vittoria','equilibrio','sorriso','audacia'];
 function ctrlToggleSintesiLotto(key){
   const i=CTRL_SINTESI_LOTTI.indexOf(key);
@@ -3569,10 +3629,14 @@ function ctrlSetSintesiLotti(mode){
 // Esporta in Excel esattamente i numeri mostrati nella Sintesi economica di progetto, compresa la vista/selezione lotti corrente.
 function ctrlEsportaSintesi(){
   if(typeof XLSX==='undefined'){alert('Il modulo Excel non è disponibile. Controlla la connessione e riapri la pagina.');return}
+  // Stessa fonte dal vivo di ctrlSintesiGenerale() (ctrlConsuntivoConfrontoLotto) — vedi nota lì per il
+  // motivo del cambio dallo snapshot statico IMPORT_COSTI_BROGLIACCIO, così l'Excel esportato resta sempre
+  // identico ai numeri mostrati a schermo invece di poter disallinearsi.
+  const conosciutiSintesiExport=ctrlConsuntivoFornitoriConosciuti();
   const datiLotti=CTRL_BUILDINGS.map(([key,nome])=>{
     const st=projStats(key),haBrogliaccio=key!=='sorriso';
     const venduto=ctrlVendutoLotto(key),fatturato=haBrogliaccio?ctrlFatturatoLotto(key):0;
-    const r=ctrlCostiLottoRecord(key),costoEffettivo=r.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0);
+    const c=ctrlConsuntivoConfrontoLotto(key,conosciutiSintesiExport),costoEffettivo=c.totConsuntivo+c.nonIdentificate.reduce((a,r)=>a+(Number(r.importo)||0),0);
     const margine=haBrogliaccio?fatturato-costoEffettivo:null;
     const invenduto=Object.values(D[key].units).filter(u=>u.st==='disponibile'||u.st==='riservato').reduce((a,u)=>a+prevOf(u),0);
     return{key,nome,haBrogliaccio,unitTot:st.totAll,unitV:st.v,unitR:st.r,unitD:st.d,previsionale:st.prevTotAll,venduto,fatturato,costoEffettivo,margine,invenduto,incluso:CTRL_SINTESI_LOTTI.includes(key)};
@@ -3584,15 +3648,16 @@ function ctrlEsportaSintesi(){
     'Ricavo previsionale (€)':Math.round(r.previsionale),
     'Venduto imponibile (€)':Math.round(r.venduto),
     'Fatturato imponibile brogliaccio (€)':r.haBrogliaccio?Math.round(r.fatturato):'n/d (nessun centro di costo)',
-    'Costo effettivo brogliaccio (€)':r.haBrogliaccio?Math.round(r.costoEffettivo):(r.costoEffettivo?Math.round(r.costoEffettivo)+' (manuale, escluso dal margine)':'—'),
+    'Costo effettivo brogliaccio (€)':r.haBrogliaccio?Math.round(r.costoEffettivo):(r.costoEffettivo?Math.round(r.costoEffettivo)+' (costo manuale, escluso dal margine)':'—'),
     'Margine (€)':r.haBrogliaccio?(r.margine!=null?Math.round(r.margine):''):'n/d',
     'Invenduto - valore previsionale (€)':Math.round(r.invenduto)
   }));
   const selezionati=datiLotti.filter(r=>r.incluso),selConBrogliaccio=selezionati.filter(r=>r.haBrogliaccio);
-  const generale=ctrlCostiGeneraliRecord(),effGenerale=generale.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0);
-  const lottiConBrogliaccio=CTRL_BUILDINGS.filter(([k])=>k!=='sorriso'),tuttiIBrogliaccioSelezionati=lottiConBrogliaccio.every(([k])=>CTRL_SINTESI_LOTTI.includes(k));
+  const effGenerale=ctrlDpgTotale(conosciutiSintesiExport);
+  const lottiConBrogliaccio=CTRL_BUILDINGS.filter(([k])=>k!=='sorriso'),tuttiIBrogliaccioSelezionatiExport=lottiConBrogliaccio.every(([k])=>selezionati.some(r=>r.key===k));
   const fatturatoSel=selConBrogliaccio.reduce((a,r)=>a+r.fatturato,0),costoLottiSel=selConBrogliaccio.reduce((a,r)=>a+r.costoEffettivo,0);
-  const margineValore=selezionati.length?(tuttiIBrogliaccioSelezionati?(fatturatoSel-costoLottiSel-effGenerale):(fatturatoSel-costoLottiSel)):'';
+  const margineLottiSel=fatturatoSel-costoLottiSel;
+  const margineValore=selezionati.length?(tuttiIBrogliaccioSelezionatiExport?margineLottiSel-effGenerale:margineLottiSel):'';
   righe.push({
     'Lotto':'TOTALE — lotti selezionati ('+selezionati.length+'/7)',
     'Incluso nella vista corrente':'',
@@ -3604,7 +3669,7 @@ function ctrlEsportaSintesi(){
     'Venduto imponibile (€)':Math.round(selezionati.reduce((a,r)=>a+r.venduto,0)),
     'Fatturato imponibile brogliaccio (€)':Math.round(fatturatoSel),
     'Costo effettivo brogliaccio (€)':Math.round(costoLottiSel),
-    'Margine (€)':margineValore===''?'':Math.round(margineValore)+(tuttiIBrogliaccioSelezionati?' (include costi generali DPG)':' (esclusi costi generali DPG)'),
+    'Margine (€)':margineValore===''?'':Math.round(margineValore)+(tuttiIBrogliaccioSelezionatiExport?' (include i costi generali D|Park)':' (esclusi i costi generali D|Park, non ripartibili per lotto)'),
     'Invenduto - valore previsionale (€)':Math.round(selezionati.reduce((a,r)=>a+r.invenduto,0))
   });
   righe.push({'Lotto':'Costi generali D|Park (DPG, intera operazione, non ripartiti per lotto)','Incluso nella vista corrente':'','Unità totali':'','Vendute':'','Riservate':'','Disponibili':'','Ricavo previsionale (€)':'','Venduto imponibile (€)':'','Fatturato imponibile brogliaccio (€)':'','Costo effettivo brogliaccio (€)':Math.round(effGenerale),'Margine (€)':'','Invenduto - valore previsionale (€)':''});
@@ -4538,6 +4603,13 @@ function ctrlToggleCostiGenerali(){
   const el=document.getElementById('costi-generali-dett');
   if(el)el.style.display=el.style.display==='none'?'':'none';
 }
+// Spiegazione a comparsa sui KPI del Report economico: click su un numero (ROI, marginalità, ecc.) apre il
+// calcolo con i valori reali sostituiti nella formula, invece di lasciare la percentuale senza contesto.
+// Richiesto da Noemi il 16/09/2026 ("se clicco su ROI mi fai capire perchè è venuto quella %").
+function ctrlToggleSpiega(id){
+  const el=document.getElementById('spiega-'+id);
+  if(el)el.style.display=el.style.display==='none'?'block':'none';
+}
 function ctrlToggleRigheGeneriche(){
   const el=document.getElementById('righe-generiche-block');
   if(el)el.style.display=el.style.display==='none'?'':'none';
@@ -4812,7 +4884,7 @@ function ctrlKpis(){
 }
 function ctrlRenderAttivita(){
   const r=ctrlRows('attivita').map(x=>`<tr><td>${ctrlName(x.fabbricato)}</td><td><b>${ctrlEsc(x.titolo)}</b></td><td>${ctrlEsc(x.responsabile)}</td><td>${x.scadenza||'-'}</td><td><span class="ctrl-chip ${x.stato==='Completata'?'ok':x.stato==='In corso'?'warn':''}">${ctrlEsc(x.stato)}</span></td><td><button class="ctrl-btn red" onclick="ctrlDel('attivita','${x.id}')">×</button></td></tr>`).join('');
-  return ctrlShell('Centro attività','Attività operative separate per fabbricato.',ctrlKpis()+`<div class="ctrl-card"><h3>Nuova attività</h3><div class="ctrl-form"><select id="cf_fabbricato">${ctrlEntityOptions()}</select><input id="cf_titolo" class="wide" placeholder="Attività"><input id="cf_responsabile" placeholder="Responsabile"><input id="cf_scadenza" type="date"><select id="cf_stato"><option>Da fare</option><option>In corso</option><option>In attesa</option><option>Completata</option></select><button class="ctrl-btn" onclick="ctrlAdd('attivita',['fabbricato','titolo','responsabile','scadenza','stato'])">Aggiungi</button></div><table class="ctrl-table"><thead><tr><th>Fabbricato</th><th>Attività</th><th>Responsabile</th><th>Scadenza</th><th>Stato</th><th></th></tr></thead><tbody>${r||'<tr><td colspan="6" class="ctrl-empty">Nessuna attività.</td></tr>'}</tbody></table></div>`);
+  return ctrlShell('Centro attività','Attività operative separate per fabbricato.',ctrlKpis()+`<div class="ctrl-card"><h3>Nuova attività</h3><div class="ctrl-form"><select id="cf_fabbricato">${ctrlEntityOptions()}</select><input id="cf_titolo" class="wide" placeholder="Attività"><input id="cf_responsabile" placeholder="Responsabile"><input id="cf_scadenza" type="date"><select id="cf_stato"><option>Da fare</option><option>In corso</option><option>In attesa</option><option>Completata</option></select><button class="ctrl-btn" onclick="ctrlAdd('attivita',['fabbricato','titolo','responsabile','scadenza','stato'])">Aggiungi</button></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Fabbricato</th><th>Attività</th><th>Responsabile</th><th>Scadenza</th><th>Stato</th><th></th></tr></thead><tbody>${r||'<tr><td colspan="6" class="ctrl-empty">Nessuna attività.</td></tr>'}</tbody></table></div></div>`);
 }
 function ctrlDateIt(v){if(!v)return 'Da pianificare';return new Date(v+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'})}
 function ctrlFaseStato(x){const o=new Date();o.setHours(0,0,0,0);if(x.fineEffettiva)return'completata';if(!x.inizio||!x.fine)return'da_pianificare';if(o<new Date(x.inizio+'T12:00:00'))return'da_iniziare';if(o>new Date(x.fine+'T12:00:00'))return'in_ritardo';return'in_corso'}
@@ -4985,7 +5057,7 @@ function ctrlRenderAnagrafica(){
       <input id="cr_telefono" placeholder="Telefono">
       <input id="cr_email" type="email" placeholder="Email">
       <button class="ctrl-btn" onclick="ctrlAddRole()">Aggiungi referente</button>
-    </div><table class="ctrl-table"><thead><tr><th>Ruolo</th><th>Nome</th><th>Telefono</th><th>Email</th><th></th></tr></thead><tbody>${rr||'<tr><td colspan="5" class="ctrl-empty">Nessun referente inserito.</td></tr>'}</tbody></table></div>
+    </div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Ruolo</th><th>Nome</th><th>Telefono</th><th>Email</th><th></th></tr></thead><tbody>${rr||'<tr><td colspan="5" class="ctrl-empty">Nessun referente inserito.</td></tr>'}</tbody></table></div></div>
   </div>`);
 }
 function ctrlSaveRegistry(){
@@ -5034,8 +5106,8 @@ ctrlRenderAnagrafica=function(){
     <div class="wide"><label>Sede / Indirizzo</label><input id="an_indirizzo" value="${ctrlEsc(x.indirizzo||x.sedeLegale||'')}" placeholder="Sede legale"></div><div><label>Telefono</label><input id="an_telefono" value="${ctrlEsc(x.telefono||'')}" placeholder="Telefono"></div><div><label>Email</label><input id="an_email" value="${ctrlEsc(x.email||'')}" placeholder="Email"></div>
     <div class="wide"><label>Referente della commessa</label><input id="an_referente" value="${ctrlEsc(x.referente||x.referenteCommessa||'')}" placeholder="Nome e cognome"></div><div class="wide"><label>Note</label><textarea id="an_note" placeholder="Note">${ctrlEsc(x.note||'')}</textarea></div>
     <button type="button" class="ctrl-btn" onclick="ctrlSaveAnagSection('committente',['denominazione','piva','pec','indirizzo','telefono','email','referente','note'])">Salva scheda</button></div></div>${ctrlRenderAnagHistory('committente',root)}`;
-  else if(CTRL_ANAG_TAB==='subappaltatori'){const rows=root.subappaltatori.map((s,i)=>`<tr><td><b>${ctrlEsc(s.ragioneSociale)}</b></td><td>${ctrlEsc(s.lavorazione)}</td><td>${ctrlEsc(s.piva)}</td><td>${ctrlEuro(s.importo)}</td><td>${ctrlEsc(s.referente)}</td><td><button class="ctrl-btn red" onclick="ctrlDeleteSub(${i})">×</button></td></tr>`).join('');body=`<div class="ctrl-card"><h3>Appaltatori del fabbricato</h3><div class="ctrl-form"><input id="as_ragioneSociale" class="wide" placeholder="Ragione sociale"><input id="as_lavorazione" placeholder="Lavorazione"><input id="as_piva" placeholder="P. IVA"><input id="as_importo" type="number" placeholder="Importo contratto"><input id="as_referente" placeholder="Referente"><button class="ctrl-btn" onclick="ctrlAddSub()">Aggiungi</button></div><table class="ctrl-table"><thead><tr><th>Impresa</th><th>Lavorazione</th><th>P. IVA</th><th>Importo</th><th>Referente</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="ctrl-empty">Nessun appaltatore.</td></tr>'}</tbody></table></div>`}
-  else{const rows=root.ruoli.map((r,i)=>`<tr><td><b>${ctrlEsc(r.ruolo)}</b></td><td>${ctrlEsc(r.nome)}</td><td>${ctrlEsc(r.telefono)}</td><td>${ctrlEsc(r.email)}</td><td>${ctrlEsc(r.note||'')}</td><td><button class="ctrl-btn red" onclick="ctrlDeleteRole(${i})">×</button></td></tr>`).join('');body=`<div class="ctrl-card"><h3>Referenti e ruoli</h3><div class="ctrl-form"><input id="cr_ruolo" placeholder="Ruolo (DL, CSE, RUP...)"><input id="cr_nome" class="wide" placeholder="Nome e cognome"><input id="cr_telefono" placeholder="Telefono"><input id="cr_email" type="email" placeholder="Email"><input id="cr_note" class="wide" placeholder="Note"><button class="ctrl-btn" onclick="ctrlAddRoleFull()">Aggiungi referente</button></div><table class="ctrl-table"><thead><tr><th>Ruolo</th><th>Nome</th><th>Telefono</th><th>Email</th><th>Note</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="ctrl-empty">Nessun referente.</td></tr>'}</tbody></table></div>`}
+  else if(CTRL_ANAG_TAB==='subappaltatori'){const rows=root.subappaltatori.map((s,i)=>`<tr><td><b>${ctrlEsc(s.ragioneSociale)}</b></td><td>${ctrlEsc(s.lavorazione)}</td><td>${ctrlEsc(s.piva)}</td><td>${ctrlEuro(s.importo)}</td><td>${ctrlEsc(s.referente)}</td><td><button class="ctrl-btn red" onclick="ctrlDeleteSub(${i})">×</button></td></tr>`).join('');body=`<div class="ctrl-card"><h3>Appaltatori del fabbricato</h3><div class="ctrl-form"><input id="as_ragioneSociale" class="wide" placeholder="Ragione sociale"><input id="as_lavorazione" placeholder="Lavorazione"><input id="as_piva" placeholder="P. IVA"><input id="as_importo" type="number" placeholder="Importo contratto"><input id="as_referente" placeholder="Referente"><button class="ctrl-btn" onclick="ctrlAddSub()">Aggiungi</button></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Impresa</th><th>Lavorazione</th><th>P. IVA</th><th>Importo</th><th>Referente</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="ctrl-empty">Nessun appaltatore.</td></tr>'}</tbody></table></div></div>`}
+  else{const rows=root.ruoli.map((r,i)=>`<tr><td><b>${ctrlEsc(r.ruolo)}</b></td><td>${ctrlEsc(r.nome)}</td><td>${ctrlEsc(r.telefono)}</td><td>${ctrlEsc(r.email)}</td><td>${ctrlEsc(r.note||'')}</td><td><button class="ctrl-btn red" onclick="ctrlDeleteRole(${i})">×</button></td></tr>`).join('');body=`<div class="ctrl-card"><h3>Referenti e ruoli</h3><div class="ctrl-form"><input id="cr_ruolo" placeholder="Ruolo (DL, CSE, RUP...)"><input id="cr_nome" class="wide" placeholder="Nome e cognome"><input id="cr_telefono" placeholder="Telefono"><input id="cr_email" type="email" placeholder="Email"><input id="cr_note" class="wide" placeholder="Note"><button class="ctrl-btn" onclick="ctrlAddRoleFull()">Aggiungi referente</button></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Ruolo</th><th>Nome</th><th>Telefono</th><th>Email</th><th>Note</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="ctrl-empty">Nessun referente.</td></tr>'}</tbody></table></div></div>`}
   return ctrlShell('Anagrafica e ruoli','Struttura completa di Calvanico, autonoma per '+ctrlName(CTRL_BUILDING)+'.',ctrlAnagTabs()+body);
 };
 function ctrlSaveAnagSection(section,fields){if((section==='azienda'||section==='committente')&&!document.getElementById('an_denominazione').value.trim()){alert('Inserisci il nome o la ragione sociale.');return}const root=ctrlEnsureAnagHistory(ctrlAnagRecord()),dati={};fields.forEach(f=>dati[f]=(document.getElementById('an_'+f)||{}).value||'');root[section]=dati;if(section==='appalto'||section==='committente')root.storicoAnagrafica[section].push({id:Date.now()+'-'+Math.random(),salvatoIl:new Date().toISOString(),origine:'Salvataggio',...dati});if(section==='azienda'){let a=root.appaltatrici.find(x=>x.id==='appaltatrice');if(!a){a={id:'appaltatrice'};root.appaltatrici.unshift(a)}Object.assign(a,{denominazione:root.azienda.denominazione,piva:root.azienda.piva,referente:root.azienda.referente,email:root.azienda.email});CTRL_DATA.documenti.filter(x=>x.fabbricato===CTRL_BUILDING&&x.soggettoId==='appaltatrice').forEach(x=>x.soggetto=root.azienda.denominazione)}ctrlSave();ctrlRender('ctrl_anagrafica');ctrlNotify('✓ Scheda salvata nello storico'+(CAN_EDIT?' e sincronizzata':' sul dispositivo'))}
@@ -5086,7 +5158,7 @@ async function ctrlSaveSafetyDoc(id){if(!CAN_EDIT){openLogin();return}const x=CT
 function ctrlDelSafetyDoc(id){if(CAN_EDIT&&confirm('Eliminare questo documento dalla checklist?')){const x=CTRL_DATA.documenti.find(v=>String(v.id)===String(id)),pagina=x&&x.fabbricato==='aedifica'?'ctrl_sicurezza_aedifica':x&&x.fabbricato==='generale'?'ctrl_subappaltatore_dettaglio':'ctrl_documenti';CTRL_DATA.documenti=CTRL_DATA.documenti.filter(x=>String(x.id)!==String(id));ctrlSave();ctrlRender(pagina)}}
 function ctrlRenderAcquisti(){
   const r=ctrlRows('acquisti').map(x=>`<tr><td>${ctrlName(x.fabbricato)}</td><td><b>${ctrlEsc(x.voce)}</b></td><td>${ctrlEsc(x.fornitore)}</td><td>${x.data||'-'}</td><td>${ctrlEuro(x.importo)}</td><td><span class="ctrl-chip ${x.stato==='Pagato'?'ok':'warn'}">${ctrlEsc(x.stato)}</span></td><td><button class="ctrl-btn red" onclick="ctrlDel('acquisti','${x.id}')">×</button></td></tr>`).join('');
-  return ctrlShell('Acquisti','Ordini e costi assegnati direttamente al fabbricato.',ctrlKpis()+`<div class="ctrl-card"><h3>Nuovo acquisto</h3><div class="ctrl-form"><select id="cf_fabbricato">${ctrlEntityOptions()}</select><input id="cf_voce" class="wide" placeholder="Materiale / servizio"><input id="cf_fornitore" placeholder="Fornitore"><input id="cf_data" type="date"><input id="cf_importo" type="number" step="0.01" placeholder="Importo"><select id="cf_stato"><option>Ordinato</option><option>Consegnato</option><option>Fatturato</option><option>Pagato</option></select><button class="ctrl-btn" onclick="ctrlAdd('acquisti',['fabbricato','voce','fornitore','data','importo','stato'])">Aggiungi</button></div><table class="ctrl-table"><thead><tr><th>Fabbricato</th><th>Voce</th><th>Fornitore</th><th>Data</th><th>Importo</th><th>Stato</th><th></th></tr></thead><tbody>${r||'<tr><td colspan="7" class="ctrl-empty">Nessun acquisto.</td></tr>'}</tbody></table></div>`);
+  return ctrlShell('Acquisti','Ordini e costi assegnati direttamente al fabbricato.',ctrlKpis()+`<div class="ctrl-card"><h3>Nuovo acquisto</h3><div class="ctrl-form"><select id="cf_fabbricato">${ctrlEntityOptions()}</select><input id="cf_voce" class="wide" placeholder="Materiale / servizio"><input id="cf_fornitore" placeholder="Fornitore"><input id="cf_data" type="date"><input id="cf_importo" type="number" step="0.01" placeholder="Importo"><select id="cf_stato"><option>Ordinato</option><option>Consegnato</option><option>Fatturato</option><option>Pagato</option></select><button class="ctrl-btn" onclick="ctrlAdd('acquisti',['fabbricato','voce','fornitore','data','importo','stato'])">Aggiungi</button></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Fabbricato</th><th>Voce</th><th>Fornitore</th><th>Data</th><th>Importo</th><th>Stato</th><th></th></tr></thead><tbody>${r||'<tr><td colspan="7" class="ctrl-empty">Nessun acquisto.</td></tr>'}</tbody></table></div></div>`);
 }
 function ctrlEconomicCards(){
   const bs=CTRL_BUILDING==='all'?CTRL_BUILDINGS:CTRL_BUILDINGS.filter(x=>x[0]===CTRL_BUILDING);
@@ -5420,6 +5492,19 @@ function ctrlBudgetGruppoHaDati(gruppo){
 function ctrlLottoHaBudget(lottoKey){
   const gruppo=CTRL_BUDGET_GRUPPO_DI_LOTTO[lottoKey];
   return!!gruppo&&ctrlBudgetGruppoHaDati(gruppo);
+}
+// Totale VERO del Budget Costi per un lotto: TUTTE le righe con un importo, incluse quelle ancora "da
+// definire" (importo reale già stimato in fase, ma senza un fornitore specifico assegnato). Non usare
+// ctrlConsuntivoConfrontoLotto(...).totBudget per "quanto vale il budget di questo lotto": quel campo
+// esiste solo per il confronto fornitore-per-fornitore ed esclude apposta le righe "da definire" (altrimenti
+// comparirebbe una riga fantasma "__DA_DEFINIRE__" nella tabella per fornitore) — usarlo come budget totale
+// lo sottostima. Bug segnalato da Noemi il 16/09/2026 sul Report ("a me risulta 2.759.000, non 2.144.001").
+function ctrlBudgetTotaleLotto(lottoKey){
+  if(!ctrlLottoHaBudget(lottoKey))return null;
+  const gruppo=CTRL_BUDGET_GRUPPO_DI_LOTTO[lottoKey],divisore=CTRL_BUDGET_GRUPPO_DIVISORE[gruppo]||1;
+  let tot=0;
+  ctrlBudgetDatiGruppo(gruppo).fasi.forEach(f=>f.voci.forEach(v=>v.righe.forEach(r=>{tot+=r.importo/divisore})));
+  return tot;
 }
 // Tutte le righe {fornitore,importo} di TUTTI i gruppi di budget importati e con dati (Armonia 1+2, Vittoria,
 // Passione), SENZA applicare la divisione 50/50 - usata per costruire elenchi/dizionari di fornitori (filtri,
@@ -5908,6 +5993,14 @@ function ctrlConsuntivoConfrontoLotto(lottoKey,conosciuti){
   }).sort((a,b)=>Math.max(b.budget,b.consuntivo)-Math.max(a.budget,a.consuntivo));
   return{righe,nonIdentificate,haBudget:ctrlLottoHaBudget(lottoKey),totBudget:righe.reduce((a,r)=>a+r.budget,0),totConsuntivo:righe.reduce((a,r)=>a+r.consuntivo,0)};
 }
+// Totale dei Costi generali D|Park (DPG): il centro di costo del brogliaccio "DI PARK GENERALE", non
+// imputato a un singolo lotto. Richiesta di Noemi il 17/09/2026: resta un totale unico, non ripartito per
+// lotto, che si somma al totale generale — mostrato esplicitamente in Consuntivo Costi D|Park
+// (ctrlRenderConsuntivoCosti) come card KPI dedicata.
+function ctrlDpgTotale(conosciuti){
+  const cg=ctrlConsuntivoConfrontoLotto('generale',conosciuti);
+  return cg.totConsuntivo+cg.nonIdentificate.reduce((a,r)=>a+(Number(r.importo)||0),0);
+}
 function ctrlPopolaDatalistFornitoriNoti(conosciuti){
   const dl=document.getElementById('fornitori-noti-datalist');if(!dl)return;
   dl.innerHTML=[...new Set(Object.values(conosciuti.canon))].sort((a,b)=>a.localeCompare(b,'it')).map(n=>`<option value="${ctrlEsc(n)}">`).join('');
@@ -6039,6 +6132,7 @@ function ctrlRenderConsuntivoCosti(){
     return `<button type="button" class="ctrl-chip ${chipClass}${attivo?' active':''}" style="font-size:11px;padding:5px 10px" onclick="CTRL_CONSUNTIVO_STATO='${key}';ctrlRender('ctrl_consuntivo_costi')">${emoji}${ctrlEsc(label)} (${contaStato(key)})</button>`;
   }).join(' ');
   const filtriHtml=`<div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px"><h3 style="margin:0">Filtra</h3><button type="button" class="ctrl-btn light" onclick="CTRL_CONSUNTIVO_FABBRICATO='all';CTRL_CONSUNTIVO_FORNITORE='';CTRL_CONSUNTIVO_STATO='all';ctrlRender('ctrl_consuntivo_costi')">Azzera filtri</button></div><div class="ctrl-form" style="grid-template-columns:repeat(2,minmax(180px,1fr))"><div><label>Fabbricato</label><select onchange="CTRL_CONSUNTIVO_FABBRICATO=this.value;ctrlRender('ctrl_consuntivo_costi')"><option value="all" ${CTRL_CONSUNTIVO_FABBRICATO==='all'?'selected':''}>Tutti i fabbricati</option>${LOTTI.map(([k,n])=>`<option value="${k}" ${CTRL_CONSUNTIVO_FABBRICATO===k?'selected':''}>${ctrlEsc(n)}</option>`).join('')}</select></div><div><label>Fornitore</label><select onchange="CTRL_CONSUNTIVO_FORNITORE=this.value;ctrlRender('ctrl_consuntivo_costi')"><option value="" ${CTRL_CONSUNTIVO_FORNITORE===''?'selected':''}>Tutti i fornitori</option>${fornitoriOpzioni.map(f=>`<option value="${ctrlEsc(f)}" ${CTRL_CONSUNTIVO_FORNITORE===f?'selected':''}>${ctrlEsc(f)}</option>`).join('')}</select></div></div><div style="margin-top:12px"><label style="display:block;font-size:11px;color:#8796a9;margin-bottom:6px">Stato</label><div style="display:flex;gap:6px;flex-wrap:wrap">${statoPillsHtml}</div></div></div>`;
+  const vistaCompletaCosti=!CTRL_CONSUNTIVO_FORNITORE&&CTRL_CONSUNTIVO_STATO==='all';
   const lottiHtml=edificiDaMostrare.map(c=>{
     const righe=righeVisibili(c);
     if(!righe.length)return `<div class="ctrl-card" style="margin-bottom:14px"><h3 style="margin:0 0 6px">${ctrlEsc(c.nome)}</h3><p style="font-size:12px;color:#8796a9;margin:0">${(CTRL_CONSUNTIVO_FORNITORE||CTRL_CONSUNTIVO_STATO!=='all')?'Nessun fornitore di questo lotto corrisponde ai filtri scelti.':'Nessun costo registrato per questo lotto.'}</p></div>`;
@@ -6052,14 +6146,22 @@ function ctrlRenderConsuntivoCosti(){
       else if(r.stato==='bianco'&&r.budget)extra=` (${Math.round(100*r.consuntivo/r.budget)}% del budget)`;
       return `<tr><td><b>${ctrlEsc(r.nome)}</b></td><td>${c.haBudget?ctrlEuro(r.budget):'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td><strong>${ctrlEuro(r.consuntivo)}</strong></td><td>${c.haBudget?ctrlEuro(r.diff):'<span style="color:#8796a9;font-size:11px">—</span>'}</td><td><span class="ctrl-chip ${info.chip}">${info.emoji} ${ctrlEsc(r.motivo||info.label)}${extra}</span></td></tr>`;
     }).join('');
-    const nonIdNota=(!CTRL_CONSUNTIVO_FORNITORE&&CTRL_CONSUNTIVO_STATO==='all'&&c.nonIdentificate.length)?`<p style="font-size:11px;color:#d97706;margin:10px 0 0">⚠️ ${c.nonIdentificate.length} righe di questo lotto (${ctrlEuro(c.nonIdentificate.reduce((a,r)=>a+r.importo,0))}) hanno un fornitore che non riconosco — assegnalo nella tabella qui sotto.</p>`:'';
+    const nonIdNota=(vistaCompletaCosti&&c.nonIdentificate.length)?`<p style="font-size:11px;color:#d97706;margin:10px 0 0">⚠️ ${c.nonIdentificate.length} righe di questo lotto (${ctrlEuro(c.nonIdentificate.reduce((a,r)=>a+r.importo,0))}) hanno un fornitore che non riconosco — assegnalo nella tabella qui sotto.</p>`:'';
     return `<div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap"><div><h3 style="margin:0">${ctrlEsc(c.nome)}</h3>${avvisi?`<small style="color:#d97706">${avvisi}</small>`:'<small style="color:#0d9488">tutto in linea</small>'}</div><div style="display:flex;gap:18px;align-items:center">${c.haBudget?`<div style="text-align:right"><div style="font-size:11px;color:#8796a9">Totale a budget</div><strong style="font-size:18px">${ctrlEuro(totBudgetLotto)}</strong></div>`:''}<div style="text-align:right"><div style="font-size:11px;color:#8796a9">Totale a consuntivo</div><strong style="font-size:18px">${ctrlEuro(totConsuntivoLotto)}</strong></div></div></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Fornitore</th><th>Totale a budget</th><th>Totale a consuntivo</th><th>Differenza</th><th>Stato</th></tr></thead><tbody>${righeHtml}</tbody></table></div>${nonIdNota}</div>`;
   }).join('');
   ctrlPopolaDatalistFornitoriNoti(conosciuti);
+  // Costi generali D|Park (DPG): totale unico, non ripartito per lotto, sempre dal centro di costo "DI PARK
+  // GENERALE" del brogliaccio (ctrlDpgTotale) — richiesta esplicita di Noemi il 17/09/2026: vuole vederlo qui,
+  // in Consuntivo Costi, come numero a parte che si somma al totale generale. Quando la vista è "Tutti i
+  // fabbricati" senza altri filtri, questo importo è GIÀ incluso in "Totale a consuntivo" qui sopra (perché
+  // LOTTI in ctrlConsuntivoVistaFiltrata contiene anche la voce virtuale "generale") — la card qui sotto lo
+  // rende esplicito invece di lasciarlo nascosto dentro la somma.
+  const dpgGenerale=ctrlDpgTotale(conosciuti);
+  const dpgGiaIncluso=CTRL_CONSUNTIVO_FABBRICATO==='all';
   return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Consuntivo Costi D|Park</h2><p>Quanto risulta <b>realmente</b> fatturato da ciascun fornitore, sempre e solo dal brogliaccio contabile, a confronto con quanto previsto nel Budget Costi — fornitore per fornitore, per fabbricato.</p></div><div><span class="ctrl-chip ${costiImport?'ok':''}">${costiImport?('✓ Brogliaccio: '+ctrlEsc(costiImport.fileName||'')+(costiImport.importedAt?(' · '+new Date(costiImport.importedAt).toLocaleString('it-IT')):'')):'Nessun brogliaccio caricato dall\'app: valori dell\'ultimo aggiornamento manuale'}</span><label class="ctrl-btn" style="display:inline-block;cursor:pointer;margin-left:8px">${costiImport?'Aggiorna brogliaccio':'Carica brogliaccio'}<input type="file" accept=".xlsx,.xls" style="display:none" onchange="ctrlImportCostiBrogliaccio(this)"></label><button type="button" class="ctrl-btn light" style="margin-left:8px" onclick="ctrlEsportaConsuntivoPDF()">📄 Esporta PDF</button></div></div>
   ${filtriHtml}
-  <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(totBudget)}</strong><span>Totale a budget${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''}</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totConsuntivo)}</strong><span>Totale a consuntivo${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''}</span></div><div class="ctrl-kpi"><strong style="color:#c62828">${contaStato('rosso')}</strong><span>🔴 Fornitori sopra budget</span></div><div class="ctrl-kpi"><strong style="color:${totNonIdentificato?'#d97706':'#0d9488'}">${ctrlEuro(totNonIdentificato)}</strong><span>Fatturato di cui non riconosco il fornitore (${nonIdentificateMostrate.length} righe)</span></div></div>
-  <p style="font-size:10px;color:#8796a9;margin:-6px 0 16px">🟢 In linea = consuntivo entro €3.000 o il 20% del budget (quale dei due sia maggiore). ⚪ Da alimentare = consuntivo sotto budget oltre quella soglia, il fornitore deve ancora fatturare il resto. 🔴 Sopra budget = consuntivo superiore al budget previsto. 🟡 Da verificare = un lato è a zero (fatturato senza budget, o a budget e mai fatturato). Il Budget Costi copre oggi Armonia 1, Armonia 2 e Vittoria: negli altri fabbricati (senza un foglio Drive con numeri compilati) si vede solo il consuntivo, senza confronto.</p>
+  <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(totBudget)}</strong><span>Totale a budget${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''}</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totConsuntivo)}</strong><span>Totale a consuntivo${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''}</span></div><div class="ctrl-kpi" style="background:linear-gradient(135deg,#123a63,#0d2947);color:white"><strong style="color:white">${ctrlEuro(dpgGenerale)}</strong><span style="color:#cfe0f2">Costi generali D|Park (DPG, centro di costo "DI PARK GENERALE") — ${dpgGiaIncluso?'già sommati nel "Totale a consuntivo" qui sopra':'esclusi dal "Totale a consuntivo" qui sopra col filtro attivo'}</span></div><div class="ctrl-kpi"><strong style="color:#c62828">${contaStato('rosso')}</strong><span>🔴 Fornitori sopra budget</span></div><div class="ctrl-kpi"><strong style="color:${totNonIdentificato?'#d97706':'#0d9488'}">${ctrlEuro(totNonIdentificato)}</strong><span>Fatturato di cui non riconosco il fornitore (${nonIdentificateMostrate.length} righe)</span></div></div>
+  <p style="font-size:10px;color:#8796a9;margin:-6px 0 16px">🟢 In linea = consuntivo entro €3.000 o il 20% del budget (quale dei due sia maggiore). ⚪ Da alimentare = consuntivo sotto budget oltre quella soglia, il fornitore deve ancora fatturare il resto. 🔴 Sopra budget = consuntivo superiore al budget previsto. 🟡 Da verificare = un lato è a zero (fatturato senza budget, o a budget e mai fatturato). Il Budget Costi copre oggi Armonia 1, Armonia 2 e Vittoria: negli altri fabbricati (senza un foglio Drive con numeri compilati) si vede solo il consuntivo, senza confronto. I Costi generali D|Park (DPG) non sono ripartibili in modo attendibile su un singolo lotto: restano un totale a parte, sommato al totale generale solo nella vista "Tutti i fabbricati".</p>
   ${lottiHtml}
   ${nonIdentificateMostrate.length?`<div class="ctrl-card"><div style="margin-bottom:10px"><h3 style="margin:0">${CTRL_CONSUNTIVO_FABBRICATO==='all'?'Tutte le righe non identificate':'Righe non identificate — '+ctrlEsc(nomeFiltroLotto)} <span style="font-weight:400;color:#8796a9;font-size:11px">(${nonIdentificateMostrate.length} righe, ${ctrlEuro(totNonIdentificato)})</span></h3><small>Scegli il fornitore dal menu per ogni riga (o "+ Nuovo fornitore…" se non è ancora in elenco): da qui in poi verrà riconosciuto automaticamente ovunque compaia con lo stesso testo.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Descrizione (brogliaccio)</th><th>Importo</th><th>Fornitore</th></tr></thead><tbody>${nonIdentificateMostrate.map(r=>`<tr><td style="font-size:11px;color:#8796a9">${ctrlEsc(r.lottoNome)}</td><td style="font-size:12px">${ctrlEsc(r.descr)}</td><td>${ctrlEuro(r.importo)}</td><td><select class="cc-fornitore-riga-manuale" data-riga-id="${ctrlEsc(r.rigaId)}" style="min-width:180px" onchange="this.nextElementSibling.style.display=this.value==='__NUOVO__'?'inline-block':'none'"><option value="">— seleziona fornitore —</option><optgroup label="Voci di budget (colonne del file Drive)">${vociBudgetSpeciali.map(v=>`<option value="${ctrlEsc(v)}">${ctrlEsc(ctrlBudgetFornitoreInfo(v).label)}</option>`).join('')}</optgroup>${fornitoriNotiNonBudget.length?`<optgroup label="Altri fornitori noti (non a budget)">${fornitoriNotiNonBudget.map(n=>`<option value="${ctrlEsc(n)}">${ctrlEsc(n)}</option>`).join('')}</optgroup>`:''}<option value="__NUOVO__">+ Nuovo fornitore…</option></select><input class="cc-fornitore-riga-manuale-nuovo" placeholder="nome nuovo fornitore" style="display:none;min-width:160px;margin-top:4px"></td></tr>`).join('')}</tbody></table></div><button type="button" class="ctrl-btn" style="margin-top:10px" onclick="ctrlSalvaFornitoriNonIdentificati()">💾 Salva fornitori</button></div>`:''}
   ${assegnazioniEsistenti.length?`<div class="ctrl-card" style="margin-top:14px"><div style="margin-bottom:10px"><h3 style="margin:0">Assegnazioni manuali già impostate <span style="font-weight:400;color:#8796a9;font-size:11px">(${assegnazioniEsistenti.length} righe)</span></h3><small>Righe già assegnate a un fornitore a mano in passato: controlla se sono ancora giuste. Per cambiarle scegli un altro fornitore dal menu, o "— rimuovi assegnazione —" per tornare al riconoscimento automatico. Ricordati di salvare in fondo.</small></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Descrizione (brogliaccio)</th><th>Importo</th><th>Assegnato a</th></tr></thead><tbody>${assegnazioniEsistenti.map(a=>{
@@ -6091,9 +6193,15 @@ function ctrlRicaviPrevistiLotto(lottoKey){
   const totale=vendutoVal+permutaVal+vendutoAltroVal+invendutoVal+boxInvendutiVal;
   let accontiRic=0,accontiDaRic=0;
   allUnits.forEach(u=>{(u.sal||[]).forEach(rr=>{const imp=parseFloat(rr.importo)||0;if(rr.incassato)accontiRic+=imp;else accontiDaRic+=imp})});
+  // Totale ancora da incassare, richiesto da Noemi il 16/09/2026: quanto ci si aspetta ancora di incassare in
+  // totale, sommando 3 cose che NON si sovrappongono mai (nessun doppio conteggio) - (1) accontiDaRic: rate SAL
+  // già programmate su clienti che hanno GIÀ un preliminare, non ancora incassate; (2) invendutoVal: stima di
+  // quanto valgono le unità senza ancora un cliente; (3) boxInvendutiVal: stima dei box auto liberi, già al
+  // netto di quelli inclusi nel prezzo di un'unità venduta (vedi boxGiaAssegnatoVal qui sopra).
+  const totaleAncoraDaIncassare=accontiDaRic+invendutoVal+boxInvendutiVal;
   return{
     tot:units.length,venduti:vUnits.length,riservati:units.filter(u=>u.st==='riservato').length,disponibili:units.filter(u=>u.st==='disponibile').length,
-    vendutoVal,permutaVal,vendutoAltroVal,invendutoVal,boxInvendutiVal,totale,accontiRic,accontiDaRic
+    vendutoVal,permutaVal,vendutoAltroVal,invendutoVal,boxInvendutiVal,totale,accontiRic,accontiDaRic,totaleAncoraDaIncassare
   };
 }
 function ctrlRenderBudgetRicavi(){
@@ -6101,14 +6209,14 @@ function ctrlRenderBudgetRicavi(){
   const nomeFiltroLotto=CTRL_BUDGETRICAVI_FABBRICATO==='all'?'':(CTRL_BUILDINGS.find(([k])=>k===CTRL_BUDGETRICAVI_FABBRICATO)||[])[1];
   const dati=edificiDaMostrare.map(([key,nome])=>({key,nome,...ctrlRicaviPrevistiLotto(key)}));
   const somma=campo=>dati.reduce((a,d)=>a+d[campo],0);
-  const totale=somma('totale'),totVenduto=somma('vendutoVal'),totPermuta=somma('permutaVal'),totAltro=somma('vendutoAltroVal'),totInvenduto=somma('invendutoVal'),totBoxInv=somma('boxInvendutiVal'),totIncassato=somma('accontiRic'),totDaIncassare=somma('accontiDaRic');
+  const totale=somma('totale'),totVenduto=somma('vendutoVal'),totPermuta=somma('permutaVal'),totAltro=somma('vendutoAltroVal'),totInvenduto=somma('invendutoVal'),totBoxInv=somma('boxInvendutiVal'),totIncassato=somma('accontiRic'),totDaIncassare=somma('accontiDaRic'),totAncoraDaIncassare=somma('totaleAncoraDaIncassare');
   const totUnita=somma('tot'),totVenduti=somma('venduti'),totRiservati=somma('riservati'),totDisponibili=somma('disponibili');
   const filtriHtml=`<div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px"><h3 style="margin:0">Filtra</h3><button type="button" class="ctrl-btn light" onclick="CTRL_BUDGETRICAVI_FABBRICATO='all';ctrlRender('ctrl_budget_ricavi')">Azzera filtri</button></div><div class="ctrl-form" style="grid-template-columns:repeat(2,minmax(180px,1fr))"><div><label>Fabbricato</label><select onchange="CTRL_BUDGETRICAVI_FABBRICATO=this.value;ctrlRender('ctrl_budget_ricavi')"><option value="all" ${CTRL_BUDGETRICAVI_FABBRICATO==='all'?'selected':''}>Tutti i fabbricati</option>${CTRL_BUILDINGS.map(([k,n])=>`<option value="${k}" ${CTRL_BUDGETRICAVI_FABBRICATO===k?'selected':''}>${ctrlEsc(n)}</option>`).join('')}</select></div></div></div>`;
-  const lottiHtml=dati.map(d=>`<div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap"><div><h3 style="margin:0">${ctrlEsc(d.nome)}</h3><small style="color:#8796a9">${d.venduti} vendute · ${d.riservati} riservate · ${d.disponibili} disponibili · ${d.tot} unità totali</small></div><strong style="font-size:20px;color:var(--navy)">${ctrlEuro(d.totale)}</strong></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Venduto (Acquisto)</th><th>Permuta</th>${d.vendutoAltroVal>0?'<th>⚠️ Senza Tipo Accordo</th>':''}<th>Invenduto</th><th>Box invenduti</th><th>Incassato</th><th>Da incassare</th></tr></thead><tbody><tr><td>${ctrlEuro(d.vendutoVal)}</td><td>${ctrlEuro(d.permutaVal)}</td>${d.vendutoAltroVal>0?`<td>${ctrlEuro(d.vendutoAltroVal)}</td>`:''}<td>${ctrlEuro(d.invendutoVal)}</td><td>${ctrlEuro(d.boxInvendutiVal)}</td><td style="color:#2e7d32"><b>${ctrlEuro(d.accontiRic)}</b></td><td style="color:#c62828">${ctrlEuro(d.accontiDaRic)}</td></tr></tbody></table></div></div>`).join('');
+  const lottiHtml=dati.map(d=>`<div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap"><div><h3 style="margin:0">${ctrlEsc(d.nome)}</h3><small style="color:#8796a9">${d.venduti} vendute · ${d.riservati} riservate · ${d.disponibili} disponibili · ${d.tot} unità totali</small></div><strong style="font-size:20px;color:var(--navy)">${ctrlEuro(d.totale)}</strong></div><div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Venduto (Acquisto)</th><th>Permuta</th>${d.vendutoAltroVal>0?'<th>⚠️ Senza Tipo Accordo</th>':''}<th>Invenduto</th><th>Box invenduti</th><th>Incassato</th><th>Da incassare</th><th>Ancora da incassare (tot.)</th></tr></thead><tbody><tr><td>${ctrlEuro(d.vendutoVal)}</td><td>${ctrlEuro(d.permutaVal)}</td>${d.vendutoAltroVal>0?`<td>${ctrlEuro(d.vendutoAltroVal)}</td>`:''}<td>${ctrlEuro(d.invendutoVal)}</td><td>${ctrlEuro(d.boxInvendutiVal)}</td><td style="color:#2e7d32"><b>${ctrlEuro(d.accontiRic)}</b></td><td style="color:#c62828">${ctrlEuro(d.accontiDaRic)}</td><td style="color:#0d5c9c"><b>${ctrlEuro(d.totaleAncoraDaIncassare)}</b></td></tr></tbody></table></div></div>`).join('');
   return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Budget Ricavi D|Park</h2><p>Il previsionale della dashboard vendite (listino/S.L.+S.N.R.+box, o prezzo concordato dove presente), per fabbricato — non è il consuntivo (quello è nel Consuntivo Ricavi): qui è quanto si prevede di incassare, lì quanto risulta davvero fatturato secondo il brogliaccio.</p></div></div>
   ${filtriHtml}
-  <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(totale)}</strong><span>Ricavi previsti totale${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''}</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totVenduto+totPermuta+totAltro)}</strong><span>Venduto (Acquisto + Permuta)</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totInvenduto+totBoxInv)}</strong><span>Invenduto (unità + box)</span></div><div class="ctrl-kpi"><strong style="color:#2e7d32">${ctrlEuro(totIncassato)}</strong><span>Incassato (SAL reali)</span></div></div>
-  <p style="font-size:10px;color:#8796a9;margin:-6px 0 16px">${totUnita} unità totali · ${totVenduti} vendute · ${totRiservati} riservate · ${totDisponibili} disponibili. Da incassare: ${ctrlEuro(totDaIncassare)} di SAL programmati non ancora incassati. Venduto/Permuta = prezzo concordato se inserito, altrimenti stima previsionale; Invenduto = stima previsionale di ciò che resta da vendere.</p>
+  <div class="ctrl-kpis"><div class="ctrl-kpi" style="background:linear-gradient(135deg,#0d5c9c,#123a63);color:white"><strong style="color:white">${ctrlEuro(totAncoraDaIncassare)}</strong><span style="color:#cfe0f2">Totale ancora da incassare${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''} (crediti attuali + invenduto + box)</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totale)}</strong><span>Ricavi previsti totale${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):''}</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totVenduto+totPermuta+totAltro)}</strong><span>Venduto (Acquisto + Permuta)</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totInvenduto+totBoxInv)}</strong><span>Invenduto (unità + box)</span></div><div class="ctrl-kpi"><strong style="color:#2e7d32">${ctrlEuro(totIncassato)}</strong><span>Incassato (SAL reali)</span></div></div>
+  <p style="font-size:10px;color:#8796a9;margin:-6px 0 16px">${totUnita} unità totali · ${totVenduti} vendute · ${totRiservati} riservate · ${totDisponibili} disponibili. Da incassare: ${ctrlEuro(totDaIncassare)} di SAL programmati non ancora incassati. Totale ancora da incassare = Da incassare (SAL su clienti già acquisiti) + Invenduto (stima) + Box invenduti (stima, già al netto dei box inclusi in unità vendute — nessun doppio conteggio). Venduto/Permuta = prezzo concordato se inserito, altrimenti stima previsionale; Invenduto = stima previsionale di ciò che resta da vendere.</p>
   ${lottiHtml}
   </div>`;
 }
@@ -6148,26 +6256,59 @@ function ctrlRenderConsuntivoRicavi(){
 // Palette categorica per "Costi per categoria" (unica torta con più di 4 fette): ordine fisso blu/arancio/
 // acqua/giallo/magenta/verde/viola/rosso, validato per la distinzione daltonici.
 const REPORT_PALETTE_CATEGORICA=['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7','#e34948'];
-function ctrlReportRicaviAggregati(){
-  const tot={vendutoVal:0,permutaVal:0,vendutoAltroVal:0,invendutoVal:0,boxInvendutiVal:0,totale:0,accontiRic:0,accontiDaRic:0};
-  CTRL_BUILDINGS.forEach(([key])=>{
+// I filtri (lottoKeyOrAll) aggiunti il 16/09/2026 su richiesta di Noemi: "all" o niente = tutta l'operazione
+// (comportamento di prima, invariato), una chiave precisa = solo quel fabbricato, per poterlo isolare nel Report.
+function ctrlReportRicaviAggregati(lottoKeyOrAll){
+  const tot={vendutoVal:0,permutaVal:0,vendutoAltroVal:0,invendutoVal:0,boxInvendutiVal:0,totale:0,accontiRic:0,accontiDaRic:0,totaleAncoraDaIncassare:0};
+  const lotti=(!lottoKeyOrAll||lottoKeyOrAll==='all')?CTRL_BUILDINGS.map(([k])=>k):[lottoKeyOrAll];
+  lotti.forEach(key=>{
     const d=ctrlRicaviPrevistiLotto(key);
-    Object.keys(tot).forEach(k=>tot[k]+=d[k]);
+    Object.keys(tot).forEach(k=>tot[k]+=(d[k]||0));
   });
   return tot;
 }
-function ctrlReportStatoFornitoriAggregato(){
+function ctrlReportStatoFornitoriAggregato(lottoKeyOrAll){
   const conosciuti=ctrlConsuntivoFornitoriConosciuti();
   const conta={verde:0,bianco:0,rosso:0,giallo:0};
-  ctrlConsuntivoLottiConBudget().forEach(key=>{
+  const lottiConBudget=ctrlConsuntivoLottiConBudget().filter(key=>!lottoKeyOrAll||lottoKeyOrAll==='all'||key===lottoKeyOrAll);
+  lottiConBudget.forEach(key=>{
     ctrlConsuntivoConfrontoLotto(key,conosciuti).righe.forEach(r=>{conta[r.stato]=(conta[r.stato]||0)+1});
   });
   return conta;
 }
-function ctrlReportRicaviConsuntivoAggregato(){
+function ctrlReportRicaviConsuntivoAggregato(lottoKeyOrAll){
   let venduto=0,fatturato=0;
-  CONSUNTIVORICAVI_LOTTI.forEach(([key])=>{venduto+=ctrlVendutoLotto(key);fatturato+=ctrlFatturatoLotto(key)});
+  const lotti=CONSUNTIVORICAVI_LOTTI.filter(([key])=>!lottoKeyOrAll||lottoKeyOrAll==='all'||key===lottoKeyOrAll);
+  lotti.forEach(([key])=>{venduto+=ctrlVendutoLotto(key);fatturato+=ctrlFatturatoLotto(key)});
   return{venduto,fatturato,daFatturare:venduto-fatturato};
+}
+// Dettaglio permute: per ogni unità venduta con accordo Permuta, confronta il valore concordato nell'accordo
+// con il valore a listino/stima (prevOf) - cioè quanto si sarebbe ricavato vendendo invece di permutare.
+// Richiesto da Noemi il 16/09/2026. Se il prezzo non è stato inserito in scheda, non possiamo sapere il vero
+// valore concordato: in quel caso usiamo il listino anche come "concordato" (nessuna differenza calcolabile) e
+// segnaliamo la riga a parte con prezzoInserito=false, invece di far sembrare che sia stato "regalato" tutto.
+function ctrlReportPermuteDettaglio(lottoKeyOrAll){
+  const lotti=(!lottoKeyOrAll||lottoKeyOrAll==='all')?CTRL_BUILDINGS.map(([k])=>k):[lottoKeyOrAll];
+  const eurF=u=>parseFloat((u.price||'').replace(/\./g,'').replace(',','.'))||0;
+  const righe=[];
+  lotti.forEach(key=>{
+    const nome=ctrlName(key);
+    const allUnits=Object.values((D[key]&&D[key].units)||{});
+    allUnits.filter(u=>u.st==='venduto'&&u.accordo==='Permuta').forEach((u,i)=>{
+      const prezzoInserito=eurF(u)>0;
+      const listino=prevOf(u,key);
+      const concordato=prezzoInserito?eurF(u):listino;
+      righe.push({lotto:key,lottoNome:nome,unita:`${u.sc?'Scala '+u.sc+' · ':''}${u.tipo||'Unità'} ${u.lbl||('#'+i)}`,owner:u.owner||'—',prezzoInserito,concordato,listino,differenza:listino-concordato});
+    });
+  });
+  righe.sort((a,b)=>b.differenza-a.differenza);
+  return{
+    righe,
+    totConcordato:righe.reduce((a,r)=>a+r.concordato,0),
+    totListino:righe.reduce((a,r)=>a+r.listino,0),
+    totDifferenza:righe.reduce((a,r)=>a+r.differenza,0),
+    nSenzaPrezzo:righe.filter(r=>!r.prezzoInserito).length,
+  };
 }
 // Diagramma a barre orizzontali semplice (non-SVG): righe=[{label,val}], massimo=valore a barra piena,
 // coloreFn(riga)=colore CSS della barra.
@@ -6178,21 +6319,185 @@ function ctrlReportBarraOrizzontale(righe,massimo,coloreFn){
   }).join('');
 }
 function ctrlRenderReportEconomico(){
-  const ric=ctrlReportRicaviAggregati();
-  const statoForn=ctrlReportStatoFornitoriAggregato();
-  const ricCons=ctrlReportRicaviConsuntivoAggregato();
-  const micro=ctrlRiepilogoMicroCategorie();
-  const costiEffettiviPerLotto=CTRL_BUILDINGS.map(([key,nome])=>{
-    const r=ctrlCostiLottoRecord(key);
-    return{key,nome,val:r.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0)};
+  const filtro=CTRL_REPORT_FABBRICATO;
+  const nomeFiltroLotto=filtro==='all'?'':(CTRL_BUILDINGS.find(([k])=>k===filtro)||[])[1];
+  const lottiSelezionati=filtro==='all'?CTRL_BUILDINGS:CTRL_BUILDINGS.filter(([k])=>k===filtro);
+  const ric=ctrlReportRicaviAggregati(filtro);
+  const statoForn=ctrlReportStatoFornitoriAggregato(filtro);
+  const ricCons=ctrlReportRicaviConsuntivoAggregato(filtro);
+  const micro=ctrlRiepilogoMicroCategorie(filtro==='all'?undefined:filtro);
+  const permute=ctrlReportPermuteDettaglio(filtro);
+  // Costo effettivo per lotto: usa la STESSA fonte dal vivo della pagina "Consuntivo Costi"
+  // (ctrlConsuntivoConfrontoLotto, con riconoscimento fornitori sempre aggiornato + righe non
+  // identificate), non lo snapshot statico IMPORT_COSTI_BROGLIACCIO (congelato al 08/09/2026 e usato
+  // solo dalla vecchia pagina "Budget costi"). Prima di questa correzione (16/09/2026, segnalato da
+  // Noemi: "perchè per armonia 1 789.322 € Costo effettivo totale?") il Report mostrava un totale
+  // disallineato rispetto al Consuntivo Costi perché leggeva quello snapshot congelato invece del dato
+  // dal vivo. conosciutiCosti è condiviso da tutti i lotti per evitare di ricalcolarlo ad ogni iterazione.
+  const conosciutiCosti=ctrlConsuntivoFornitoriConosciuti();
+  const costiEffettiviPerLotto=lottiSelezionati.map(([key,nome])=>{
+    const c=ctrlConsuntivoConfrontoLotto(key,conosciutiCosti);
+    const nonIdent=c.nonIdentificate.reduce((a,r)=>a+(Number(r.importo)||0),0);
+    return{key,nome,val:c.totConsuntivo+nonIdent};
   });
-  const totaleCostiGenerali=ctrlCostiGeneraliRecord().costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0);
+  // I costi generali D|Park non sono ripartibili per singolo lotto: restano nel totale solo in vista "tutti i
+  // fabbricati" (stessa convenzione già usata in ctrlSintesiGenerale per il margine sui lotti selezionati).
+  // Richiesta di Noemi il 17/09/2026 ("facciamo un altro lavoro... un unico totale a parte, sommato al
+  // totale generale"): niente più divisione /11 per lotto qui — il DPG resta un unico numero riportato nella
+  // pagina "Consuntivo Costi D|Park" (vedi ctrlRenderConsuntivoCosti), non spalmato dentro ogni lotto.
+  const totaleCostiGenerali=filtro==='all'?ctrlDpgTotale(conosciutiCosti):0;
   const totaleCostiEffettivi=costiEffettiviPerLotto.reduce((a,l)=>a+l.val,0)+totaleCostiGenerali;
-  const margineLotti=CTRL_BUILDINGS.filter(([k])=>k!=='sorriso').map(([key,nome])=>{
-    const fatturato=ctrlFatturatoLotto(key),costoEffettivo=(costiEffettiviPerLotto.find(l=>l.key===key)||{val:0}).val;
-    return{key,nome,margine:fatturato-costoEffettivo};
+
+  // --- KPI imprenditoriali per lotto: Budget vs Consuntivo + marginalità + ROI + avanzamento vendite ---
+  // Richiesto da Noemi il 16/09/2026 ("Ricavi a budget - Costi a budget; Ricavi a consuntivo - Costi a
+  // consuntivo, ragiona come un imprenditore"). Budget = ricavo previsionale (listino/concordato) meno
+  // il Budget Costi importato (dove presente: non tutti i lotti hanno un Budget Costi caricato oggi, in
+  // quel caso costoBudget/margineBudget restano n/d, mai stimati a caso).
+  // Ricavi a consuntivo = VENDUTO (prezzo concordato delle unità vendute, accordo Acquisto), non il
+  // fatturato: corretto il 16/09/2026 su richiesta di Noemi, perché il fatturato segue la fatturazione
+  // progressiva sui SAL e resta indietro rispetto al venduto per mesi (es. Armonia 1: fatturato ~98k contro
+  // un venduto di ~900k), facendo apparire perdite enormi che sono solo un ritardo di fatturazione, non una
+  // reale marginalità negativa. Il venduto non dipende dal brogliaccio (è nella scheda CRM dell'unità),
+  // quindi è disponibile anche per Sorriso, a differenza del fatturato.
+  // Il costo a consuntivo resta invece quello REALMENTE speso secondo il brogliaccio: per questo margine e
+  // ROI a consuntivo restano n/d dove il lotto non ha un centro di costo attivo (solo Sorriso oggi) — non
+  // perché manchi il venduto, ma perché il costo sostenuto lì non è tracciabile, e mostrare "venduto meno
+  // zero" darebbe un margine falsamente enorme.
+  const confrontoPerLotto=lottiSelezionati.map(([key,nome])=>{
+    const st=projStats(key),haCentroDiCosto=key!=='sorriso';
+    const ricPrev=ctrlRicaviPrevistiLotto(key);
+    const costoConsuntivo=(costiEffettiviPerLotto.find(l=>l.key===key)||{val:0}).val;
+    const ricaviBudget=ricPrev.totale;
+    // Costo a budget: totale VERO del Budget Costi (ctrlBudgetTotaleLotto, tutte le righe incluse "da
+    // definire") — NON ctrlConsuntivoConfrontoLotto(...).totBudget, che è solo il sottoinsieme confrontabile
+    // fornitore-per-fornitore e sottostima il budget reale (vedi nota sulla funzione).
+    const costoBudget=ctrlBudgetTotaleLotto(key);
+    const margineBudget=costoBudget!=null?ricaviBudget-costoBudget:null;
+    const roiBudgetPct=(costoBudget&&costoBudget>0)?margineBudget/costoBudget*100:null;
+    const ricaviConsuntivo=ctrlVendutoLotto(key);
+    const margineConsuntivo=haCentroDiCosto?ricaviConsuntivo-costoConsuntivo:null;
+    const roiConsuntivoPct=(haCentroDiCosto&&costoConsuntivo>0)?margineConsuntivo/costoConsuntivo*100:null;
+    const scostamentoCosti=costoBudget!=null?costoConsuntivo-costoBudget:null;
+    // Avanzamento spesa (SAL economico): quanta parte del budget costi è già stata impegnata. Il
+    // cronoprogramma (CTRL_DATA.crono[].avanzamento) sarebbe la misura fisica "vera", ma oggi non ha dati
+    // inseriti (stessa causa degli zeri sulla vecchia pagina "Report cantiere"), quindi non è affidabile da
+    // usare qui. Questa è la proxy più solida disponibile oggi per capire a che punto è il cantiere.
+    // Richiesto da Noemi il 16/09/2026 ("stiamo lavorando a SAL, il fabbricato non è finito").
+    const pctBudgetSpeso=(costoBudget!=null&&costoBudget>0)?costoConsuntivo/costoBudget*100:null;
+    const pctVenduto=st.tot>0?st.v/st.tot*100:0;
+    const marginalitaPct=(haCentroDiCosto&&ricaviConsuntivo>0)?margineConsuntivo/ricaviConsuntivo*100:null;
+    // Marginalità a budget (margine ÷ ricavi, non ÷ costi come il ROI): richiesta da Noemi il 16/09/2026
+    // ("aggiungerei anche il margine % sui ricavi, perché permette di confrontare lotti di dimensioni
+    // diverse") — un margine in € non è confrontabile tra un lotto da 10 unità e uno da 30, la % sì.
+    const marginalitaBudgetPct=(costoBudget!=null&&ricaviBudget>0)?margineBudget/ricaviBudget*100:null;
+    const scostamentoCostiPct=(scostamentoCosti!=null&&costoBudget>0)?scostamentoCosti/costoBudget*100:null;
+    // Valore al mq (costo/ricavo/margine): richiesto da Noemi il 16/09/2026 ("rende confrontabili unità e
+    // lotti"). Denominatore = superficie lorda commerciale totale del fabbricato (somma di sl su tutte le
+    // unità, vendute e non: è la stessa base usata da prevOf/PRICE_PER_MQ per il prezzo previsionale).
+    const mqTotali=Object.values(D[key].units).reduce((a,u)=>a+parseSL(u.sl),0);
+    const costoBudgetMq=(costoBudget!=null&&mqTotali>0)?costoBudget/mqTotali:null;
+    const costoConsuntivoMq=(haCentroDiCosto&&mqTotali>0)?costoConsuntivo/mqTotali:null;
+    const ricavoBudgetMq=mqTotali>0?ricaviBudget/mqTotali:null;
+    const ricavoConsuntivoMq=mqTotali>0?ricaviConsuntivo/mqTotali:null;
+    const margineBudgetMq=(margineBudget!=null&&mqTotali>0)?margineBudget/mqTotali:null;
+    const margineConsuntivoMq=(margineConsuntivo!=null&&mqTotali>0)?margineConsuntivo/mqTotali:null;
+    // Scostamento prezzi di vendita (solo Acquisto, coerente con "venduto"): quanto si sta vendendo sopra o
+    // sotto il prezzo previsionale di listino, sulle unità con un prezzo concordato inserito in scheda.
+    // Le Permute hanno già una card dedicata (differenza vs listino) più sotto: qui si guarda solo alle
+    // vendite vere, per non contare due volte lo stesso scostamento con due metodi diversi.
+    // Richiesta di Noemi il 16/09/2026: "non solo quanto hai venduto, ma se stai vendendo ai prezzi
+    // previsti dal business plan".
+    const eurUnit=u=>parseFloat((u.price||'').replace(/\./g,'').replace(',','.'))||0;
+    const vendutiAcquistoConPrezzo=Object.values(D[key].units).filter(u=>u.st==='venduto'&&u.accordo==='Acquisto'&&eurUnit(u)>0);
+    const listinoVendutiAcquisto=vendutiAcquistoConPrezzo.reduce((a,u)=>a+prevOf(u),0);
+    const scostamentoPrezziVal=vendutiAcquistoConPrezzo.reduce((a,u)=>a+(eurUnit(u)-prevOf(u)),0);
+    const scostamentoPrezziPct=listinoVendutiAcquisto>0?scostamentoPrezziVal/listinoVendutiAcquisto*100:null;
+    // Break-even commerciale: quota del valore previsionale (e n. approssimativo di unità, valore medio
+    // uniforme) necessaria a coprire il costo totale a budget. Richiesta di Noemi il 16/09/2026.
+    const breakEvenPct=(costoBudget!=null&&ricaviBudget>0)?costoBudget/ricaviBudget*100:null;
+    const breakEvenUnitsApprox=(costoBudget!=null&&ricaviBudget>0&&st.tot>0)?Math.ceil(costoBudget/(ricaviBudget/st.tot)):null;
+    const breakEvenCoperto=breakEvenUnitsApprox!=null?st.v>=breakEvenUnitsApprox:null;
+    // Proiezione / capitale ancora esposto: cosa resta da incassare (crediti già maturati + invenduto +
+    // box, stessa definizione già in uso in Budget Ricavi) e cosa resta da spendere seguendo il budget
+    // (budget totale meno quanto già speso a consuntivo — ipotesi: il resto della spesa arriva fino a
+    // coprire il budget, non oltre). Richiesto da Noemi il 16/09/2026: "devi analizzare anche il futuro:
+    // incassare (invenduto + da incassare) e da spendere (seguendo la linea del budget)"; ripreso il
+    // 16/09/2026 come "capitale ancora esposto: quanto denaro devi ancora mettere nel lotto prima di
+    // completarlo rispetto a quanto devi ancora incassare" — stessa coppia di numeri, etichettata come lei
+    // la pensa. Nota: è una fotografia statica (quanto resta in totale), non una linea temporale di cassa —
+    // per sapere QUANDO servirà quel capitale servirebbero date sui costi ancora da sostenere, che il
+    // brogliaccio non registra (stesso limite che blocca il calcolo del TIR, vedi sotto).
+    const ancoraDaIncassare=ricPrev.totaleAncoraDaIncassare;
+    const ancoraDaSpendere=costoBudget!=null?costoBudget-costoConsuntivo:null;
+    const saldoNettoFuturo=ancoraDaSpendere!=null?ancoraDaIncassare-ancoraDaSpendere:null;
+    // Risultato finale stimato del lotto (forecast), formula esplicita richiesta da Noemi il 16/09/2026:
+    // ricavi già realizzati (venduto Acquisto + permute già concordate) + ricavi attesi sull'invenduto
+    // (a listino) − costi sostenuti − costi ancora da sostenere. Nota onesta: con l'unica stima oggi
+    // disponibile per "costi ancora da sostenere" (= budget meno speso, cioè ancoraDaSpendere), questo
+    // numero coincide algebricamente con "Margine a fine lavori (budget)" — non è un secondo calcolo
+    // indipendente, è la stessa proiezione letta come bilancio realizzato+atteso invece che come
+    // scostamento dal piano. Diventerà un numero davvero distinto quando si potrà stimare un costo a
+    // finire indipendente dal budget (serve un avanzamento lavori fisico, oggi non inserito nel
+    // Cronoprogramma — vedi "Avanzamento spesa" sopra).
+    const ricaviGiaRealizzati=ricPrev.vendutoVal+ricPrev.permutaVal+ricPrev.vendutoAltroVal;
+    const ricaviAttesiSuInvenduto=ricPrev.invendutoVal+ricPrev.boxInvendutiVal;
+    const risultatoFinaleStimato=costoBudget!=null?ricaviGiaRealizzati+ricaviAttesiSuInvenduto-costoConsuntivo-ancoraDaSpendere:null;
+    return{key,nome,haCentroDiCosto,unitTot:st.tot,unitV:st.v,pctVenduto,ricaviBudget,costoBudget,margineBudget,roiBudgetPct,marginalitaBudgetPct,ricaviConsuntivo,costoConsuntivo,margineConsuntivo,roiConsuntivoPct,marginalitaPct,scostamentoCosti,scostamentoCostiPct,pctBudgetSpeso,mqTotali,costoBudgetMq,costoConsuntivoMq,ricavoBudgetMq,ricavoConsuntivoMq,margineBudgetMq,margineConsuntivoMq,scostamentoPrezziVal,scostamentoPrezziPct,listinoVendutiAcquisto,nVendutiAcquistoConPrezzo:vendutiAcquistoConPrezzo.length,breakEvenPct,breakEvenUnitsApprox,breakEvenCoperto,ancoraDaIncassare,ancoraDaSpendere,saldoNettoFuturo,ricaviGiaRealizzati,ricaviAttesiSuInvenduto,risultatoFinaleStimato};
   });
-  const margineTot=ricCons.fatturato-totaleCostiEffettivi;
+  const lottiConBudget=confrontoPerLotto.filter(r=>r.costoBudget!=null);
+  const totRicaviBudget=lottiConBudget.reduce((a,r)=>a+r.ricaviBudget,0),totCostoBudget=lottiConBudget.reduce((a,r)=>a+r.costoBudget,0),totMargineBudget=totRicaviBudget-totCostoBudget;
+  const totRoiBudgetPct=totCostoBudget>0?totMargineBudget/totCostoBudget*100:null;
+  // Avanzamento spesa a livello operazione: stessa logica per-lotto, sommata sui soli lotti con Budget
+  // Costi caricato (coerente col totale costi/margine a budget qui sopra).
+  const totCostoConsuntivoPerBudget=lottiConBudget.reduce((a,r)=>a+r.costoConsuntivo,0);
+  const totPctBudgetSpeso=totCostoBudget>0?totCostoConsuntivoPerBudget/totCostoBudget*100:null;
+  // Ricavi a consuntivo (venduto) sono disponibili per tutti i lotti, Sorriso incluso (non dipendono dal
+  // brogliaccio). Costi/margine/ROI a consuntivo restano invece limitati ai lotti con centro di costo
+  // attivo, altrimenti "venduto meno zero" darebbe un margine falsamente enorme per Sorriso.
+  const lottiConCentroDiCosto=confrontoPerLotto.filter(r=>r.haCentroDiCosto);
+  const totRicaviConsuntivoTutti=confrontoPerLotto.reduce((a,r)=>a+r.ricaviConsuntivo,0);
+  const totRicaviConsuntivo=lottiConCentroDiCosto.reduce((a,r)=>a+r.ricaviConsuntivo,0),totCostoConsuntivoNoti=lottiConCentroDiCosto.reduce((a,r)=>a+r.costoConsuntivo,0),totMargineConsuntivo=totRicaviConsuntivo-totCostoConsuntivoNoti;
+  const totRoiConsuntivoPct=totCostoConsuntivoNoti>0?totMargineConsuntivo/totCostoConsuntivoNoti*100:null;
+  const rankingMarginalita=confrontoPerLotto.filter(r=>r.marginalitaPct!=null).sort((a,b)=>a.marginalitaPct-b.marginalitaPct);
+  const peggiorMargine=rankingMarginalita[0],miglioreMargine=rankingMarginalita[rankingMarginalita.length-1];
+  const rankingScostamento=confrontoPerLotto.filter(r=>r.scostamentoCosti!=null).sort((a,b)=>b.scostamentoCosti-a.scostamentoCosti);
+  const peggiorScostamento=rankingScostamento.find(r=>r.scostamentoCosti>0);
+  const lottiConProiezione=confrontoPerLotto.filter(r=>r.ancoraDaSpendere!=null);
+  const totAncoraDaIncassareProiezione=ric.totaleAncoraDaIncassare;
+  const totAncoraDaSpendere=lottiConProiezione.reduce((a,r)=>a+r.ancoraDaSpendere,0);
+  const totSaldoNettoFuturo=totAncoraDaIncassareProiezione-totAncoraDaSpendere;
+  // Margine/ROI a consuntivo per il KPI in alto e per la barra "Margine per lotto": riusa esattamente
+  // quanto già calcolato per riga in confrontoPerLotto (venduto meno costo effettivo, Sorriso esclusa),
+  // invece di ricalcolarlo una seconda volta con una fonte diversa — evita che le due card si disallineino.
+  const margineLotti=confrontoPerLotto.filter(r=>r.margineConsuntivo!=null).map(r=>({key:r.key,nome:r.nome,margine:r.margineConsuntivo}));
+  const margineTot=totMargineConsuntivo;
+
+  // --- Aggregati per i nuovi KPI richiesti da Noemi il 16/09/2026 (marginalità %, scostamento costi %,
+  // valore al mq, scostamento prezzi vendita, break-even commerciale, risultato finale stimato). ---
+  const totMarginalitaBudgetPct=(lottiConBudget.length&&totRicaviBudget>0)?totMargineBudget/totRicaviBudget*100:null;
+  const totMarginalitaConsuntivoPct=(lottiConCentroDiCosto.length&&totRicaviConsuntivo>0)?totMargineConsuntivo/totRicaviConsuntivo*100:null;
+  const totScostamentoCosti=totCostoConsuntivoPerBudget-totCostoBudget;
+  const totScostamentoCostiPct=totCostoBudget>0?totScostamentoCosti/totCostoBudget*100:null;
+  const totMqConBudget=lottiConBudget.reduce((a,r)=>a+r.mqTotali,0);
+  const totMqConCosto=lottiConCentroDiCosto.reduce((a,r)=>a+r.mqTotali,0);
+  const totMqTutti=confrontoPerLotto.reduce((a,r)=>a+r.mqTotali,0);
+  const totCostoBudgetMq=totMqConBudget>0?totCostoBudget/totMqConBudget:null;
+  const totCostoConsuntivoMq=totMqConCosto>0?totCostoConsuntivoNoti/totMqConCosto:null;
+  const totRicavoBudgetMq=totMqConBudget>0?totRicaviBudget/totMqConBudget:null;
+  const totRicavoConsuntivoMq=totMqTutti>0?totRicaviConsuntivoTutti/totMqTutti:null;
+  const totMargineBudgetMq=totMqConBudget>0?totMargineBudget/totMqConBudget:null;
+  const totMargineConsuntivoMq=totMqConCosto>0?totMargineConsuntivo/totMqConCosto:null;
+  const totScostamentoPrezziVal=confrontoPerLotto.reduce((a,r)=>a+r.scostamentoPrezziVal,0);
+  const totListinoVendutiAcquisto=confrontoPerLotto.reduce((a,r)=>a+r.listinoVendutiAcquisto,0);
+  const totScostamentoPrezziPct=totListinoVendutiAcquisto>0?totScostamentoPrezziVal/totListinoVendutiAcquisto*100:null;
+  const totBreakEvenPct=(lottiConBudget.length&&totRicaviBudget>0)?totCostoBudget/totRicaviBudget*100:null;
+  const totUnitTot=confrontoPerLotto.reduce((a,r)=>a+r.unitTot,0),totUnitV=confrontoPerLotto.reduce((a,r)=>a+r.unitV,0);
+  const totBreakEvenUnitsApprox=(lottiConBudget.length&&totRicaviBudget>0&&totUnitTot>0)?Math.ceil(totCostoBudget/(totRicaviBudget/totUnitTot)):null;
+  const totBreakEvenCoperto=totBreakEvenUnitsApprox!=null?totUnitV>=totBreakEvenUnitsApprox:null;
+  const lottiConForecast=confrontoPerLotto.filter(r=>r.risultatoFinaleStimato!=null);
+  const totRisultatoFinaleStimato=lottiConForecast.length?lottiConForecast.reduce((a,r)=>a+r.risultatoFinaleStimato,0):null;
+  const totRicaviGiaRealizzati=confrontoPerLotto.reduce((a,r)=>a+r.ricaviGiaRealizzati,0);
+  const totRicaviAttesiSuInvenduto=confrontoPerLotto.reduce((a,r)=>a+r.ricaviAttesiSuInvenduto,0);
 
   const donutRicavi=_donut([
     {label:'Venduto (Acquisto)',val:ric.vendutoVal,color:REPORT_PALETTE_CATEGORICA[0]},
@@ -6229,15 +6534,231 @@ function ctrlRenderReportEconomico(){
     l=>l.margine>=0?'#0ca30c':'#d03b3b'
   );
 
-  return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Report D|Park</h2><p>Vista d'insieme sull'intero progetto — nessun filtro per fabbricato qui, il dettaglio riga per riga è nelle pagine sopra (Budget/Consuntivo Costi e Ricavi). Ogni numero qui viene dalle stesse fonti già in uso altrove, solo sommato su tutti i lotti.</p></div></div>
-  <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${ctrlEuro(ric.totale)}</strong><span>Ricavi previsti totale operazione</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(ricCons.fatturato)}</strong><span>Fatturato imponibile (brogliaccio)</span></div><div class="ctrl-kpi"><strong>${ctrlEuro(totaleCostiEffettivi)}</strong><span>Costo effettivo totale (brogliaccio)</span></div><div class="ctrl-kpi"><strong style="color:${margineTot>=0?'#0ca30c':'#d03b3b'}">${ctrlEuro(margineTot)}</strong><span>Margine stimato (fatturato − costo effettivo)</span></div></div>
+  const filtriHtml=`<div class="ctrl-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px"><h3 style="margin:0">Filtra</h3><button type="button" class="ctrl-btn light" onclick="CTRL_REPORT_FABBRICATO='all';ctrlRender('ctrl_report_economico')">Azzera filtri</button></div><div class="ctrl-form" style="grid-template-columns:repeat(2,minmax(180px,1fr))"><div><label>Fabbricato</label><select onchange="CTRL_REPORT_FABBRICATO=this.value;ctrlRender('ctrl_report_economico')"><option value="all" ${filtro==='all'?'selected':''}>Tutti i fabbricati</option>${CTRL_BUILDINGS.map(([k,n])=>`<option value="${k}" ${filtro===k?'selected':''}>${ctrlEsc(n)}</option>`).join('')}</select></div></div></div>`;
 
+  // Card permute: quanto si sarebbe ricavato vendendo invece di permutare (richiesto da Noemi il 16/09/2026).
+  // Mostrata solo se ci sono permute nella vista corrente, per non occupare spazio a vuoto altrimenti.
+  const permuteHtml=permute.righe.length?`<div class="ctrl-card" style="margin-bottom:14px;background:linear-gradient(135deg,#3a2a5c,#241a3d);color:white;border:0">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:6px"><div><h3 style="color:white;margin:0">Permute: quanto avresti ricavato vendendo invece di permutare</h3><small style="color:#d8cdf0">${permute.righe.length} unità permutate${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):' (tutti i fabbricati)'}${permute.nSenzaPrezzo?' · '+permute.nSenzaPrezzo+' senza prezzo di permuta inserito in scheda (valorizzate a listino, differenza non calcolabile)':''}</small></div></div>
+    <div class="ctrl-kpis" style="margin-top:10px">
+      <div class="ctrl-kpi" style="background:rgba(255,255,255,.08)"><strong style="color:white">${ctrlEuro(permute.totConcordato)}</strong><span style="color:#d8cdf0">Valore concordato nelle permute</span></div>
+      <div class="ctrl-kpi" style="background:rgba(255,255,255,.08)"><strong style="color:white">${ctrlEuro(permute.totListino)}</strong><span style="color:#d8cdf0">Stesso valore a listino</span></div>
+      <div class="ctrl-kpi" style="background:rgba(255,255,255,.08)"><strong style="color:#fbbf24">${ctrlEuro(permute.totDifferenza)}</strong><span style="color:#d8cdf0">Differenza — mancato incasso rispetto a una vendita a listino</span></div>
+    </div>
+    <div style="overflow-x:auto;margin-top:14px"><table class="ctrl-table" style="background:white;border-radius:8px;overflow:hidden"><thead><tr><th>Fabbricato</th><th>Unità</th><th>Cliente</th><th>Permuta</th><th>A listino</th><th>Differenza</th></tr></thead><tbody>${permute.righe.map(r=>`<tr><td style="font-size:11px;color:#8796a9">${ctrlEsc(r.lottoNome)}</td><td>${ctrlEsc(r.unita)}</td><td>${ctrlEsc(r.owner)}</td><td>${r.prezzoInserito?ctrlEuro(r.concordato):'<span style="color:#d97706;font-size:11px">non inserito</span>'}</td><td>${ctrlEuro(r.listino)}</td><td><b style="color:${r.differenza>=0?'#166534':'#b91c1c'}">${ctrlEuro(r.differenza)}</b></td></tr>`).join('')}</tbody></table></div>
+  </div>`:'';
+
+  // Card "Budget vs Consuntivo": la coppia Ricavi/Costi richiesta esplicitamente da Noemi, per lotto e
+  // totale, con margine € e % per entrambe le viste. I lotti senza Budget Costi importato mostrano "n/d"
+  // sulle colonne budget invece di uno zero silenzioso (uno zero sembrerebbe "margine pieno" quando in
+  // realtà è solo dato mancante). Il totale budget somma SOLO i lotti che hanno un Budget Costi caricato.
+  const pct=(num,den)=>den?((num/den)*100).toFixed(1)+'%':'n/d';
+  const pctVal=v=>v!=null?`<span style="font-size:10px;color:#8796a9">(${v.toFixed(1)}%)</span>`:'';
+  // KPI cliccabile: apre sotto il numero la formula con i valori reali sostituiti dentro. Richiesto da
+  // Noemi il 16/09/2026 ("se clicco su ROI mi fai capire perchè è venuto quella %"). id deve essere unico
+  // nella pagina (comprende il filtro fabbricato attivo dove serve, per non confondersi cambiando vista).
+  const kpiTile=(id,style,contentHtml,formulaHtml)=>`<div class="ctrl-kpi" style="cursor:pointer${style?';'+style:''}" onclick="ctrlToggleSpiega('${id}')">${contentHtml}<div style="font-size:9px;opacity:.65;margin-top:3px">ⓘ tocca per il calcolo</div><div id="spiega-${id}" style="display:none;margin-top:7px;padding-top:7px;border-top:1px solid rgba(0,0,0,.15);font-size:10px;line-height:1.65;font-weight:400;text-align:left">${formulaHtml}</div></div>`;
+  // Ogni margine mostra ora due percentuali distinte, richieste entrambe da Noemi il 16/09/2026: la
+  // marginalità (margine ÷ ricavi — confronta lotti di dimensioni diverse) e il ROI (margine ÷ costi —
+  // "quanto rende ogni euro speso"). Non sono la stessa cosa espressa in due modi: un lotto piccolo e molto
+  // costoso puo' avere ROI basso ma marginalità alta, o viceversa.
+  // Marginalità/ROI cliccabili: apre sotto il numero la formula coi valori reali della riga. Richiesto da
+  // Noemi il 16/09/2026 ("se clicco su ROI mi fai capire perchè è venuto quella %").
+  const margDettaglio=(id,margine,ricavi,costi,marg,roi)=>{
+    if(marg==null&&roi==null)return'';
+    const formula=`Marginalità = Margine ÷ Ricavi = ${ctrlEuro(margine)} ÷ ${ctrlEuro(ricavi)} = <b>${marg!=null?marg.toFixed(1)+'%':'n/d'}</b>.<br>ROI = Margine ÷ Costi = ${ctrlEuro(margine)} ÷ ${ctrlEuro(costi)} = <b>${roi!=null?roi.toFixed(1)+'%':'n/d'}</b>.`;
+    return`<div style="cursor:pointer" onclick="ctrlToggleSpiega('${id}')"><br><span style="font-size:10px;color:#8796a9;text-decoration:underline dotted">${marg!=null?'marginalità '+marg.toFixed(1)+'%':''}${marg!=null&&roi!=null?' · ':''}${roi!=null?'ROI '+roi.toFixed(1)+'%':''} ⓘ</span><div id="spiega-${id}" style="display:none;margin-top:5px;padding-top:5px;border-top:1px solid rgba(0,0,0,.12);font-size:9px;color:#5a6b7d;font-weight:400;line-height:1.55;text-align:left">${formula}</div></div>`;
+  };
+  const rigaConfronto=r=>`<tr><td><b>${ctrlEsc(r.nome)}</b></td>
+    <td>${ctrlEuro(r.ricaviBudget)}</td><td>${r.costoBudget!=null?ctrlEuro(r.costoBudget):'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td>${r.margineBudget!=null?`<b style="color:${r.margineBudget>=0?'#166534':'#b91c1c'}">${ctrlEuro(r.margineBudget)}</b>${margDettaglio('rb-'+r.key,r.margineBudget,r.ricaviBudget,r.costoBudget,r.marginalitaBudgetPct,r.roiBudgetPct)}`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td>
+    <td>${ctrlEuro(r.ricaviConsuntivo)}</td><td>${r.haCentroDiCosto?ctrlEuro(r.costoConsuntivo):'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td>${r.margineConsuntivo!=null?`<b style="color:${r.margineConsuntivo>=0?'#166534':'#b91c1c'}">${ctrlEuro(r.margineConsuntivo)}</b>${margDettaglio('rc-'+r.key,r.margineConsuntivo,r.ricaviConsuntivo,r.costoConsuntivo,r.marginalitaPct,r.roiConsuntivoPct)}`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td>
+    <td>${r.pctBudgetSpeso!=null?`<div style="cursor:pointer" onclick="ctrlToggleSpiega('as-${r.key}')"><b style="color:${r.pctBudgetSpeso<=100?'#166534':'#b91c1c'}">${r.pctBudgetSpeso.toFixed(0)}% ⓘ</b><div id="spiega-as-${r.key}" style="display:none;margin-top:5px;padding-top:5px;border-top:1px solid rgba(0,0,0,.12);font-size:9px;color:#5a6b7d;font-weight:400;line-height:1.55;text-align:left">Avanzamento spesa = Costo sostenuto ad oggi ÷ Costo a budget = ${ctrlEuro(r.costoConsuntivo)} ÷ ${ctrlEuro(r.costoBudget)} = <b>${r.pctBudgetSpeso.toFixed(0)}%</b>.</div></div>`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td>
+    <td>${r.scostamentoCosti!=null?`<span style="color:${r.scostamentoCosti>0?'#b91c1c':'#166534'}">${r.scostamentoCosti>0?'+':''}${ctrlEuro(r.scostamentoCosti)}${r.scostamentoCostiPct!=null?`<br><span style="font-size:10px">(${r.scostamentoCostiPct>0?'+':''}${r.scostamentoCostiPct.toFixed(1)}%)</span>`:''}</span>`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td>
+    <td>${r.pctVenduto.toFixed(0)}% <span style="font-size:10px;color:#8796a9">(${r.unitV}/${r.unitTot})</span></td></tr>`;
+  const budgetVsConsuntivoHtml=`<div class="ctrl-card" style="margin-bottom:14px">
+    <h3 style="margin:0 0 4px">Budget vs Consuntivo per lotto</h3>
+    <p style="font-size:11px;color:#8796a9;margin:0 0 12px"><b>Il fabbricato non è finito: le colonne "ad oggi" sono una fotografia a lavori in corso (SAL), non il risultato finale — cambieranno man mano che il cantiere e le vendite procedono.</b> Le colonne "a fine lavori (budget)" mostrano l'obiettivo pianificato: ricavo previsionale (listino/concordato) meno il Budget Costi caricato (dove presente). Le colonne "ad oggi" mostrano lo stato reale: ricavi = <b>venduto</b> (prezzo concordato sulle unità vendute, accordo Acquisto — non il fatturato, che segue la fatturazione progressiva sui SAL e resta indietro anche di mesi), costi = quanto realmente speso secondo il brogliaccio. Ogni margine mostra sotto due percentuali distinte: <b>marginalità</b> (margine ÷ ricavi — confronta lotti di dimensioni diverse) e <b>ROI</b> (margine ÷ costi — "quanto rende ogni euro speso"): non sono la stessa cosa. "Avanzamento spesa" = quanta parte del budget costi è già stata impegnata — oggi è il modo più affidabile per capire a che punto è il cantiere (il cronoprogramma non ha ancora un avanzamento lavori inserito). "Scostamento costi" = quanto si sta spendendo in più (rosso) o in meno (verde) rispetto al budget, in € e in %. Sorriso non ha centro di costo attivo: venduto disponibile, ma costo/margine/ROI/avanzamento spesa restano n/d (mostrare "venduto meno zero" darebbe un margine falso).</p>
+    <div style="overflow-x:auto"><table class="ctrl-table" style="min-width:1180px"><thead><tr><th>Lotto</th><th>Ricavi a fine lavori (budget)</th><th>Costi a fine lavori (budget)</th><th>Margine a fine lavori</th><th>Ricavi ad oggi (venduto)</th><th>Costi sostenuti ad oggi</th><th>Margine ad oggi</th><th>Avanzamento spesa</th><th>Scostamento costi</th><th>% Venduto</th></tr></thead>
+    <tbody>${confrontoPerLotto.map(rigaConfronto).join('')}</tbody>
+    <tfoot><tr><td><b>Totale${lottiConBudget.length<confrontoPerLotto.length?' (solo lotti con budget)':''}</b></td><td>${lottiConBudget.length?`<b>${ctrlEuro(totRicaviBudget)}</b>`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td>${lottiConBudget.length?`<b>${ctrlEuro(totCostoBudget)}</b>`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td>${lottiConBudget.length?`<b style="color:${totMargineBudget>=0?'#166534':'#b91c1c'}">${ctrlEuro(totMargineBudget)}</b>${margDettaglio('rb-tot',totMargineBudget,totRicaviBudget,totCostoBudget,totMarginalitaBudgetPct,totRoiBudgetPct)}`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td><b>${ctrlEuro(totRicaviConsuntivoTutti)}</b></td><td><b>${ctrlEuro(totCostoConsuntivoNoti)}</b></td><td>${lottiConCentroDiCosto.length?`<b style="color:${totMargineConsuntivo>=0?'#166534':'#b91c1c'}">${ctrlEuro(totMargineConsuntivo)}</b>${margDettaglio('rc-tot',totMargineConsuntivo,totRicaviConsuntivo,totCostoConsuntivoNoti,totMarginalitaConsuntivoPct,totRoiConsuntivoPct)}`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td>${totPctBudgetSpeso!=null?`<div style="cursor:pointer" onclick="ctrlToggleSpiega('as-tot')"><b>${totPctBudgetSpeso.toFixed(0)}% ⓘ</b><div id="spiega-as-tot" style="display:none;margin-top:5px;padding-top:5px;border-top:1px solid rgba(0,0,0,.12);font-size:9px;color:#5a6b7d;font-weight:400;line-height:1.55;text-align:left">Avanzamento spesa = Costo sostenuto ad oggi ÷ Costo a budget (lotti con budget) = ${ctrlEuro(totCostoConsuntivoPerBudget)} ÷ ${ctrlEuro(totCostoBudget)} = <b>${totPctBudgetSpeso.toFixed(0)}%</b>.</div></div>`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td>${totCostoBudget>0?`<span style="color:${totScostamentoCosti>0?'#b91c1c':'#166534'}">${totScostamentoCosti>0?'+':''}${ctrlEuro(totScostamentoCosti)}${totScostamentoCostiPct!=null?` (${totScostamentoCostiPct>0?'+':''}${totScostamentoCostiPct.toFixed(1)}%)`:''}</span>`:''}</td><td></td></tr></tfoot>
+    </table></div>
+    ${lottiConBudget.length<confrontoPerLotto.length?`<p style="font-size:10px;color:#8796a9;margin:10px 0 0">Senza Budget Costi caricato: ${confrontoPerLotto.filter(r=>r.costoBudget==null).map(r=>ctrlEsc(r.nome)).join(', ')} — per questi il margine a budget resta n/d invece di essere stimato a zero.</p>`:''}
+  </div>`;
+
+  // Card "Proiezione futura": non guarda indietro (consuntivo) ma avanti — quanto resta da incassare
+  // (crediti già maturati sui contratti in essere + invenduto + box, stessa definizione di "Totale ancora
+  // da incassare" già in uso in Budget Ricavi) contro quanto resta da spendere seguendo il budget (budget
+  // totale meno quanto già speso a consuntivo). Richiesto da Noemi il 16/09/2026. "Ancora da spendere"
+  // presuppone che la spesa arrivi a coprire il budget e non oltre: è una proiezione sul piano, non una
+  // certezza — se un lotto sta già sopra budget il valore è negativo (nessun margine di spesa residuo).
+  const proiezioneHtml=`<div class="ctrl-card" style="margin-bottom:14px;background:linear-gradient(135deg,#0f3d2e,#0a2820);color:white;border:0">
+    <h3 style="color:white;margin:0 0 4px">Capitale ancora esposto: cosa resta da incassare e da spendere</h3>
+    <p style="font-size:11px;color:#cfe8db;margin:0 0 12px">Quanto capitale devi ancora mettere nel lotto prima di completarlo, rispetto a quanto devi ancora incassare. Ancora da incassare = crediti sui contratti già in essere non ancora riscossi + invenduto + box (stima a listino). Ancora da spendere = budget meno quanto già speso a consuntivo, seguendo la linea del budget${lottiConProiezione.length<confrontoPerLotto.length?' (solo lotti con Budget Costi caricato)':''}. Saldo netto futuro = differenza tra le due: quanto ci si aspetta di incassare in più di quanto resta da spendere, se tutto va secondo budget. <b>Nota:</b> è una fotografia statica di quanto resta in totale, non una linea temporale — per sapere QUANDO servirà quel capitale servirebbero date sui costi ancora da sostenere, che il brogliaccio non registra (stesso limite che blocca il calcolo del TIR).</p>
+    <div class="ctrl-kpis">
+      ${kpiTile('cae-incassare','background:rgba(255,255,255,.08)',
+        `<strong style="color:white">${ctrlEuro(totAncoraDaIncassareProiezione)}</strong><span style="color:#cfe8db">Totale ancora da incassare</span>`,
+        `Crediti su contratti già in essere non ancora riscossi (${ctrlEuro(ric.accontiDaRic)}) + Invenduto a listino (${ctrlEuro(ric.invendutoVal)}) + Box invenduti (${ctrlEuro(ric.boxInvendutiVal)}) = <b>${ctrlEuro(totAncoraDaIncassareProiezione)}</b>.`
+      )}
+      ${kpiTile('cae-spendere','background:rgba(255,255,255,.08)',
+        `<strong style="color:${totAncoraDaSpendere>=0?'white':'#f87171'}">${ctrlEuro(totAncoraDaSpendere)}</strong><span style="color:#cfe8db">Totale ancora da spendere (residuo budget)</span>`,
+        `Somma, sui lotti con Budget Costi caricato, di (Costo a budget − Costo sostenuto ad oggi) = ${ctrlEuro(totCostoBudget)} − ${ctrlEuro(totCostoConsuntivoPerBudget)} = <b>${ctrlEuro(totAncoraDaSpendere)}</b>. Assume che la spesa residua arrivi a coprire il budget e non oltre.`
+      )}
+      ${kpiTile('cae-saldo','background:rgba(255,255,255,.15)',
+        `<strong style="color:${totSaldoNettoFuturo>=0?'#4ade80':'#f87171'}">${ctrlEuro(totSaldoNettoFuturo)}</strong><span style="color:#cfe8db">Saldo netto futuro atteso</span>`,
+        `Saldo netto futuro = Ancora da incassare − Ancora da spendere = ${ctrlEuro(totAncoraDaIncassareProiezione)} − ${ctrlEuro(totAncoraDaSpendere)} = <b>${ctrlEuro(totSaldoNettoFuturo)}</b>.`
+      )}
+    </div>
+    <div style="overflow-x:auto;margin-top:14px"><table class="ctrl-table" style="background:white;border-radius:8px;overflow:hidden"><thead><tr><th>Lotto</th><th>Ancora da incassare</th><th>Ancora da spendere</th><th>Saldo netto futuro</th></tr></thead>
+    <tbody>${confrontoPerLotto.map(r=>`<tr><td><b>${ctrlEsc(r.nome)}</b></td><td>${ctrlEuro(r.ancoraDaIncassare)}</td><td>${r.ancoraDaSpendere!=null?`<span style="color:${r.ancoraDaSpendere>=0?'#166534':'#b91c1c'}">${ctrlEuro(r.ancoraDaSpendere)}</span>`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td>${r.saldoNettoFuturo!=null?`<b style="color:${r.saldoNettoFuturo>=0?'#166534':'#b91c1c'}">${ctrlEuro(r.saldoNettoFuturo)}</b>`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td></tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+
+  // Card "Valore al mq": stessi importi della tabella Budget vs Consuntivo, divisi per la superficie lorda
+  // commerciale totale del fabbricato — rende confrontabili lotti di taglia diversa. Richiesta di Noemi il
+  // 16/09/2026: "Costo €/mq vs ricavo €/mq e quindi margine €/mq... rende confrontabili unità e lotti".
+  const rigaMq=r=>`<tr><td><b>${ctrlEsc(r.nome)}</b></td><td>${r.mqTotali?r.mqTotali.toFixed(0)+' mq':'n/d'}</td>
+    <td>${r.ricavoBudgetMq!=null?ctrlEuro(r.ricavoBudgetMq):'n/d'}</td>
+    <td>${r.ricavoConsuntivoMq!=null?ctrlEuro(r.ricavoConsuntivoMq):'n/d'}</td>
+    <td>${r.costoBudgetMq!=null?ctrlEuro(r.costoBudgetMq):'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td>
+    <td>${r.costoConsuntivoMq!=null?ctrlEuro(r.costoConsuntivoMq):'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td>
+    <td>${r.margineConsuntivoMq!=null?`<b style="color:${r.margineConsuntivoMq>=0?'#166534':'#b91c1c'}">${ctrlEuro(r.margineConsuntivoMq)}</b>`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td></tr>`;
+  const valoreMqHtml=`<div class="ctrl-card" style="margin-bottom:14px">
+    <h3 style="margin:0 0 4px">Valore al mq</h3>
+    <p style="font-size:11px;color:#8796a9;margin:0 0 12px">Stessi importi della tabella Budget vs Consuntivo, divisi per la superficie lorda commerciale totale del fabbricato (mq) — rende confrontabili lotti di taglia diversa. "Ricavo/mq ad oggi" conta solo il venduto finora: crescerà verso il valore "a fine lavori" man mano che il lotto si vende, non è ancora un prezzo medio finale.</p>
+    <div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Superficie</th><th>Ricavo/mq (fine lavori)</th><th>Ricavo/mq (ad oggi)</th><th>Costo/mq (fine lavori)</th><th>Costo/mq (ad oggi)</th><th>Margine/mq (ad oggi)</th></tr></thead>
+    <tbody>${confrontoPerLotto.map(rigaMq).join('')}</tbody>
+    <tfoot><tr><td><b>Totale</b></td><td><b>${totMqTutti.toFixed(0)} mq</b></td><td>${totRicavoBudgetMq!=null?`<b>${ctrlEuro(totRicavoBudgetMq)}</b>`:'n/d'}</td><td>${totRicavoConsuntivoMq!=null?`<b>${ctrlEuro(totRicavoConsuntivoMq)}</b>`:'n/d'}</td><td>${totCostoBudgetMq!=null?`<b>${ctrlEuro(totCostoBudgetMq)}</b>`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td>${totCostoConsuntivoMq!=null?`<b>${ctrlEuro(totCostoConsuntivoMq)}</b>`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td>${totMargineConsuntivoMq!=null?`<b style="color:${totMargineConsuntivoMq>=0?'#166534':'#b91c1c'}">${ctrlEuro(totMargineConsuntivoMq)}</b>`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td></tr></tfoot>
+    </table></div>
+  </div>`;
+
+  // Card "Commerciale": scostamento prezzi di vendita reali vs listino (solo Acquisto, le Permute hanno già
+  // una card dedicata più sopra) e break-even commerciale (quota di valore/unità da vendere per coprire il
+  // costo totale a budget). Richiesta di Noemi il 16/09/2026.
+  const rigaCommerciale=r=>`<tr><td><b>${ctrlEsc(r.nome)}</b></td>
+    <td>${r.nVendutiAcquistoConPrezzo?`<span style="color:${r.scostamentoPrezziVal>=0?'#166534':'#b91c1c'}">${r.scostamentoPrezziVal>=0?'+':''}${ctrlEuro(r.scostamentoPrezziVal)}${r.scostamentoPrezziPct!=null?` (${r.scostamentoPrezziPct>=0?'+':''}${r.scostamentoPrezziPct.toFixed(1)}%)`:''}</span> <span style="font-size:10px;color:#8796a9">su ${r.nVendutiAcquistoConPrezzo} unità</span>`:'<span style="color:#8796a9;font-size:11px">nessuna vendita Acquisto con prezzo inserito</span>'}</td>
+    <td>${r.breakEvenPct!=null?r.breakEvenPct.toFixed(0)+'% del valore':'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td>
+    <td>${r.breakEvenUnitsApprox!=null?`~${r.breakEvenUnitsApprox} unità <span style="font-size:10px;color:#8796a9">(vendute: ${r.unitV})</span> ${r.breakEvenCoperto?'<span class="ctrl-chip ok" style="margin-left:4px">coperto</span>':'<span class="ctrl-chip warn" style="margin-left:4px">da coprire</span>'}`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td>
+    <td>${r.pctVenduto.toFixed(0)}% <span style="font-size:10px;color:#8796a9">(${r.unitV}/${r.unitTot})</span></td></tr>`;
+  const commercialeHtml=`<div class="ctrl-card" style="margin-bottom:14px">
+    <h3 style="margin:0 0 4px">Commerciale: prezzi e break-even</h3>
+    <p style="font-size:11px;color:#8796a9;margin:0 0 12px">"Scostamento prezzi vendita" confronta, sulle sole vendite Acquisto con prezzo inserito in scheda, quanto incassato davvero contro il previsionale di listino (le Permute hanno il confronto dedicato più sopra, per non contarle due volte con due metodi diversi). "Break-even commerciale" = quota di valore (e stima approssimata di unità, a valore medio uniforme per unità) da vendere perché i ricavi coprano l'intero costo a budget del lotto. Richiesta di Noemi il 16/09/2026.</p>
+    <div style="overflow-x:auto"><table class="ctrl-table"><thead><tr><th>Lotto</th><th>Scostamento prezzi vendita (Acquisto)</th><th>Break-even (% valore)</th><th>Break-even (unità, stima)</th><th>% Venduto oggi</th></tr></thead>
+    <tbody>${confrontoPerLotto.map(rigaCommerciale).join('')}</tbody>
+    <tfoot><tr><td><b>Totale</b></td><td>${totListinoVendutiAcquisto>0?`<span style="color:${totScostamentoPrezziVal>=0?'#166534':'#b91c1c'}"><b>${totScostamentoPrezziVal>=0?'+':''}${ctrlEuro(totScostamentoPrezziVal)}</b>${totScostamentoPrezziPct!=null?` (${totScostamentoPrezziPct>=0?'+':''}${totScostamentoPrezziPct.toFixed(1)}%)`:''}</span>`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td>${totBreakEvenPct!=null?`<b>${totBreakEvenPct.toFixed(0)}%</b> del valore`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td>${totBreakEvenUnitsApprox!=null?`~<b>${totBreakEvenUnitsApprox}</b> unità <span style="font-size:10px;color:#8796a9">(vendute: ${totUnitV})</span> ${totBreakEvenCoperto?'<span class="ctrl-chip ok" style="margin-left:4px">coperto</span>':'<span class="ctrl-chip warn" style="margin-left:4px">da coprire</span>'}`:'<span style="color:#8796a9;font-size:11px">n/d</span>'}</td><td><b>${totUnitTot>0?(totUnitV/totUnitTot*100).toFixed(0):0}%</b></td></tr></tfoot>
+    </table></div>
+  </div>`;
+
+  // Card "Risultato finale stimato (forecast)": formula esplicita richiesta da Noemi il 16/09/2026. Vedi
+  // nota sulla definizione di risultatoFinaleStimato più sopra: oggi coincide col Margine a fine lavori
+  // (budget) perché usa la stessa ipotesi sul costo residuo — lo mostriamo comunque come bilancio a parte,
+  // con le sue componenti esplicite, perché è così che lei l'ha chiesto e perché diventerà un numero
+  // indipendente non appena sarà disponibile un costo a finire che non derivi dal budget.
+  const rigaForecast=r=>r.risultatoFinaleStimato!=null?`<tr><td><b>${ctrlEsc(r.nome)}</b></td><td>${ctrlEuro(r.ricaviGiaRealizzati)}</td><td>${ctrlEuro(r.ricaviAttesiSuInvenduto)}</td><td>${ctrlEuro(r.costoConsuntivo)}</td><td>${ctrlEuro(r.ancoraDaSpendere)}</td><td><b style="color:${r.risultatoFinaleStimato>=0?'#166534':'#b91c1c'}">${ctrlEuro(r.risultatoFinaleStimato)}</b></td></tr>`:`<tr><td><b>${ctrlEsc(r.nome)}</b></td><td colspan="5" style="color:#8796a9;font-size:11px">n/d — nessun Budget Costi caricato per questo lotto</td></tr>`;
+  const forecastHtml=`<div class="ctrl-card" style="margin-bottom:14px;background:linear-gradient(135deg,#3a1f0f,#241205);color:white;border:0">
+    <h3 style="color:white;margin:0 0 4px">Risultato finale stimato del lotto (forecast)</h3>
+    <p style="font-size:11px;color:#e6d2b8;margin:0 0 12px">Ricavi già realizzati (venduto Acquisto + permute concordate) + ricavi attesi sull'invenduto (a listino) − costi sostenuti − costi ancora da sostenere. <b>Nota onesta:</b> "costi ancora da sostenere" qui è stimato dal budget residuo (budget meno speso), non da un costo a finire indipendente — quindi oggi questo risultato coincide, per costruzione, col Margine a fine lavori (budget) della tabella Budget vs Consuntivo. Diventerà un numero davvero distinto quando sarà disponibile un costo a finire indipendente dal budget (serve l'avanzamento lavori fisico dal Cronoprogramma, oggi non compilato).</p>
+    <div style="overflow-x:auto"><table class="ctrl-table" style="background:white;border-radius:8px;overflow:hidden"><thead><tr><th>Lotto</th><th>Ricavi già realizzati</th><th>+ Ricavi attesi su invenduto</th><th>− Costi sostenuti</th><th>− Costi ancora da sostenere</th><th>= Risultato finale stimato</th></tr></thead>
+    <tbody>${confrontoPerLotto.map(rigaForecast).join('')}</tbody>
+    ${totRisultatoFinaleStimato!=null?`<tfoot><tr><td><b>Totale</b></td><td><b>${ctrlEuro(totRicaviGiaRealizzati)}</b></td><td><b>${ctrlEuro(totRicaviAttesiSuInvenduto)}</b></td><td><b>${ctrlEuro(totCostoConsuntivoPerBudget)}</b></td><td><b>${ctrlEuro(totAncoraDaSpendere)}</b></td><td><strong style="font-size:14px;color:${totRisultatoFinaleStimato>=0?'#166534':'#b91c1c'}">${ctrlEuro(totRisultatoFinaleStimato)}</strong></td></tr></tfoot>`:''}
+    </table></div>
+  </div>`;
+
+  // Intestazioni di sezione: la pagina segue ora i 4 blocchi indicati da Noemi il 16/09/2026 — Budget →
+  // Consuntivo → Commerciale → Strategico/Forecast — invece di una sequenza di card senza gerarchia.
+  const sezione=(titolo,sottotitolo)=>`<div style="margin:26px 0 10px"><h3 style="margin:0;color:#1a2e4a;letter-spacing:.5px;text-transform:uppercase;font-size:12px;border-bottom:2px solid #1a2e4a;padding-bottom:6px">${titolo}</h3>${sottotitolo?`<p style="margin:6px 0 0;font-size:11px;color:#8796a9">${sottotitolo}</p>`:''}</div>`;
+
+  // Card "KPI imprenditoriali": non un semplice riepilogo, ma un'indicazione di dove guardare per primo —
+  // il lotto con la marginalità più bassa e quello più sopra budget, così chi decide sa subito da dove
+  // partire, invece di dover leggere tutta la tabella sopra riga per riga. ROI aggiunto il 16/09/2026 su
+  // indicazione del consulente di Noemi: marginalità = margine ÷ ricavi ("quanto profitto per euro
+  // venduto"), ROI = margine ÷ costi ("quanto profitto per euro speso") — sono due rapporti diversi, non
+  // la stessa cosa espressa in due modi.
+  const kpiImprenditorialiHtml=rankingMarginalita.length?`<div class="ctrl-card" style="margin-bottom:14px;background:linear-gradient(135deg,#132640,#1d385c);color:white;border:0">
+    <h3 style="color:white;margin:0 0 4px">Dove guardare per primo</h3>
+    <p style="font-size:11px;color:#b9c8da;margin:0 0 12px">Marginalità = margine ad oggi (venduto − costo sostenuto) ÷ venduto. ROI = stesso margine ÷ capitale investito ad oggi (il costo sostenuto). Calcolabili solo dove c'è un centro di costo attivo (esclusa Sorriso) — e sono numeri "ad oggi": il fabbricato non è finito, cambieranno via via che si spende e si incassa.</p>
+    <div class="ctrl-kpis">
+      ${peggiorMargine?kpiTile('dgp-marg-min','background:rgba(255,255,255,.08)',
+        `<strong style="color:${peggiorMargine.marginalitaPct>=0?'#4ade80':'#f87171'}">${peggiorMargine.marginalitaPct.toFixed(1)}%</strong><span style="color:#d7e2ef">Marginalità più bassa: ${ctrlEsc(peggiorMargine.nome)}</span>`,
+        `Marginalità (${ctrlEsc(peggiorMargine.nome)}) = Margine ad oggi ÷ Venduto ad oggi = ${ctrlEuro(peggiorMargine.margineConsuntivo)} ÷ ${ctrlEuro(peggiorMargine.ricaviConsuntivo)} = <b>${peggiorMargine.marginalitaPct.toFixed(1)}%</b>. È la marginalità più bassa tra i lotti con centro di costo attivo.`
+      ):''}
+      ${miglioreMargine&&miglioreMargine.key!==(peggiorMargine&&peggiorMargine.key)?kpiTile('dgp-marg-max','background:rgba(255,255,255,.08)',
+        `<strong style="color:#4ade80">${miglioreMargine.marginalitaPct.toFixed(1)}%</strong><span style="color:#d7e2ef">Marginalità più alta: ${ctrlEsc(miglioreMargine.nome)}</span>`,
+        `Marginalità (${ctrlEsc(miglioreMargine.nome)}) = Margine ad oggi ÷ Venduto ad oggi = ${ctrlEuro(miglioreMargine.margineConsuntivo)} ÷ ${ctrlEuro(miglioreMargine.ricaviConsuntivo)} = <b>${miglioreMargine.marginalitaPct.toFixed(1)}%</b>.`
+      ):''}
+      ${peggiorScostamento?kpiTile('dgp-scost','background:rgba(255,255,255,.08)',
+        `<strong style="color:#f87171">+${ctrlEuro(peggiorScostamento.scostamentoCosti)}</strong><span style="color:#d7e2ef">Più sopra budget: ${ctrlEsc(peggiorScostamento.nome)}</span>`,
+        `Scostamento costi (${ctrlEsc(peggiorScostamento.nome)}) = Costo sostenuto ad oggi − Costo a budget = ${ctrlEuro(peggiorScostamento.costoConsuntivo)} − ${ctrlEuro(peggiorScostamento.costoBudget)} = <b>+${ctrlEuro(peggiorScostamento.scostamentoCosti)}</b>. È il lotto più sopra budget oggi, tra quelli con Budget Costi caricato.`
+      ):`<div class="ctrl-kpi" style="background:rgba(255,255,255,.08)"><strong style="color:#4ade80">—</strong><span style="color:#d7e2ef">Nessun lotto sopra budget al momento</span></div>`}
+      ${kpiTile('dgp-marg-media','background:rgba(255,255,255,.08)',
+        `<strong style="color:white">${pct(totMargineConsuntivo,totRicaviConsuntivo)}</strong><span style="color:#d7e2ef">Marginalità media operazione (ad oggi)</span>`,
+        `Marginalità operazione = Margine ad oggi ÷ Venduto ad oggi (lotti con centro di costo) = ${ctrlEuro(totMargineConsuntivo)} ÷ ${ctrlEuro(totRicaviConsuntivo)} = <b>${pct(totMargineConsuntivo,totRicaviConsuntivo)}</b>.`
+      )}
+      ${kpiTile('dgp-roi-oggi','background:rgba(255,255,255,.15)',
+        `<strong style="color:white">${pct(totMargineConsuntivo,totCostoConsuntivoNoti)}</strong><span style="color:#d7e2ef">ROI operazione ad oggi (Utile ÷ Capitale investito)</span>`,
+        `ROI ad oggi = Utile (Margine ad oggi) ÷ Capitale investito ad oggi (Costo sostenuto) = ${ctrlEuro(totMargineConsuntivo)} ÷ ${ctrlEuro(totCostoConsuntivoNoti)} = <b>${pct(totMargineConsuntivo,totCostoConsuntivoNoti)}</b>. Solo lotti con centro di costo attivo (esclusa Sorriso).`
+      )}
+      ${totRoiBudgetPct!=null?kpiTile('dgp-roi-budget','background:rgba(255,255,255,.15)',
+        `<strong style="color:white">${pct(totMargineBudget,totCostoBudget)}</strong><span style="color:#d7e2ef">ROI atteso a fine lavori (se il budget regge)</span>`,
+        `ROI a budget = Margine a budget ÷ Costo a budget = ${ctrlEuro(totMargineBudget)} ÷ ${ctrlEuro(totCostoBudget)} = <b>${pct(totMargineBudget,totCostoBudget)}</b>. Solo lotti con Budget Costi caricato.`
+      ):''}
+      ${totPctBudgetSpeso!=null?kpiTile('dgp-avanz','background:rgba(255,255,255,.08)',
+        `<strong style="color:white">${totPctBudgetSpeso.toFixed(0)}%</strong><span style="color:#d7e2ef">Avanzamento spesa operazione (a che punto siamo)</span>`,
+        `Avanzamento spesa = Costo sostenuto ad oggi ÷ Costo a budget (lotti con budget) = ${ctrlEuro(totCostoConsuntivoPerBudget)} ÷ ${ctrlEuro(totCostoBudget)} = <b>${totPctBudgetSpeso.toFixed(0)}%</b>.`
+      ):''}
+    </div>
+  </div>`:'';
+
+  return `<div class="ctrl-shell"><div class="ctrl-head"><div><h2>Report D|Park</h2><p>Vista d'insieme sul progetto — usa il filtro Fabbricato per isolare un solo lotto. Il dettaglio riga per riga resta nelle pagine sopra (Budget/Consuntivo Costi e Ricavi). Ogni numero qui viene dalle stesse fonti già in uso altrove. <b>Il fabbricato non è finito: tutto ciò che è etichettato "ad oggi" è la fotografia del cantiere a questo punto (SAL corrente), non il risultato finale — per l'obiettivo a fine lavori guarda le colonne "a fine lavori (budget)" e la card Proiezione più sotto.</b></p></div></div>
+  ${filtriHtml}
+  <div class="ctrl-kpis">
+    ${kpiTile('top-ric-prev','',
+      `<strong>${ctrlEuro(ric.totale)}</strong><span>Ricavi previsti a fine lavori${nomeFiltroLotto?' — '+ctrlEsc(nomeFiltroLotto):' — operazione'}</span>`,
+      `Venduto (${ctrlEuro(ric.vendutoVal)}) + Permuta (${ctrlEuro(ric.permutaVal)})${ric.vendutoAltroVal>0?' + Senza tipo accordo ('+ctrlEuro(ric.vendutoAltroVal)+')':''} + Invenduto a listino (${ctrlEuro(ric.invendutoVal)}) + Box invenduti (${ctrlEuro(ric.boxInvendutiVal)}) = <b>${ctrlEuro(ric.totale)}</b>.`
+    )}
+    ${kpiTile('top-ancora-inc','background:linear-gradient(135deg,#0d5c9c,#123a63)',
+      `<strong style="color:white">${ctrlEuro(ric.totaleAncoraDaIncassare)}</strong><span style="color:#cfe0f2">Ancora da incassare (crediti + invenduto + box)</span>`,
+      `Crediti su contratti già in essere non ancora riscossi (${ctrlEuro(ric.accontiDaRic)}) + Invenduto a listino (${ctrlEuro(ric.invendutoVal)}) + Box invenduti (${ctrlEuro(ric.boxInvendutiVal)}) = <b>${ctrlEuro(ric.totaleAncoraDaIncassare)}</b>.`
+    )}
+    ${kpiTile('top-venduto','',
+      `<strong>${ctrlEuro(totRicaviConsuntivoTutti)}</strong><span>Venduto ad oggi (SAL corrente)</span>`,
+      `Somma, lotto per lotto, del prezzo concordato sulle unità con accordo Acquisto già vendute (Sorriso inclusa: non dipende dal brogliaccio) = <b>${ctrlEuro(totRicaviConsuntivoTutti)}</b>.`
+    )}
+    ${kpiTile('top-costo','',
+      `<strong>${ctrlEuro(totaleCostiEffettivi)}</strong><span>Costo sostenuto ad oggi (brogliaccio)</span>`,
+      `Somma, lotto per lotto, dei costi riconosciuti nel brogliaccio (fornitori assegnati + righe non identificate)${filtro==='all'?' + costi generali D|Park':''} = <b>${ctrlEuro(totaleCostiEffettivi)}</b>.`
+    )}
+    ${kpiTile('top-margine','',
+      `<strong style="color:${margineTot>=0?'#0ca30c':'#d03b3b'}">${ctrlEuro(margineTot)}</strong><span>Margine ad oggi (venduto − costo sostenuto, provvisorio)</span>`,
+      `Margine ad oggi = Venduto ad oggi ÷ (lotti con centro di costo) − Costo sostenuto ad oggi = ${ctrlEuro(totRicaviConsuntivo)} − ${ctrlEuro(totCostoConsuntivoNoti)} = <b>${ctrlEuro(margineTot)}</b>. Esclude Sorriso (nessun centro di costo attivo, altrimenti "venduto meno zero" darebbe un margine falso).`
+    )}
+    ${kpiTile('top-roi','background:linear-gradient(135deg,#132640,#1d385c)',
+      `<strong style="color:white">${pct(totMargineConsuntivo,totCostoConsuntivoNoti)}</strong><span style="color:#d7e2ef">ROI operazione ad oggi (Utile ÷ Capitale investito)</span>`,
+      `ROI ad oggi = Utile (Margine ad oggi) ÷ Capitale investito ad oggi (Costo sostenuto) = ${ctrlEuro(totMargineConsuntivo)} ÷ ${ctrlEuro(totCostoConsuntivoNoti)} = <b>${pct(totMargineConsuntivo,totCostoConsuntivoNoti)}</b>.`
+    )}
+  </div>
+  <p style="font-size:10px;color:#8796a9;margin:-6px 0 16px">Fatturato imponibile ad oggi secondo il brogliaccio: ${ctrlEuro(ricCons.fatturato)} (${pct(ricCons.fatturato,totRicaviConsuntivoTutti)} del venduto) — la differenza è normale, riflette la fatturazione progressiva sui SAL, non un mancato incasso.${totPctBudgetSpeso!=null?' Budget costi impegnato ad oggi: '+totPctBudgetSpeso.toFixed(0)+'% — oggi è il modo più affidabile per dire a che punto è il cantiere, in assenza di un avanzamento lavori inserito nel Cronoprogramma.':''}${filtro!=='all'?' Costi generali D|Park (DPG) non ripartibili su un singolo fabbricato: esclusi dal costo e dal margine qui sopra finché non torni su "Tutti i fabbricati" — il totale è nella pagina "Consuntivo Costi D|Park".':''}</p>
+
+  ${kpiImprenditorialiHtml}
+
+  ${sezione('Budget → Consuntivo','Obiettivo pianificato a confronto con lo stato reale ad oggi (SAL), lotto per lotto.')}
+  ${budgetVsConsuntivoHtml}
+  ${valoreMqHtml}
+
+  ${sezione('Commerciale','Come si sta vendendo: a quali prezzi rispetto al piano, e quanto manca al pareggio.')}
+  ${commercialeHtml}
+  ${permuteHtml}
+
+  ${sezione('Strategico — Forecast','Capitale ancora esposto e risultato finale stimato, proiettati dalle stesse fonti di sopra.')}
+  ${proiezioneHtml}
+  ${forecastHtml}
+
+  ${sezione('Dettaglio visivo','')}
   <div class="ctrl-grid" style="margin-top:14px">
-    <div class="ctrl-card"><h3>Ripartizione ricavi previsti</h3><p style="font-size:11px;color:#8796a9;margin:0 0 12px">Venduto, permuta, invenduto e box — stima previsionale, tutti i fabbricati.</p>${donutRicavi}</div>
+    <div class="ctrl-card"><h3>Ripartizione ricavi previsti</h3><p style="font-size:11px;color:#8796a9;margin:0 0 12px">Venduto, permuta, invenduto e box — stima previsionale${nomeFiltroLotto?', '+ctrlEsc(nomeFiltroLotto):', tutti i fabbricati'}.</p>${donutRicavi}</div>
     <div class="ctrl-card"><h3>Fatturato vs da fatturare</h3><p style="font-size:11px;color:#8796a9;margin:0 0 12px">Sul venduto imponibile, secondo il brogliaccio (esclusa Sorriso, nessun centro di costo).</p>${donutFatturato}</div>
-    <div class="ctrl-card"><h3>Incassato vs da incassare</h3><p style="font-size:11px;color:#8796a9;margin:0 0 12px">Acconti (SAL) reali su tutte le unità, tutti i fabbricati.</p>${donutIncassi}</div>
-    <div class="ctrl-card"><h3>Fornitori a budget: stato</h3><p style="font-size:11px;color:#8796a9;margin:0 0 12px">Armonia 1 + Armonia 2 (unici lotti con Budget Costi oggi) — stessa logica del semaforo in Consuntivo Costi.</p>${donutStatoForn}</div>
-    <div class="ctrl-card"><h3>Costi per categoria</h3><p style="font-size:11px;color:#8796a9;margin:0 0 12px">Fornitore/materiale, tutti i lotti + costi generali D|Park.${catAltro.length?' '+catAltro.length+' categorie minori raggruppate in "Altro".':''}</p>${totaleCategorie>0?donutCategorie:'<p style="font-size:12px;color:#8796a9">Ancora nessun fornitore riconosciuto tra le righe del brogliaccio.</p>'}</div>
+    <div class="ctrl-card"><h3>Incassato vs da incassare</h3><p style="font-size:11px;color:#8796a9;margin:0 0 12px">Acconti (SAL) reali su tutte le unità${nomeFiltroLotto?', '+ctrlEsc(nomeFiltroLotto):', tutti i fabbricati'}.</p>${donutIncassi}</div>
+    <div class="ctrl-card"><h3>Fornitori a budget: stato</h3><p style="font-size:11px;color:#8796a9;margin:0 0 12px">Solo i lotti con Budget Costi disponibile oggi (Armonia 1, Armonia 2, Vittoria) — stessa logica del semaforo in Consuntivo Costi.</p>${donutStatoForn}</div>
+    <div class="ctrl-card"><h3>Costi per categoria</h3><p style="font-size:11px;color:#8796a9;margin:0 0 12px">Fornitore/materiale${nomeFiltroLotto?', '+ctrlEsc(nomeFiltroLotto):', tutti i lotti + costi generali D|Park'}.${catAltro.length?' '+catAltro.length+' categorie minori raggruppate in "Altro".':''}</p>${totaleCategorie>0?donutCategorie:'<p style="font-size:12px;color:#8796a9">Ancora nessun fornitore riconosciuto tra le righe del brogliaccio.</p>'}</div>
     <div class="ctrl-card"><h3>Costo effettivo per lotto</h3><p style="font-size:11px;color:#8796a9;margin:0 0 12px">Dal brogliaccio. Barra piena = lotto col costo più alto.</p>${barreCosti||'<p style="font-size:12px;color:#8796a9">Nessun dato ancora.</p>'}</div>
     <div class="ctrl-card"><h3>Margine per lotto</h3><p style="font-size:11px;color:#8796a9;margin:0 0 12px">Fatturato meno costo effettivo, per lotto (Sorriso esclusa). Rosso = margine negativo.</p>${barreMargine||'<p style="font-size:12px;color:#8796a9">Nessun dato ancora.</p>'}</div>
   </div>
@@ -6248,10 +6769,14 @@ function ctrlRenderReportEconomico(){
 // (nessun centro di costo attivo): per Sorriso vengono mostrati solo unità/previsionale/venduto/invenduto, con fatturato e costo lotto a 0 e margine non calcolabile.
 function ctrlSintesiGenerale(){
   if(!Array.isArray(CTRL_SINTESI_LOTTI))CTRL_SINTESI_LOTTI=CTRL_BUILDINGS.map(([k])=>k);
+  // Costo effettivo: stessa fonte dal vivo del Consuntivo Costi/Report (ctrlConsuntivoConfrontoLotto), non
+  // più lo snapshot statico IMPORT_COSTI_BROGLIACCIO (congelato al 08/09/2026) — stesso bug di
+  // disallineamento segnalato da Noemi il 16/09/2026 sul Report, corretto qui per coerenza tra le pagine.
+  const conosciutiSintesi=ctrlConsuntivoFornitoriConosciuti();
   const datiLotti=CTRL_BUILDINGS.map(([key,nome])=>{
     const st=projStats(key),haBrogliaccio=key!=='sorriso';
     const venduto=ctrlVendutoLotto(key),fatturato=haBrogliaccio?ctrlFatturatoLotto(key):0;
-    const r=ctrlCostiLottoRecord(key),costoEffettivo=r.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0);
+    const c=ctrlConsuntivoConfrontoLotto(key,conosciutiSintesi),costoEffettivo=c.totConsuntivo+c.nonIdentificate.reduce((a,r)=>a+(Number(r.importo)||0),0);
     const margine=haBrogliaccio?fatturato-costoEffettivo:null;
     const invenduto=Object.values(D[key].units).filter(u=>u.st==='disponibile'||u.st==='riservato').reduce((a,u)=>a+prevOf(u),0);
     return{key,nome,haBrogliaccio,unitTot:st.totAll,unitV:st.v,unitR:st.r,unitD:st.d,previsionale:st.prevTotAll,venduto,fatturato,costoEffettivo,margine,invenduto};
@@ -6262,7 +6787,7 @@ function ctrlSintesiGenerale(){
   const previsionaleSel=selezionati.reduce((a,r)=>a+r.previsionale,0),vendutoSel=selezionati.reduce((a,r)=>a+r.venduto,0),invendutoSel=selezionati.reduce((a,r)=>a+r.invenduto,0);
   const fatturatoSel=selConBrogliaccio.reduce((a,r)=>a+r.fatturato,0),costoLottiSel=selConBrogliaccio.reduce((a,r)=>a+r.costoEffettivo,0);
   const unitTotSel=selezionati.reduce((a,r)=>a+r.unitTot,0),unitVSel=selezionati.reduce((a,r)=>a+r.unitV,0),unitRSel=selezionati.reduce((a,r)=>a+r.unitR,0),unitDSel=selezionati.reduce((a,r)=>a+r.unitD,0);
-  const generale=ctrlCostiGeneraliRecord(),effGenerale=generale.costi.reduce((a,c)=>a+(Number(c.effettivo)||0),0);
+  const effGenerale=ctrlDpgTotale(conosciutiSintesi);
   const lottiConBrogliaccio=CTRL_BUILDINGS.filter(([k])=>k!=='sorriso'),tuttiIBrogliaccioSelezionati=lottiConBrogliaccio.every(([k])=>selKeys.includes(k));
   const margineLotti=fatturatoSel-costoLottiSel;
   const margineLabel=tuttiIBrogliaccioSelezionati?'Margine stimato intera operazione (fatturato − costi lotto − costi generali DPG)':'Margine sui lotti selezionati (esclusi i costi generali D|Park, non ripartibili per lotto)';
@@ -6293,7 +6818,7 @@ function ctrlSintesiGenerale(){
     </div>
     <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:#d7e2ef">
       <span>📦 ${unitTotSel} unità totali</span><span>🔴 ${unitVSel} vendute</span><span>🟠 ${unitRSel} riservate</span><span>🟢 ${unitDSel} disponibili</span>
-      <span style="margin-left:auto;color:#b9c8da">Costi generali D|Park (DPG, intera operazione, non ripartiti per lotto): <b style="color:white">${ctrlEuro(effGenerale)}</b>${tuttiIBrogliaccioSelezionati?' — già incluso nel margine qui sopra':' — non incluso nel margine qui sopra'}</span>
+      <span style="margin-left:auto;color:#b9c8da">Costi generali D|Park (DPG, intera operazione, non ripartiti per lotto): <b style="color:white">${ctrlEuro(effGenerale)}</b>${tuttiIBrogliaccioSelezionati?' — già incluso nel margine qui sopra':' — non incluso nel margine qui sopra'} — dettaglio in "Consuntivo Costi D|Park"</span>
     </div>
     <div style="overflow-x:auto;margin-top:16px"><table class="ctrl-table" style="background:white;border-radius:8px;overflow:hidden;min-width:980px"><thead><tr><th>Lotto (incluso nei totali?)</th><th>Unità</th><th>Previsionale</th><th>Venduto imponibile</th><th>Fatturato imponibile</th><th>Costo effettivo</th><th>Margine</th><th>Invenduto</th></tr></thead><tbody>${righeLotti}</tbody><tfoot><tr><td><b>Totale lotti selezionati</b></td><td><b>${unitTotSel}</b></td><td><b>${ctrlEuro(previsionaleSel)}</b></td><td><b>${ctrlEuro(vendutoSel)}</b></td><td><b>${ctrlEuro(fatturatoSel)}</b></td><td><b>${ctrlEuro(costoLottiSel)}</b></td><td><strong style="font-size:14px">${nessunoSelezionato?'—':ctrlEuro(margineValore)}</strong></td><td><b>${ctrlEuro(invendutoSel)}</b></td></tr></tfoot></table></div>
     ${sorrisoCostiManuali?`<p style="font-size:10px;color:#fbbf24;margin:10px 0 0">* Sorriso ha un costo inserito manualmente (${ctrlEuro(sorrisoCostiManuali)}) escluso dal margine, perché il suo fatturato non è ancora verificabile dal brogliaccio (nessun centro di costo attivo).</p>`:''}
