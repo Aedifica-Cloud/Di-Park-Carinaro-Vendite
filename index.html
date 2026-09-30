@@ -3554,6 +3554,13 @@ load(); sw('lotti'); initAuth(); loadFiles();
   .jg-picked-name{min-width:150px;max-width:190px;font-size:12px;font-weight:800;color:var(--navy);line-height:1.25}
   .jg-picked input[type=text]{flex:1;border:1px solid #eee4d5;border-radius:8px;padding:8px 11px;font:inherit;font-size:12px;background:#faf8f4;transition:border-color .15s,background .15s}
   .jg-picked input[type=text]:focus{outline:none;border-color:var(--gold);background:#fff}
+  .jg-picked select.jg-app-lotto{border:1px solid #ddd1bd;border-radius:8px;padding:8px 10px;font:inherit;font-size:12px;background:#fff;color:var(--navy);font-weight:700;min-width:170px;cursor:pointer}
+  .jg-picked select.jg-app-lotto.vuoto{border-color:#e0a23a;background:#fff8ec;color:#9a6a12}
+  .diary-lotto{display:inline-block;font-size:10px;font-weight:800;padding:3px 8px;border-radius:20px;background:#eef2f8;color:var(--navy);white-space:nowrap}
+  .diary-lotto.gen{background:#fbf3df;color:#8a6412}
+  .jg-filtro{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:16px 0 10px}
+  .jg-filtro select{border:1px solid #ddd1bd;border-radius:9px;padding:8px 12px;font:inherit;font-size:12px;font-weight:700;color:var(--navy);background:#fff}
+  @media(max-width:700px){.jg-picked{flex-wrap:wrap}.jg-picked select.jg-app-lotto,.jg-picked input[type=text]{flex:1 1 100%}}
   .jg-picked-remove{width:26px;height:26px;border-radius:50%;border:0;background:#fdeeee;color:#c62828;font-size:14px;font-weight:800;cursor:pointer;flex-shrink:0;line-height:1;transition:background .15s}
   .jg-picked-remove:hover{background:#f8c9c9}
   .jg-ddt-card{display:flex;align-items:flex-start;gap:13px}
@@ -4697,7 +4704,7 @@ const CTRL_DOC_COMMITTENTE=[
 ];
 function ctrlEsc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function ctrlEuro(v){return new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(v)||0)}
-function ctrlName(k){return (CTRL_BUILDINGS.find(x=>x[0]===k)||['',k])[1]}
+function ctrlName(k){if(k==='generale')return 'D|Park generale';return (CTRL_BUILDINGS.find(x=>x[0]===k)||['',k])[1]}
 function ctrlSubNormalize(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'')}
 function ctrlMigrateSubappaltatoriGenerali(){
   if(!CTRL_DATA.anagrafica||typeof CTRL_DATA.anagrafica!=='object')return false;
@@ -4917,11 +4924,20 @@ function ctrlInitials(nome){
   if(parole.length===1) return parole[0].slice(0,2).toUpperCase();
   return (parole[0][0]+parole[1][0]).toUpperCase();
 }
-// Società appaltatrici scelte dal menù a tendina per la giornata in compilazione: [{nome, lavorazione}]
+// Società scelte per la giornata in compilazione: [{nome, lavorazione, lotto}] — il lotto dice dove imputare il lavoro
 let JG_APP_TODAY = [];
+let CTRL_JG_FILTRO='all';
+function jgLotti(){return [...CTRL_BUILDINGS,['generale','D|Park generale (strade e parti comuni)']]}
+function jgLottoChip(k){return k?`<span class="diary-lotto ${k==='generale'?'gen':''}">${ctrlEsc(ctrlName(k))}</span>`:'<span class="diary-lotto" style="background:#fdeeee;color:#c62828">da imputare</span>'}
+// Righe di una giornata con il lotto di imputazione; le giornate vecchie (giornale per lotto) ereditano il lotto in cui erano state salvate
+function jgRighe(x){
+  const list=Array.isArray(x.appaltatori)&&x.appaltatori.length?x.appaltatori:[{nome:x.impresa||'-',lavorazione:x.lavorazione||x.lavorazioni||''}];
+  const lottoGiornata=x.fabbricato&&x.fabbricato!=='unico'?x.fabbricato:'';
+  return list.map(a=>Object.assign({},a,{lotto:a.lotto||lottoGiornata}));
+}
 function jgRenderAppaltatoriOggiHtml(){
   if(!JG_APP_TODAY.length) return '<div class="ctrl-empty">Nessuna società ancora aggiunta a questa giornata.</div>';
-  return `<div class="jg-picked-list">${JG_APP_TODAY.map((a,i)=>`<div class="jg-picked" data-jg-today-idx="${i}"><div class="jg-picked-avatar">${ctrlInitials(a.nome)}</div><div class="jg-picked-name">${ctrlEsc(a.nome)}</div><input type="text" class="jg-app-lavoro" value="${ctrlEsc(a.lavorazione||'')}" placeholder="Cosa ha lavorato oggi…" oninput="JG_APP_TODAY[${i}].lavorazione=this.value"><button type="button" class="jg-picked-remove" title="Rimuovi" onclick="jgRemoveAppaltatore(${i})">×</button></div>`).join('')}</div>`;
+  return `<div class="jg-picked-list">${JG_APP_TODAY.map((a,i)=>`<div class="jg-picked" data-jg-today-idx="${i}"><div class="jg-picked-avatar">${ctrlInitials(a.nome)}</div><div class="jg-picked-name">${ctrlEsc(a.nome)}</div><select class="jg-app-lotto ${a.lotto?'':'vuoto'}" title="Dove imputare il lavoro" onchange="JG_APP_TODAY[${i}].lotto=this.value;this.classList.toggle('vuoto',!this.value)"><option value="">— dove imputare —</option>${jgLotti().map(([k,n])=>`<option value="${k}" ${a.lotto===k?'selected':''}>${ctrlEsc(n)}</option>`).join('')}</select><input type="text" class="jg-app-lavoro" value="${ctrlEsc(a.lavorazione||'')}" placeholder="Cosa ha lavorato oggi…" oninput="JG_APP_TODAY[${i}].lavorazione=this.value"><button type="button" class="jg-picked-remove" title="Rimuovi" onclick="jgRemoveAppaltatore(${i})">×</button></div>`).join('')}</div>`;
 }
 function jgAppSelectChanged(){
   const sel=document.getElementById('jg-app-select'), extra=document.getElementById('jg-app-extra-nome');
@@ -4943,8 +4959,11 @@ function jgAddAppaltatore(){
     if(!a) return;
     nome=a.nome;
   }
-  if(JG_APP_TODAY.some(x=>x.nome===nome)){ alert(nome+' è già stata aggiunta a questa giornata.'); return; }
-  JG_APP_TODAY.push({nome, lavorazione:''});
+  if(JG_APP_TODAY.some(x=>x.nome===nome&&!x.lotto)){ alert(nome+' è già nella giornata: indica prima dove imputare quella riga (la stessa impresa può comparire più volte su lotti diversi).'); return; }
+  const noto=sel.value==='extra'?null:ctrlAppaltatoriPerGiornale()[Number(sel.value)];
+  const giaUsati=JG_APP_TODAY.filter(x=>x.nome===nome).map(x=>x.lotto);
+  const lottiLiberi=noto?noto.lotti.filter(l=>!giaUsati.includes(l)):[];
+  JG_APP_TODAY.push({nome, lavorazione:'', lotto:lottiLiberi.length===1?lottiLiberi[0]:''});
   sel.value='';
   jgAppSelectChanged();
   const list=document.getElementById('jg-appaltatori-oggi');
@@ -4955,34 +4974,47 @@ function jgRemoveAppaltatore(i){
   const list=document.getElementById('jg-appaltatori-oggi');
   if(list) list.innerHTML = jgRenderAppaltatoriOggiHtml();
 }
-// Elenco appaltatori/subappaltatori noti per il lotto corrente, usato per precompilare il giornale di cantiere
+// Elenco di tutte le imprese note sul cantiere (tutti i lotti + appaltatori generali), senza doppioni, con i lotti su cui lavorano
 function ctrlAppaltatoriPerGiornale(){
-  const root=ctrlAnagRecord();
-  const list=[];
-  (root.appaltatrici||[]).forEach((a,i)=>{ const nome=(a.denominazione||a.ragioneSociale||'').trim(); if(nome) list.push({nome, tipo:'Appaltatrice'}); });
-  (root.subappaltatori||[]).forEach((s,i)=>{ const nome=(s.ragioneSociale||s.lavorazione||'').trim(); if(nome) list.push({nome, tipo:s.lavorazione||'Subappaltatore'}); });
-  (CTRL_DATA.subappaltatoriGenerali||[]).filter(s=>(s.lotti||[]).includes(CTRL_BUILDING)).forEach(s=>{ const nome=(s.ragioneSociale||s.lavorazione||'').trim(); if(nome) list.push({nome, tipo:(s.lavorazione||'Subappaltatore')+' · generale'}); });
-  return list;
+  const list=[],idx={};
+  const add=(nome,tipo,lotti)=>{nome=(nome||'').trim();if(!nome)return;const k=nome.toLowerCase();if(idx[k]){lotti.forEach(l=>{if(!idx[k].lotti.includes(l))idx[k].lotti.push(l)});return}idx[k]={nome,tipo,lotti:[...lotti]};list.push(idx[k])};
+  CTRL_BUILDINGS.forEach(([k])=>{const r=CTRL_DATA.anagrafica[k]||{};const legacy=r.azienda&&(r.azienda.denominazione||r.azienda.ragioneSociale);if(legacy)add(legacy,'Appaltatrice',[k]);(r.appaltatrici||[]).forEach(a=>add(a.denominazione||a.ragioneSociale,'Appaltatrice',[k]));(r.subappaltatori||[]).forEach(x=>add(x.ragioneSociale||x.lavorazione,x.lavorazione||'Subappaltatore',[k]))});
+  (CTRL_DATA.subappaltatoriGenerali||[]).forEach(x=>add(x.ragioneSociale||x.lavorazione,(x.lavorazione||'Subappaltatore')+' · generale',(x.lotti||[]).filter(l=>CTRL_BUILDINGS.some(b=>b[0]===l))));
+  return list.sort((x,y)=>x.nome.localeCompare(y.nome,'it'));
+}
+function jgGiorniFiltrati(){
+  const tutti=[...CTRL_DATA.giornale].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  return CTRL_JG_FILTRO==='all'?tutti:tutti.filter(x=>jgRighe(x).some(r=>r.lotto===CTRL_JG_FILTRO));
+}
+function jgRenderKpiHtml(giorni){
+  const validati=giorni.filter(x=>x.stato==='Validato').length,foto=giorni.reduce((s,x)=>s+(Array.isArray(x.foto)?x.foto.length:0),0),presenze=giorni.reduce((s,x)=>s+(Number(x.presenze)||0),0);
+  return `<div class="ctrl-kpi"><strong>${giorni.length}</strong><span>Giornate registrate</span></div><div class="ctrl-kpi"><strong>${validati}</strong><span>Giornate validate</span></div><div class="ctrl-kpi"><strong>${presenze}</strong><span>Presenze complessive</span></div><div class="ctrl-kpi"><strong>${foto}</strong><span>Foto allegate</span></div>`;
+}
+function jgRenderCardsHtml(giorni){
+  const cards=giorni.map(x=>{
+    const tutte=jgRighe(x),righe=CTRL_JG_FILTRO==='all'?tutte:tutte.filter(r=>r.lotto===CTRL_JG_FILTRO);
+    const appHtml=`<div class="diary-app-list">${righe.map(a=>`<div class="diary-app-item"><div class="diary-app-dot">${ctrlInitials(a.nome)}</div><b>${ctrlEsc(a.nome)}</b>${jgLottoChip(a.lotto)}<span>${ctrlEsc(a.lavorazione||'presente, nessuna nota sull’attività')}</span></div>`).join('')}</div>`;
+    const lottiGiornata=[...new Set(tutte.map(r=>r.lotto).filter(Boolean))];
+    const ddtHtml = x.ddtArrivati===undefined ? '' : `<div class="diary-work" style="margin-top:9px"><b>DDT (documenti di trasporto)</b><br><span class="ctrl-chip ${x.ddtArrivati?'ok':''}" style="${x.ddtArrivati?'':'background:#f2f0ec;color:#999'}">${x.ddtArrivati?'✓ Arrivati':'Nessuno arrivato'}</span>${x.ddtNote?' · '+ctrlEsc(x.ddtNote):''}</div>`;
+    return `<article class="diary-day"><div class="diary-day-head"><div><h3>${ctrlDateIt(x.data)} · ${ctrlEsc(x.compilatoDa||x.ruolo||'')}</h3><small>${lottiGiornata.map(l=>ctrlEsc(ctrlName(l))).join(' · ')||'-'}</small></div><div><span class="ctrl-chip ${x.stato==='Validato'?'ok':x.stato==='Da validare'?'warn':''}">${ctrlEsc(x.stato||'Bozza')}</span> <button class="ctrl-btn red" onclick="ctrlDel('giornale','${x.id}')">Elimina</button></div></div><div class="diary-day-body"><div class="diary-facts"><div class="diary-fact"><span>Meteo</span><b>${ctrlEsc(x.meteo||'-')}</b></div><div class="diary-fact"><span>Imprese</span><b>${new Set(tutte.map(r=>r.nome)).size}</b></div><div class="diary-fact"><span>Addetti</span><b>${ctrlEsc(x.presenze||'0')}</b></div><div class="diary-fact"><span>Orario</span><b>${ctrlEsc(x.orario||'-')}</b></div></div><div class="jg-section-lbl">Chi ha lavorato, dove e cosa${CTRL_JG_FILTRO!=='all'&&righe.length<tutte.length?` <span style="text-transform:none;letter-spacing:0;font-weight:700">· mostrate solo le righe di ${ctrlEsc(ctrlName(CTRL_JG_FILTRO))} (${righe.length} di ${tutte.length})</span>`:''}</div>${appHtml}${x.attrezzature?`<div class="diary-work" style="margin-top:9px"><b>Mezzi e attrezzature</b><br>${ctrlEsc(x.attrezzature)}</div>`:''}${ddtHtml}${x.note?`<div class="diary-work" style="margin-top:9px"><b>Note, criticità e disposizioni</b><br>${ctrlEsc(x.note)}</div>`:''}${Array.isArray(x.foto)&&x.foto.length?`<div class="diary-photos">${x.foto.map((f,i)=>`<a href="${f.dati}" download="${ctrlEsc(f.nome||`foto-${i+1}.jpg`)}"><img src="${f.dati}" alt="Foto giornata"></a>`).join('')}</div>`:''}</div></article>`;
+  }).join('');
+  return cards||`<div class="ctrl-card ctrl-empty">${CTRL_JG_FILTRO==='all'?'Nessuna giornata registrata.':'Nessuna giornata con lavori imputati a '+ctrlEsc(ctrlName(CTRL_JG_FILTRO))+'.'}</div>`;
+}
+// Cambiare il filtro aggiorna solo elenco e contatori, senza svuotare la giornata in compilazione
+function jgSetFiltro(v){
+  CTRL_JG_FILTRO=v;const g=jgGiorniFiltrati();
+  const k=document.getElementById('jg-kpis'),l=document.getElementById('jg-list');
+  if(k)k.innerHTML=jgRenderKpiHtml(g);if(l)l.innerHTML=jgRenderCardsHtml(g);
 }
 function ctrlRenderGiornale(){
-  const giorni=ctrlRows('giornale').sort((a,b)=>(b.data||'').localeCompare(a.data||''));
-  const validati=giorni.filter(x=>x.stato==='Validato').length,foto=giorni.reduce((s,x)=>s+(Array.isArray(x.foto)?x.foto.length:0),0),presenze=giorni.reduce((s,x)=>s+(Number(x.presenze)||0),0);
-  const cards=giorni.map(x=>{
-    const appList=Array.isArray(x.appaltatori)?x.appaltatori:null;
-    const appHtml=appList&&appList.length
-      ? `<div class="diary-app-list">${appList.map(a=>`<div class="diary-app-item"><div class="diary-app-dot">${ctrlInitials(a.nome)}</div><b>${ctrlEsc(a.nome)}</b><span>${ctrlEsc(a.lavorazione||'presente, nessuna nota sull’attività')}</span></div>`).join('')}</div>`
-      : `<div class="diary-work">${ctrlEsc(x.lavorazione||x.lavorazioni||'-')}</div>`; // retrocompatibilità giornate salvate col vecchio formato
-    const impresePresenti=appList&&appList.length ? appList.map(a=>a.nome).join(', ') : (x.impresa||'-');
-    const ddtHtml = x.ddtArrivati===undefined ? '' : `<div class="diary-work" style="margin-top:9px"><b>DDT (documenti di trasporto)</b><br><span class="ctrl-chip ${x.ddtArrivati?'ok':''}" style="${x.ddtArrivati?'':'background:#f2f0ec;color:#999'}">${x.ddtArrivati?'✓ Arrivati':'Nessuno arrivato'}</span>${x.ddtNote?' · '+ctrlEsc(x.ddtNote):''}</div>`;
-    return `<article class="diary-day"><div class="diary-day-head"><div><h3>${ctrlDateIt(x.data)} · ${ctrlEsc(x.compilatoDa||x.ruolo||'')}</h3><small>${ctrlEsc(impresePresenti)}</small></div><div><span class="ctrl-chip ${x.stato==='Validato'?'ok':x.stato==='Da validare'?'warn':''}">${ctrlEsc(x.stato||'Bozza')}</span> <button class="ctrl-btn red" onclick="ctrlDel('giornale','${x.id}')">Elimina</button></div></div><div class="diary-day-body"><div class="diary-facts"><div class="diary-fact"><span>Meteo</span><b>${ctrlEsc(x.meteo||'-')}</b></div><div class="diary-fact"><span>Appaltatori</span><b>${appList?appList.length:(x.impresa?1:0)}</b></div><div class="diary-fact"><span>Addetti</span><b>${ctrlEsc(x.presenze||'0')}</b></div><div class="diary-fact"><span>Orario</span><b>${ctrlEsc(x.orario||'-')}</b></div></div><div class="jg-section-lbl">Chi ha lavorato e cosa</div>${appHtml}${x.attrezzature?`<div class="diary-work" style="margin-top:9px"><b>Mezzi e attrezzature</b><br>${ctrlEsc(x.attrezzature)}</div>`:''}${ddtHtml}${x.note?`<div class="diary-work" style="margin-top:9px"><b>Note, criticità e disposizioni</b><br>${ctrlEsc(x.note)}</div>`:''}${Array.isArray(x.foto)&&x.foto.length?`<div class="diary-photos">${x.foto.map((f,i)=>`<a href="${f.dati}" download="${ctrlEsc(f.nome||`foto-${i+1}.jpg`)}"><img src="${f.dati}" alt="Foto giornata"></a>`).join('')}</div>`:''}</div></article>`;
-  }).join('');
+  const giorni=jgGiorniFiltrati();
   const appaltatori=ctrlAppaltatoriPerGiornale();
   JG_APP_TODAY = []; // ogni apertura del pannello riparte da una giornata vuota
   const selOptions = `<option value="">— scegli una società appaltatrice —</option>`
-    + appaltatori.map((a,i)=>`<option value="${i}">${ctrlEsc(a.nome)}${a.tipo?' · '+ctrlEsc(a.tipo):''}</option>`).join('')
+    + appaltatori.map((a,i)=>`<option value="${i}">${ctrlEsc(a.nome)}${a.tipo?' · '+ctrlEsc(a.tipo):''}${a.lotti.length?' ('+a.lotti.map(l=>ctrlEsc(ctrlName(l))).join(', ')+')':''}</option>`).join('')
     + `<option value="extra">Altra impresa non elencata…</option>`;
-  return ctrlShell('Giornale di cantiere','Diario giornaliero completo e indipendente per '+ctrlName(CTRL_BUILDING)+'.',`
-    <div class="ctrl-kpis"><div class="ctrl-kpi"><strong>${giorni.length}</strong><span>Giornate registrate</span></div><div class="ctrl-kpi"><strong>${validati}</strong><span>Giornate validate</span></div><div class="ctrl-kpi"><strong>${presenze}</strong><span>Presenze complessive</span></div><div class="ctrl-kpi"><strong>${foto}</strong><span>Foto allegate</span></div></div>
+  return ctrlShell('Giornale di cantiere','Un unico diario per tutto il cantiere D|Park: per ogni impresa si indica il lotto a cui imputare il lavoro, oppure D|Park generale per strade e parti comuni.',`
+    <div class="ctrl-kpis" id="jg-kpis">${jgRenderKpiHtml(giorni)}</div>
     <details class="ctrl-card" open><summary style="cursor:pointer;font-weight:800;color:var(--navy)">+ Nuova giornata</summary><div style="margin-top:14px">
       <div class="ctrl-form">
         <input id="jg_data" type="date" value="${new Date().toISOString().slice(0,10)}"><select id="jg_ruolo"><option>Direttore lavori</option><option>Tecnico di cantiere</option><option>Project manager</option><option>Amministrazione</option></select>
@@ -4996,7 +5028,7 @@ function ctrlRenderGiornale(){
           <input type="text" id="jg-app-extra-nome" placeholder="Nome impresa" style="display:none">
           <button type="button" class="jg-add-btn" onclick="jgAddAppaltatore()">+ Aggiungi</button>
         </div>
-        ${appaltatori.length?'':'<div class="ctrl-empty" style="padding:10px 0 0;text-align:left">Nessuna società ancora registrata in Anagrafica per questo lotto — puoi comunque aggiungerla con "Altra impresa non elencata".</div>'}
+        <div class="ctrl-empty" style="padding:8px 0 0;text-align:left">Per ogni impresa scegli <b>dove imputare</b> il lavoro: un lotto oppure <b>D|Park generale</b> (strade e parti comuni). La stessa impresa può essere aggiunta più volte se lavora su lotti diversi.</div>
         <div id="jg-appaltatori-oggi">${jgRenderAppaltatoriOggiHtml()}</div>
       </div>
       <div class="ctrl-card" style="margin-top:16px;background:#f7f5f0">
@@ -5016,18 +5048,21 @@ function ctrlRenderGiornale(){
         </div>
       </div>
       <button class="ctrl-btn" style="margin-top:6px;padding:11px 22px;font-size:12px" onclick="ctrlAddJournal()">✓ Salva giornata</button>
-    </div></details><div style="margin-top:14px">${cards||'<div class="ctrl-card ctrl-empty">Nessuna giornata registrata.</div>'}</div>`);
+    </div></details>
+    <div class="jg-filtro"><div class="jg-section-lbl">Giornate registrate</div><select onchange="jgSetFiltro(this.value)"><option value="all">Tutto il cantiere</option>${jgLotti().map(([k,n])=>`<option value="${k}" ${CTRL_JG_FILTRO===k?'selected':''}>${ctrlEsc(n)}</option>`).join('')}</select></div>
+    <div id="jg-list">${jgRenderCardsHtml(giorni)}</div>`);
 }
 async function ctrlAddJournal(){
   if(!CAN_EDIT){openLogin();return}
   if(!jg_data.value){alert('Inserisci la data della giornata.');return}
   if(!JG_APP_TODAY.length){alert('Aggiungi almeno una società appaltatrice dal menù a tendina.');return}
-  const appaltatoriOggi=JG_APP_TODAY.map(a=>({nome:a.nome, lavorazione:(a.lavorazione||'').trim()}));
+  if(JG_APP_TODAY.some(a=>!a.lotto)){alert('Per ogni impresa indica dove imputare il lavoro (un lotto oppure D|Park generale).');return}
+  const appaltatoriOggi=JG_APP_TODAY.map(a=>({nome:a.nome, lavorazione:(a.lavorazione||'').trim(), lotto:a.lotto}));
   const files=[...(jg_foto.files||[])];if(files.length>6){alert('Puoi allegare al massimo 6 foto.');return}if(files.some(f=>f.size>1.5*1024*1024)){alert('Ogni fotografia deve essere inferiore a 1,5 MB.');return}
   const read=f=>new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve({nome:f.name,dati:r.result});r.onerror=reject;r.readAsDataURL(f)});
   const foto=await Promise.all(files.map(read));
   CTRL_DATA.giornale.push({
-    id:Date.now()+Math.random(), fabbricato:CTRL_BUILDING, data:jg_data.value, ruolo:jg_ruolo.value, compilatoDa:jg_compilatoDa.value,
+    id:Date.now()+Math.random(), fabbricato:'unico', lotti:[...new Set(appaltatoriOggi.map(a=>a.lotto))], data:jg_data.value, ruolo:jg_ruolo.value, compilatoDa:jg_compilatoDa.value,
     meteo:jg_meteo.value, presenze:jg_presenze.value, orario:jg_orario.value, attrezzature:jg_attrezzature.value,
     appaltatori:appaltatoriOggi, ddtArrivati:jg_ddt.checked, ddtNote:jg_ddt_note.value,
     note:jg_note.value, stato:jg_stato.value, foto, creatoIl:new Date().toISOString()
@@ -7075,7 +7110,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     <div class="entity-context"><b id="entity-title">Armonia 1</b><span>Entità autonoma del progetto D|Park</span></div>`;
   tabs.insertAdjacentElement('afterend',nav);
   let entityCategory='vendite';
-  const openEntity=()=>{const bs=document.getElementById('entity-building');CTRL_BUILDING=bs.value;const generale=entityCategory==='subappaltatori'||entityCategory==='professionisti'||entityCategory==='attori_professionisti'||entityCategory==='quadro'||entityCategory==='finanziario'||entityCategory==='budget_costi'||entityCategory==='consuntivo_costi'||entityCategory==='budget_ricavi'||entityCategory==='consuntivo_ricavi'||entityCategory==='riepilogo'||entityCategory==='report_economico'||entityCategory==='sicurezza_aedifica';bs.disabled=generale;document.getElementById('entity-title').textContent=generale?'D|Park generale':ctrlName(CTRL_BUILDING);document.querySelectorAll('.entity-cat').forEach(b=>b.classList.toggle('active',b.dataset.entityCat===entityCategory));if(entityCategory==='vendite')dparkOriginalSw(CTRL_BUILDING);else{proj='ctrl_'+entityCategory;document.getElementById('kpi').style.display='none';document.querySelector('.legend').style.display='none';document.getElementById('check-panel').innerHTML='';ctrlRender(proj)}};
+  const openEntity=()=>{const bs=document.getElementById('entity-building');CTRL_BUILDING=bs.value;const generale=entityCategory==='subappaltatori'||entityCategory==='professionisti'||entityCategory==='attori_professionisti'||entityCategory==='quadro'||entityCategory==='finanziario'||entityCategory==='budget_costi'||entityCategory==='consuntivo_costi'||entityCategory==='budget_ricavi'||entityCategory==='consuntivo_ricavi'||entityCategory==='riepilogo'||entityCategory==='report_economico'||entityCategory==='sicurezza_aedifica';bs.disabled=generale||entityCategory==='giornale';document.getElementById('entity-title').textContent=entityCategory==='giornale'?'D|Park · cantiere unico':generale?'D|Park generale':ctrlName(CTRL_BUILDING);document.querySelectorAll('.entity-cat').forEach(b=>b.classList.toggle('active',b.dataset.entityCat===entityCategory));if(entityCategory==='vendite')dparkOriginalSw(CTRL_BUILDING);else{proj='ctrl_'+entityCategory;document.getElementById('kpi').style.display='none';document.querySelector('.legend').style.display='none';document.getElementById('check-panel').innerHTML='';ctrlRender(proj)}};
   document.getElementById('entity-building').onchange=openEntity;document.querySelectorAll('.entity-cat').forEach(b=>b.onclick=()=>{entityCategory=b.dataset.entityCat;openEntity()});
   await ctrlLoad();
   openEntity();
