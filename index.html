@@ -1093,13 +1093,13 @@ function renderKPI() {
     },
     venduto: {
       title: 'Venduto (Acquisto)',
-      html: kfNote(`Per ogni unità venduta con Tipo Accordo = "Acquisto": il Prezzo Concordato se inserito, altrimenti la stima previsionale (S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq + S.N.R. × €${SNR_PRICE_PER_MQ.toLocaleString('it-IT')}/mq + box eventualmente assegnato).`)
+      html: kfNote(`Per ogni unità venduta con Tipo Accordo = "Acquisto": il Prezzo Concordato se inserito, altrimenti la stima previsionale (S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq + ${SNR_FORMULA_TXT} + box eventualmente assegnato).`)
         + kfRow('Unità con accordo "Acquisto"', vAcqCount)
         + kfTot('Totale', eur(vendutoVal))
     },
     permuta: {
       title: 'Permuta',
-      html: kfNote(`Per ogni unità venduta con Tipo Accordo = "Permuta": il Prezzo Concordato se inserito, altrimenti la stima previsionale (S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq + S.N.R. × €${SNR_PRICE_PER_MQ.toLocaleString('it-IT')}/mq + box eventualmente assegnato).`)
+      html: kfNote(`Per ogni unità venduta con Tipo Accordo = "Permuta": il Prezzo Concordato se inserito, altrimenti la stima previsionale (S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq + ${SNR_FORMULA_TXT} + box eventualmente assegnato).`)
         + kfRow('Unità con accordo "Permuta"', vPerCount)
         + kfTot('Totale', eur(permutaVal))
     },
@@ -1111,7 +1111,7 @@ function renderKPI() {
     },
     invenduto: {
       title: 'Invenduto',
-      html: kfNote(`Per ogni unità non ancora venduta (riservata o disponibile): il Prezzo Previsionale manuale se inserito, altrimenti la stima calcolata (S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq + S.N.R. × €${SNR_PRICE_PER_MQ.toLocaleString('it-IT')}/mq + box eventualmente già assegnato).`)
+      html: kfNote(`Per ogni unità non ancora venduta (riservata o disponibile): il Prezzo Previsionale manuale se inserito, altrimenti la stima calcolata (S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq + ${SNR_FORMULA_TXT} + box eventualmente già assegnato).`)
         + kfRow('Riservate', r)
         + kfRow('Disponibili', d)
         + kfTot('Totale', eur(invendutoVal))
@@ -1501,7 +1501,9 @@ function sw(p) {
 
 // ─── DASHBOARD ───
 const PRICE_PER_MQ = 2000;
-const SNR_PRICE_PER_MQ = 300; // €/mq di S.N.R. (balconi/terrazzi), sommato al prezzo previsionale
+const SNR_DIVISORE = 3; // S.N.R. (balconi/terrazzi): i mq si dividono per 3 e si valorizzano al prezzo pieno dell'appartamento
+const SNR_PRICE_PER_MQ = PRICE_PER_MQ / SNR_DIVISORE; // = €666,67/mq di S.N.R.
+const SNR_FORMULA_TXT = `S.N.R. ÷ ${SNR_DIVISORE} × €${PRICE_PER_MQ.toLocaleString('it-IT')}/mq`;
 const BOX_PRICE_PER_MQ = 1000;
 
 // ── Elenco box per progetto (usato per calcolare il valore del/dei box assegnati a un'unità) ──
@@ -1651,7 +1653,7 @@ function parseSL(sl) {
   return parseFloat(String(sl).replace(',','.')) || 0;
 }
 
-// Prezzo previsionale unità: (listino se impostato, altrimenti S.L. × €2.000/mq + S.N.R. × €1.000/mq) + box auto × €1.000/mq
+// Prezzo previsionale unità: (listino se impostato, altrimenti S.L. × €2.000/mq + S.N.R. ÷ 3 × €2.000/mq) + box auto × €1.000/mq
 function prevOf(u, projKey) {
   projKey = projKey || proj;
   const l = parseFloat((u.listino||'').replace(/\./g,'').replace(',','.')) || 0;
@@ -2362,7 +2364,7 @@ function openM(uid) {
     : '';
   document.getElementById('mprev').innerHTML = `
     <div class="mprev-box">
-      <div class="mprev-lbl">📐 Prezzo previsionale ${(() => { const be=boxEurOf(u,proj); const bt = be>0 ? ` + box auto ${u.box} (€${be.toLocaleString('it-IT')})` : ''; return hasListino ? `(listino${bt})` : `(${sl > 0 ? sl.toLocaleString('it-IT',{minimumFractionDigits:2}) : '—'} mq S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}${parseSL(u.snr) > 0 ? ` + ${parseSL(u.snr).toLocaleString('it-IT',{minimumFractionDigits:2})} mq S.N.R. × €${SNR_PRICE_PER_MQ.toLocaleString('it-IT')}` : ''}${bt})`; })()}</div>
+      <div class="mprev-lbl">📐 Prezzo previsionale ${(() => { const be=boxEurOf(u,proj); const bt = be>0 ? ` + box auto ${u.box} (€${be.toLocaleString('it-IT')})` : ''; return hasListino ? `(listino${bt})` : `(${sl > 0 ? sl.toLocaleString('it-IT',{minimumFractionDigits:2}) : '—'} mq S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}${parseSL(u.snr) > 0 ? ` + ${parseSL(u.snr).toLocaleString('it-IT',{minimumFractionDigits:2})} mq S.N.R. ÷ ${SNR_DIVISORE} × €${PRICE_PER_MQ.toLocaleString('it-IT')}` : ''}${bt})`; })()}</div>
       <div class="mprev-val">${prevEur > 0 ? '€ ' + prevEur.toLocaleString('it-IT') : '—'}</div>
     </div>
     <div class="mprev-box">
@@ -2465,7 +2467,7 @@ function refreshPrevPreview() {
   const box0 = document.getElementById('mprev').children[0];
   if (box0) {
     box0.querySelector('.mprev-val').textContent = prevEur > 0 ? '€ ' + prevEur.toLocaleString('it-IT') : '—';
-    box0.querySelector('.mprev-lbl').textContent = '📐 Prezzo previsionale ' + (lVal > 0 ? `(listino${boxTxt})` : `(${parseSL(u.sl).toLocaleString('it-IT',{minimumFractionDigits:2})} mq S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}${parseSL(u.snr) > 0 ? ` + ${parseSL(u.snr).toLocaleString('it-IT',{minimumFractionDigits:2})} mq S.N.R. × €${SNR_PRICE_PER_MQ.toLocaleString('it-IT')}` : ''}${boxTxt})`);
+    box0.querySelector('.mprev-lbl').textContent = '📐 Prezzo previsionale ' + (lVal > 0 ? `(listino${boxTxt})` : `(${parseSL(u.sl).toLocaleString('it-IT',{minimumFractionDigits:2})} mq S.L. × €${PRICE_PER_MQ.toLocaleString('it-IT')}${parseSL(u.snr) > 0 ? ` + ${parseSL(u.snr).toLocaleString('it-IT',{minimumFractionDigits:2})} mq S.N.R. ÷ ${SNR_DIVISORE} × €${PRICE_PER_MQ.toLocaleString('it-IT')}` : ''}${boxTxt})`);
   }
   const fprRaw = (document.getElementById('fpr').value||'').replace(/\./g,'').replace(/[^0-9]/g,'');
   const concEur = parseFloat(fprRaw) || 0;
@@ -2621,7 +2623,7 @@ function openListinoBulk() {
   if (typeof CAN_EDIT !== 'undefined' && !CAN_EDIT) { openLogin(); return; }
   if (!D[proj] || !D[proj].units) return; // solo dentro un lotto (a1, a2, ...)
   document.getElementById('listino-bulk-sub').textContent = D[proj].name || proj;
-  document.getElementById('listino-bulk-formula').textContent = 'S.L. × €' + PRICE_PER_MQ.toLocaleString('it-IT') + '/mq + S.N.R. × €' + SNR_PRICE_PER_MQ.toLocaleString('it-IT') + '/mq';
+  document.getElementById('listino-bulk-formula').textContent = 'S.L. × €' + PRICE_PER_MQ.toLocaleString('it-IT') + '/mq + ' + SNR_FORMULA_TXT;
   document.getElementById('listino-bulk-search').value = '';
   document.getElementById('listino-bulk-saved').style.display = 'none';
   renderListinoBulkRows();
